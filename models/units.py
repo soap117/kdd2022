@@ -3,13 +3,14 @@ import numpy as np
 import jieba
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 smooth = SmoothingFunction()
+from config import config
 def check(key, gtitles, candidata_title):
     key_cut = jieba.lcut(key)
     candidata_title = jieba.lcut(candidata_title)
     gtitles = [jieba.lcut(x) for x in gtitles]
     can_simi = sentence_bleu([candidata_title], key_cut, weights=(0.5, 0.5), smoothing_function=smooth.method1)
     grd_simi = sentence_bleu(gtitles, key_cut, weights=(0.5, 0.5), smoothing_function=smooth.method1)
-    return can_simi < 0.25*grd_simi
+    return can_simi < 0.25*grd_simi or grd_simi <= 0
 
 def check_section(key, gsections, candidata_section, bm25, cind):
     key_cut = jieba.lcut(key)
@@ -19,8 +20,7 @@ def check_section(key, gsections, candidata_section, bm25, cind):
     can_simi = sentence_bleu([candidata_section], key_cut, weights=(0.5, 0.5), smoothing_function=smooth.method1)*inversed_punishment
     can_simi_2 = sentence_bleu(gsections, candidata_section, weights=(0.5, 0.5), smoothing_function=smooth.method1)
     grd_simi = sentence_bleu(gsections, key_cut, weights=(0.5, 0.5), smoothing_function=smooth.method1)*inversed_punishment
-    bm25_score = bm25.get_batch_scores(key_cut, [cind])
-    return can_simi < 0.25*grd_simi and can_simi_2 < 0.25
+    return (can_simi < 0.25*grd_simi or grd_simi <= 0) and can_simi_2 < 0.25
 
 def neg_sample_title(key, gtitles, candidate_titles, n):
     count = 0
@@ -105,41 +105,113 @@ def get_sec_att_map(sample_query, input_inds, infer_title_candidates, title2sect
 
 def get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section):
     sample_query = []
+    sample_annotation = []
     sample_title_candidates = []
     sample_section_candidates = []
     infer_title_candidates = []
+    sample_pos_ans = []
     for key in keys:
-        if len(key['rpsecs'][0]) <= 0:
+        if len(key['rpsecs'][0]) <= 0 or len(key['key']) < 1:
             continue
-        print('****************************************************')
-        print(key['key'])
         sample_query.append(key['key'])
+        sample_annotation.append(key['anno'])
         key_cut = jieba.lcut(key['key'])
         infer_titles = bm25_title.get_top_n(key_cut, titles, 4)
         infer_title_candidates.append(infer_titles)
         neg_titles = neg_sample_title(key['key'], [x[-1] for x in key['rpsecs']], titles, 5)
         neg_sections = neg_sample_section(key['key'], key['rsecs'], sections, 5, bm25_section)
-        pos_section = key['rsecs'][np.random.randint(len(key['rsecs']))]
-        pos_title = key['rpsecs'][np.random.randint(len(key['rpsecs']))][-1]
-        sample_title_candidates.append([pos_title] + neg_titles)
-        sample_section_candidates.append([pos_section] + neg_sections)
-        print('____________________________________________________')
-        print(neg_titles)
-        print('____________________________________________________')
-        for x in neg_sections:
-            print(x)
-            print('____________________________________________________')
-    return sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates
+        #pos_section = key['rsecs'][np.random.randint(len(key['rsecs']))]
+        #pos_title = key['rpsecs'][np.random.randint(len(key['rpsecs']))][-1]
+        sample_pos_ans.append((key['rsecs'], key['rpsecs']))
+        sample_title_candidates.append(neg_titles)
+        sample_section_candidates.append(neg_sections)
+    return sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_pos_ans, sample_annotation
 
 from torch.utils.data import Dataset, DataLoader
+import pickle, re
+def read_clean_data(path):
+    sample_data = pickle.load(open(path, 'rb'))
+    keys = []
+    titles = []
+    sections = []
+    title2sections = {}
+    urls = set()
+    sec2id = {}
+    for one in sample_data[0:500]:
+        if len(one['urls']) > 0:
+            for tid, (title, url) in enumerate(zip(one['rpsecs'], one['urls'])):
+                if len(title) > 0:
+                    web_title = title[-1]
+                    web_title = re.sub('_.+', '', web_title)
+                    web_title = re.sub(' -.+', '', web_title)
+                    one['rpsecs'][tid][-1] = web_title
+                    sections += title[0:-1]
+                    titles.append(web_title)
+                    if web_title in title2sections and url not in urls:
+                        title2sections[web_title] += title[0:-1]
+                        urls.add(url)
+                    elif web_title not in title2sections:
+                        title2sections[web_title] = title[0:-1]
+                        urls.add(url)
 
+            keys.append(one)
+    titles = list(set(titles))
+    sections = list(set(sections))
+    for k in range(len(sections)-1, -1, -1):
+        if len(sections[k]) < 30:
+            del sections[k]
+    for tid, temp in enumerate(sections):
+        sec2id[temp] = tid
+    return keys, titles, sections, title2sections, sec2id
+from rank_bm25 import BM25Okapi
 class MyData(Dataset):
-    def __init__(self, config):
-        if config.use_simple_reason:
-            ans_length = 4
-        else:
-            ans_length = 11
-        self.source = []
-        self.target = []
+    def __init__(self, config, tokenizer):
         self.config = config
         self.data_path = config.data_path
+        keys, titles, sections, title2sections, sec2id = read_clean_data(config.data_path)
+        self.title2sections = title2sections
+        self.sec2id = sec2id
+        corpus = sections
+        tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
+        bm25_section = BM25Okapi(tokenized_corpus)
+
+        corpus = titles
+        tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
+        bm25_title = BM25Okapi(tokenized_corpus)
+        sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_pos_ans, sample_annotation = get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section)
+        self.sample_query = sample_query
+        self.sample_title_candidates = sample_title_candidates
+        self.sample_section_candidates = sample_section_candidates
+        self.sample_pos_ans = sample_pos_ans
+        self.sample_annotation = sample_annotation
+        self.infer_title_candidates = infer_title_candidates
+        self.bm25_title = bm25_title
+        self.bm25_section = bm25_section
+        self.tokenizer = tokenizer
+
+    def __len__(self):
+        return len(self.sample_query)
+
+    def __getitem__(self, item):
+        pos_section = self.sample_pos_ans[item][0][np.random.randint(len(self.sample_pos_ans[item][0]))]
+        pos_title = self.sample_pos_ans[item][1][np.random.randint(len(self.sample_pos_ans[item][1]))][-1]
+        sample_query = self.sample_query[item]
+        sample_title_candidates = [pos_title] + self.sample_title_candidates[item]
+        sample_section_candidates = [pos_section] + self.sample_section_candidates[item]
+        infer_title_candidates = self.infer_title_candidates[item]
+        sample_annotation = self.sample_annotation[item]
+        return sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_annotation
+
+    def collate_fn(self, train_data):
+        querys = [data[0] for data in train_data]
+        titles = [data[1] for data in train_data]
+        sections = [data[2] for data in train_data]
+        infer_titles = [data[3] for data in train_data]
+        annotations = [data[4] for data in train_data]
+        annotations_ids = self.tokenizer(annotations, return_tensors="pt", padding=True)
+        return querys, titles, sections, infer_titles, annotations_ids
+
+
+
+
+

@@ -31,14 +31,15 @@ class myThread(threading.Thread):
         self.stops = tuple(stops)
 
     def web_read(self, url):
-        time.sleep(0.5*np.random.rand()+0.5)
         if 'baike.baidu' not in url or len(url) < 2:
+            #print('Skipping')
             return [], True
         lock_d.acquire()
         if url in url_done:
             lock_d.release()
             return [], False
         lock_d.release()
+        time.sleep(0.5*np.random.rand()+0.5)
         #print(url)
         flag = False
         headers = {
