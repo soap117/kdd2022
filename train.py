@@ -141,7 +141,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             min_loss = test_loss
             #_, _, _, test_loss, result_one = test(model, optimizer_bert, optimizer, test_dataloader, config, record,
             #                                      True)
-            state = {'epoch': epoch, 'config': config, 'models': models, 'modelp':modelp, 'model':model}
+            state = {'epoch': epoch, 'config': config, 'models': models, 'modelp':modelp, 'model':model, 'eval_rs': eval_ans}
             torch.save(state, './results/'+'best_model.bin')
     return state
 
