@@ -53,7 +53,7 @@ def neg_sample_section(key, gsections, candidate_sections, n, bm25):
     return rs
 
 def get_decoder_att_map(tokenizer, sep, ids, scores):
-    spe_seq = tokenizer.encode(sep, is_pretokenized=True)
+    spe_seq = tokenizer.encode(sep)
     mapping = np.zeros([len(ids), scores.shape[1], ids.shape[1]])
     for bindex, (bscore, bids) in enumerate(zip(scores, ids)):
         i = 0
