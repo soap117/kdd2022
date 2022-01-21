@@ -56,9 +56,6 @@ def build(config):
 
 def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
     min_loss = 1000
-    t_count = 0
-    test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader,
-                               loss_func)
     for epoch in range(config.train_epoch):
         for step, (querys, titles, sections, infer_titles, annotations_ids) in tqdm(enumerate(train_dataloader)):
             dis_final, lossp = modelp(querys, titles)
