@@ -116,10 +116,10 @@ def get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section):
         sample_query.append(key['key'])
         sample_annotation.append(key['anno'])
         key_cut = jieba.lcut(key['key'])
-        infer_titles = bm25_title.get_top_n(key_cut, titles, 4)
+        infer_titles = bm25_title.get_top_n(key_cut, titles, config.infer_title_range)
         infer_title_candidates.append(infer_titles)
-        neg_titles = neg_sample_title(key['key'], [x[-1] for x in key['rpsecs']], titles, 5)
-        neg_sections = neg_sample_section(key['key'], key['rsecs'], sections, 5, bm25_section)
+        neg_titles = neg_sample_title(key['key'], [x[-1] for x in key['rpsecs']], titles, config.neg_num)
+        neg_sections = neg_sample_section(key['key'], key['rsecs'], sections, config.neg_num, bm25_section)
         #pos_section = key['rsecs'][np.random.randint(len(key['rsecs']))]
         #pos_title = key['rpsecs'][np.random.randint(len(key['rpsecs']))][-1]
         sample_pos_ans.append((key['rsecs'], key['rpsecs']))
@@ -131,7 +131,6 @@ from torch.utils.data import Dataset, DataLoader
 import pickle, re
 def read_clean_data(path):
     sample_data = pickle.load(open(path, 'rb'))
-    keys = []
     titles = []
     sections = []
     title2sections = {}
@@ -154,7 +153,6 @@ def read_clean_data(path):
                         title2sections[web_title] = title[0:-1]
                         urls.add(url)
 
-            keys.append(one)
     titles = list(set(titles))
     sections = list(set(sections))
     for k in range(len(sections)-1, -1, -1):
@@ -162,22 +160,23 @@ def read_clean_data(path):
             del sections[k]
     for tid, temp in enumerate(sections):
         sec2id[temp] = tid
-    return keys, titles, sections, title2sections, sec2id
+    return titles, sections, title2sections, sec2id
+
+def read_data(path):
+    sample_data = pickle.load(open(path, 'rb'))
+    keys = []
+    for one in sample_data:
+        if len(one['urls']) > 0:
+            keys.append(one)
+    return keys
 from rank_bm25 import BM25Okapi
 class MyData(Dataset):
-    def __init__(self, config, tokenizer):
+    def __init__(self, config, tokenizer, data_path, titles, sections, title2sections, sec2id, bm25_title, bm25_section):
         self.config = config
         self.data_path = config.data_path
-        keys, titles, sections, title2sections, sec2id = read_clean_data(config.data_path)
+        keys = read_data(data_path)
         self.title2sections = title2sections
         self.sec2id = sec2id
-        corpus = sections
-        tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
-        bm25_section = BM25Okapi(tokenized_corpus)
-
-        corpus = titles
-        tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
-        bm25_title = BM25Okapi(tokenized_corpus)
         sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_pos_ans, sample_annotation = get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section)
         self.sample_query = sample_query
         self.sample_title_candidates = sample_title_candidates
