@@ -11,7 +11,7 @@ class Config(object):
         self.key_emb_dim = 64
         self.batch_size = 2
         self.lr = 1e-4
-        self.train_epoch = 4
+        self.train_epoch = 10
         self.data_path = './data/mydata.pkl'
         self.neg_num = 5
         self.infer_title_range = 10
