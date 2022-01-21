@@ -6,6 +6,11 @@ class Config(object):
     def __init__(self, batch_size):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')   # 设备
         self.title_tokenizer = BertTokenizer.from_pretrained('bert-base-chinese')
+        self.gpu_id = 2
+        try:
+            torch.cuda.set_device(self.gpu_id)
+        except:
+            torch.cuda.set_device(0)
         self.key_tokenizer= self.title_tokenizer
         self.title_emb_dim = 64
         self.key_emb_dim = 64

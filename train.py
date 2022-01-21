@@ -1,5 +1,6 @@
-from models.units import MyData, get_decoder_att_map
+import torch
 from config import config
+from models.units import MyData, get_decoder_att_map
 from models.bert_tokenizer import BertTokenizer
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -7,7 +8,6 @@ from models.modeling_gpt2_att import GPT2LMHeadModel
 from tqdm import tqdm
 from transformers import AdamW
 import numpy as np
-import torch
 import jieba
 from models.units import read_clean_data
 from rank_bm25 import BM25Okapi
