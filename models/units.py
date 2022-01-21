@@ -3,6 +3,7 @@ import numpy as np
 import jieba
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 smooth = SmoothingFunction()
+from tqdm import tqdm
 from config import config
 def check(key, gtitles, candidata_title):
     key_cut = jieba.lcut(key)
@@ -110,7 +111,7 @@ def get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section):
     sample_section_candidates = []
     infer_title_candidates = []
     sample_pos_ans = []
-    for key in keys:
+    for key in tqdm(keys):
         if len(key['rpsecs'][0]) <= 0 or len(key['key']) < 1:
             continue
         sample_query.append(key['key'])
