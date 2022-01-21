@@ -27,7 +27,7 @@ def neg_sample_title(key, gtitles, candidate_titles, n):
     count = 0
     try_t = 0
     rs = []
-    while count < n and try_t < 1000:
+    while count < n and try_t < 100:
         ind = np.random.randint(0, len(candidate_titles))
         candidate_title = candidate_titles[ind]
         if check(key, gtitles, candidate_title):
@@ -40,10 +40,10 @@ def neg_sample_section(key, gsections, candidate_sections, n, bm25):
     count = 0
     rs = []
     try_t = 0
-    while count < n and try_t < 1000:
+    while count < n and try_t < 100:
         ind = np.random.randint(0, len(candidate_sections))
         candidate_section = candidate_sections[ind]
-        if len(candidate_section) < 60:
+        if len(candidate_section) < 30:
             continue
         if check_section(key, gsections, candidate_section, bm25, ind):
             rs.append(candidate_section)
