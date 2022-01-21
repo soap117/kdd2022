@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import jieba
+import time
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 smooth = SmoothingFunction()
 from tqdm import tqdm
@@ -112,6 +113,7 @@ def get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section):
     infer_title_candidates = []
     sample_pos_ans = []
     for key in tqdm(keys):
+        s = time.time()
         if len(key['rpsecs'][0]) <= 0 or len(key['key']) < 1:
             continue
         sample_query.append(key['key'])
@@ -126,6 +128,9 @@ def get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section):
         sample_pos_ans.append((key['rsecs'], key['rpsecs']))
         sample_title_candidates.append(neg_titles)
         sample_section_candidates.append(neg_sections)
+        e = time.time()
+        if e-s > 5:
+            print(key['key'])
     return sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_pos_ans, sample_annotation
 
 from torch.utils.data import Dataset, DataLoader
@@ -137,7 +142,7 @@ def read_clean_data(path):
     title2sections = {}
     urls = set()
     sec2id = {}
-    for one in sample_data[0:500]:
+    for one in sample_data:
         if len(one['urls']) > 0:
             for tid, (title, url) in enumerate(zip(one['rpsecs'], one['urls'])):
                 if len(title) > 0:

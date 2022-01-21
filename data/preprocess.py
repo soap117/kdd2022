@@ -13,9 +13,19 @@ if os.path.exists('./mydata_done_baidu.pkl'):
         paths = pickle.load(f)
 path2file = {}
 for dp in my_data:
-    for eid, rpsec in enumerate(dp['rpsecs']):
-        if len(rpsec) == 0:
-            dp['rpsecs'][eid] = url2secs[dp['urls'][eid]]
+    new_urls = []
+    new_rsecs = []
+    new_rpsecs = []
+    url_set = set()
+    for url, rsec, rpsec in zip(dp['urls'], dp['rsecs'], dp['rpsecs']):
+        if url not in url_set:
+            new_urls.append(url)
+            new_rsecs.append(rsec)
+            new_rpsecs.append(rpsec)
+            url_set.add(url)
+    dp['urls'] = new_urls
+    dp['rsecs'] = new_rsecs
+    dp['rpsecs'] = new_rpsecs
     path2file[dp['file'][2:]] = dp
 with open('./mydata_new_baidu.pkl', 'wb') as f:
     pickle.dump(my_data, f)
