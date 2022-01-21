@@ -134,6 +134,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
                 _, predictions = torch.max(logits, dim=-1)
                 results = tokenizer.batch_decode(predictions)
                 results = tokenizer.convert_tokens_to_string(results)
+                results = [x.replace('[PAD]', '') for x in results]
                 print(results)
         test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader, loss_func)
         if test_loss < min_loss:
@@ -214,6 +215,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             _, predictions = torch.max(logits, dim=-1)
             results = tokenizer.batch_decode(predictions)
             results = tokenizer.convert_tokens_to_string(results)
+            results = [x.replace('[PAD]', '') for x in results]
             eval_ans += results
             targets = annotations_ids['input_ids']
             len_anno = targets.shape[1]
