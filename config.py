@@ -22,6 +22,6 @@ class Config(object):
         self.infer_title_range = 10
         self.infer_title_select = 3
         self.batch_size = batch_size
-        self.infer_section_range = 10
+        self.infer_section_range = 8
         self.infer_section_select = 3
 config = Config(10)
