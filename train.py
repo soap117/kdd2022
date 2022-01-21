@@ -12,7 +12,7 @@ import jieba
 from models.units import read_clean_data
 from rank_bm25 import BM25Okapi
 def build(config):
-    tokenizer = BertTokenizer(vocab_file='./GPT2Chinese/vocab.txt')
+    tokenizer = BertTokenizer(vocab_file='./GPT2Chinese/vocab.txt', do_lower_case=False, never_split=['[SEP]'])
     titles, sections, title2sections, sec2id = read_clean_data('data/mydata_new_baidu.pkl')
     corpus = sections
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
