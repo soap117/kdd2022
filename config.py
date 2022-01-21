@@ -6,6 +6,7 @@ class Config(object):
     def __init__(self, batch_size):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')   # 设备
         self.title_tokenizer = BertTokenizer.from_pretrained('bert-base-chinese')
+        self.title_tokenizer.model_max_length = 300
         self.gpu_id = 2
         try:
             torch.cuda.set_device(self.gpu_id)
@@ -23,4 +24,4 @@ class Config(object):
         self.batch_size = batch_size
         self.infer_section_range = 8
         self.infer_section_select = 3
-config = Config(8)
+config = Config(2)

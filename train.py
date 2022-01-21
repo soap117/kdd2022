@@ -83,14 +83,11 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
                 ls_scores = bm25_section.get_batch_scores(key_cut, temp2_id)
                 cindex = np.argsort(ls_scores)[::-1][0:config.infer_section_range]
                 temp2_pured = []
-                temp3_pured = []
                 for oid, one in enumerate(cindex):
                     temp2_pured.append(temp2[one])
-                    temp3_pured.append(temp3[one])
                     mapping_title[bid, temp3[one], oid] = 1
                 while len(temp2_pured) < config.infer_section_range:
                     temp2_pured.append('')
-                    temp3_pured.append(-1)
 
                 infer_title_candidates_pured.append(temp)
                 infer_section_candidates_pured.append(temp2_pured)
@@ -108,7 +105,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
                 temp = []
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc])
-                temp = ' [SEP] '.join(temp[0:300])
+                temp = ' [SEP] '.join(temp[0:250])
                 reference.append(temp[0:1000])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
@@ -118,6 +115,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             targets = annotations_ids['input_ids']
             len_anno = targets.shape[1]
             logits = logits[:, 0:len_anno]
+            _, predictions = torch.max(logits, dim=-1)
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.view(-1).to(config.device)
             lossd = loss_func(logits, targets)
@@ -131,7 +129,6 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             optimizer_decoder.step()
             if step%100 == 0:
                 print('loss D:%f, loss P:%f loss S:%f' %(lossd.item(), lossp.mean().item(), losss.mean().item()))
-                _, predictions = torch.max(logits, dim=-1)
                 results = tokenizer.batch_decode(predictions)
                 results = [tokenizer.convert_tokens_to_string(x) for x in results]
                 print(results)
@@ -179,14 +176,11 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
                 ls_scores = bm25_section.get_batch_scores(key_cut, temp2_id)
                 cindex = np.argsort(ls_scores)[::-1][0:config.infer_section_range]
                 temp2_pured = []
-                temp3_pured = []
                 for oid, one in enumerate(cindex):
                     temp2_pured.append(temp2[one])
-                    temp3_pured.append(temp3[one])
                     mapping_title[bid, temp3[one], oid] = 1
                 while len(temp2_pured) < config.infer_section_range:
                     temp2_pured.append('')
-                    temp3_pured.append(-1)
 
                 infer_title_candidates_pured.append(temp)
                 infer_section_candidates_pured.append(temp2_pured)
@@ -204,7 +198,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
                 temp = []
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc])
-                temp = ' [SEP] '.join(temp[0:200])
+                temp = ' [SEP] '.join(temp[0:250])
                 reference.append(temp[0:1000])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
