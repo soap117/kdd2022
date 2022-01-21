@@ -105,7 +105,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
                 temp = []
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc])
-                temp = ' [SEP] '.join(temp[0:250])
+                temp = ' [SEP] '.join(temp[0:config.maxium_sec])
                 reference.append(temp[0:1000])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
@@ -200,7 +200,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
                 temp = []
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc])
-                temp = ' [SEP] '.join(temp[0:250])
+                temp = ' [SEP] '.join(temp[0:config.maxium_sec])
                 reference.append(temp[0:1000])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']

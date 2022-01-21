@@ -16,12 +16,13 @@ class Config(object):
         self.title_emb_dim = 64
         self.key_emb_dim = 64
         self.lr = 1e-4
-        self.train_epoch = 10
+        self.train_epoch = 100
         self.data_path = './data/mydata.pkl'
         self.neg_num = 5
         self.infer_title_range = 10
         self.infer_title_select = 3
         self.batch_size = batch_size
-        self.infer_section_range = 8
+        self.infer_section_range = 10
         self.infer_section_select = 3
+        self.maxium_sec = 300
 config = Config(8)
