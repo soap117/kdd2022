@@ -24,5 +24,5 @@ class Config(object):
         self.batch_size = batch_size
         self.infer_section_range = 10
         self.infer_section_select = 3
-        self.maxium_sec = 300
-config = Config(6)
+        self.maxium_sec = 250
+config = Config(8)
