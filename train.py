@@ -219,7 +219,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.view(-1).to(config.device)
             lossd = loss_func(logits, targets)
-            loss = lossp.mean() + losss.mean() + lossd
+            loss = 0.1*(lossp.mean() + losss.mean()) + lossd
             total_loss.append(loss.item())
         modelp.train()
         models.train()
