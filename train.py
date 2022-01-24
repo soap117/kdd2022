@@ -50,7 +50,7 @@ def build(config):
     ]
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
     optimizer_s = AdamW(models.parameters(), lr=config.lr)
-    optimizer_decoder = AdamW(optimizer_grouped_parameters, lr=config.lr)
+    optimizer_decoder = AdamW(optimizer_grouped_parameters, lr=config.lr*0.1)
     loss_func = torch.nn.CrossEntropyLoss()
     return modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
@@ -143,6 +143,8 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             #                                      True)
             state = {'epoch': epoch, 'config': config, 'models': models, 'modelp':modelp, 'model':model, 'eval_rs': eval_ans}
             torch.save(state, './results/'+'best_model.bin')
+        else:
+            print('New Bigger Test Loss:%f' % test_loss)
     return state
 
 def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dataloader, loss_func):
