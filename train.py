@@ -102,10 +102,10 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             reference = []
             inds_sec = rs2[1].cpu().numpy()
             for bid in range(len(inds_sec)):
-                temp = []
+                temp = [querys[bid]]
                 for indc in inds_sec[bid]:
-                    temp.append(infer_section_candidates_pured[bid][indc])
-                temp = ' [SEP] '.join(temp[0:config.maxium_sec])
+                    temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
+                temp = ' [SEP] '.join(temp)
                 reference.append(temp[0:1000])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
@@ -199,8 +199,8 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             for bid in range(len(inds_sec)):
                 temp = []
                 for indc in inds_sec[bid]:
-                    temp.append(infer_section_candidates_pured[bid][indc])
-                temp = ' [SEP] '.join(temp[0:config.maxium_sec])
+                    temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
+                temp = ' [SEP] '.join(temp)
                 reference.append(temp[0:1000])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
