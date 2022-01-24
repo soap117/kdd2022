@@ -55,22 +55,27 @@ def neg_sample_section(key, gsections, candidate_sections, n, bm25):
 def get_decoder_att_map(tokenizer, sep, ids, scores):
     spe_seq = tokenizer.encode(sep)
     mapping = np.zeros([len(ids), scores.shape[1], ids.shape[1]])
+    adding = np.zeros([len(ids), ids.shape[1]])
     for bindex, (bscore, bids) in enumerate(zip(scores, ids)):
         i = 0
-        c_father = 0
+        c_father = -1
         while i < len(bids):
-            mapping[bindex, c_father, i] = 1
+            if c_father >= 0:
+                mapping[bindex, c_father, i] = 1
+            else:
+                adding[bindex, i] = 1
             i += 1
             k = 0
             while k<len(spe_seq) and i<len(bids) and (spe_seq[k]==bids[i]):
-                mapping[bindex, c_father, i] = 1
+                #mapping[bindex, c_father, i] = 1
+                adding[bindex, i] = 1
                 i += 1
                 k += 1
             if k == len(spe_seq):
                 c_father += 1
     mapping = torch.FloatTensor(mapping).to(config.device)
     scores = scores.unsqueeze(1)
-    scores = scores.matmul(mapping).squeeze(1)
+    scores = scores.matmul(mapping).squeeze(1) + torch.FloatTensor(adding).to(config.device)
     return scores
 
 def get_sec_att_map(sample_query, input_inds, infer_title_candidates, title2sections, sec2id, bm25_section):
@@ -114,6 +119,8 @@ def get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section):
     infer_title_candidates = []
     sample_pos_ans = []
     for key in tqdm(keys):
+        if len(key['anno']) == 0:
+            continue
         s = time.time()
         if len(key['rpsecs'][0]) <= 0 or len(key['key']) < 1:
             continue
