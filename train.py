@@ -110,7 +110,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
-            outputs = model(ids.cuda(), attention_adjust=adj_matrix)
+            outputs = model(ids.cuda())
             logits = outputs.logits
             targets = annotations_ids['input_ids']
             len_anno = targets.shape[1]
@@ -207,7 +207,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
-            outputs = model(ids.cuda(), attention_adjust=adj_matrix)
+            outputs = model(ids.cuda())
             logits = outputs.logits
             _, predictions = torch.max(logits, dim=-1)
             results = tokenizer.batch_decode(predictions)
