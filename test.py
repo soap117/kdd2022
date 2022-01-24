@@ -11,5 +11,7 @@ save_data = torch.load('./results/best_model.bin', map_location=torch.device('cu
 test_results = save_data['eval_rs']
 for g, p in zip(keys, test_results):
     g_ans = g['anno']
+    if len(g_ans) == 0:
+        print('here')
     p_ans = p
     print("%s||%s" %(g_ans, p_ans))
