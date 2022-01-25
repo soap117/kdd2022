@@ -66,6 +66,7 @@ def neg_sample_strong_section(key, gsections, candidate_sections, n, bm25):
         ind = np.random.randint(0, len(candidate_sections))
         candidate_section = candidate_sections[ind]
         if len(candidate_section) < 30:
+            try_t += 1
             continue
         if check_section_strong(gsections, candidate_section, bm25, ind):
             rs.append(candidate_section)
@@ -153,7 +154,12 @@ def get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section):
         infer_title_candidates.append(infer_titles)
         neg_titles = neg_sample_title(key['key'], [x[-1] for x in key['rpsecs']], titles, config.neg_num)
         neg_sections = neg_sample_section(key['key'], key['rsecs'], sections, config.neg_num, bm25_section)
-        neg_sections_strong = neg_sample_strong_section(key['key'], key['rsecs'], sections, config.neg_num, bm25_section)
+        temp_strong_neg_sections = []
+        for _ in key['rpsecs']:
+            temp_strong_neg_sections += _
+        neg_sections_strong = neg_sample_strong_section(key['key'], key['rsecs'], temp_strong_neg_sections, config.neg_num, bm25_section)
+        if len(neg_sections_strong) <= 0:
+            neg_sections_strong.append('无效字段')
         #pos_section = key['rsecs'][np.random.randint(len(key['rsecs']))]
         #pos_title = key['rpsecs'][np.random.randint(len(key['rpsecs']))][-1]
         sample_pos_ans.append((key['rsecs'], key['rpsecs']))
