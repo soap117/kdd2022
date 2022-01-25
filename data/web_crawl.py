@@ -136,66 +136,6 @@ class myThread(threading.Thread):
                             print(len(mark_done))
                             lock.release()
 stops = tuple(open('stop_words.txt', 'r', encoding='utf-8').readlines())
-def web_read(url):
-    if 'baike.baidu' not in url or len(url) < 2:
-        #print('Skipping')
-        return [], True
-    lock_d.acquire()
-    if url in url_done:
-        lock_d.release()
-        return [], False
-    lock_d.release()
-    time.sleep(0.5*np.random.rand()+0.5)
-    #print(url)
-    flag = False
-    headers = {
-        'User-Agent': 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
-    }
-    try_count = 0
-    while try_count < 3:
-        try:
-            r = requests.get(url, headers=headers, timeout=5)
-            break
-        except Exception as e:
-            try_count += 1
-            print("trying %d time" % try_count)
-            wait_gap = 3
-            time.sleep((try_count + np.random.rand()) * wait_gap)
-    if try_count >= 3:
-        print('Failed to access %s' % url)
-        return [], True
-    # r.encoding = r.apparent_encoding
-    html = r.text
-    if r.status_code != 200:
-        print('Failed to access %s' % url)
-        return [], True
-    if 'a-hospital' in url:
-        secs = re.findall('<p>(.*)</p>', html)
-    elif 'baidu' in url:
-        secs = re.findall('<div class="para" label-module="para">(.*)</div>', html)
-        secs += re.findall('<meta name="description" content="(.*)">', html)
-    elif 'yixue' in url:
-        secs = re.findall('<p>(.*)</p>', html)
-    elif 'iask' in url:
-        secs = re.findall('<pre class ="list-text" >(.*)</pre>', html)
-    else:
-        secs_ = justext.justext(r.content, stoplist=stops)
-        secs = []
-        for sec_ in secs_:
-            if sec_.cf_class != 'short' and len(sec_.text) > 15:
-                secs.append(sec_.text)
-
-    title = re.findall('<title>(.*)</title>', html)[0]
-    secs.append(title)
-    for sid, s in enumerate(secs):
-        new_s = re.sub('<[^<>]*>', '', s)
-        secs[sid] = new_s
-    lock_d.acquire()
-    url2secs[url] = secs
-    lock_d.release()
-    return secs, flag
-
-page_secs, flag = web_read('https://baike.baidu.com/item/%E7%97%9B%E9%A3%8E/421435?fr=aladdin')
 if os.path.exists('./mydata_done_baidu.pkl'):
     with open('./mydata_done_baidu.pkl','rb') as f:
         mark_done = pickle.load(f)
