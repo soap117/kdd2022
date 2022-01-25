@@ -111,14 +111,21 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             ids = inputs['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
             outputs = model(ids.cuda(), attention_adjust=adj_matrix)
-            logits = outputs.logits
-            targets = annotations_ids['input_ids']
-            len_anno = targets.shape[1]
-            logits = logits[:, 0:len_anno]
+            logits_ = outputs.logits
+            targets_ = annotations_ids['input_ids']
+            len_anno = targets_.shape[1]
+            logits = logits_[:, 0:len_anno]
             _, predictions = torch.max(logits, dim=-1)
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.view(-1).to(config.device)
-            lossd = loss_func(logits, targets)
+            try:
+                lossd = loss_func(logits, targets)
+            except Exception as e:
+                print(logits_.shape)
+                print(targets_.shape)
+                print(e)
+
+
             loss = lossp.mean() + losss.mean() + lossd
             optimizer_p.zero_grad()
             optimizer_s.zero_grad()
