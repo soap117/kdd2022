@@ -83,9 +83,9 @@ class myThread(threading.Thread):
         for sid, s in enumerate(secs):
             new_s = re.sub('<[^<>]*>', '', s)
             secs[sid] = new_s
-        lock_d.acquire()
+        lock.acquire()
         url2secs[url] = secs
-        lock_d.release()
+        lock.release()
         return secs, flag
 
     def run(self):
