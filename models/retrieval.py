@@ -124,11 +124,12 @@ class PageRanker(nn.Module):
         self.candidate_encoder = title_encoder
         self.loss_func = info_nec
         self.dis_func = distances.CosineSimilarity()
+        self.drop_layer = torch.nn.Dropout(0.25)
 
     def forward(self, query, candidates):
         # query:[B,D] candidates:[B,L,D]
-        query_embedding = self.query_encoder(query)
-        condidate_embeddings = self.candidate_encoder(candidates)
+        query_embedding = self.drop_layer(self.query_encoder(query))
+        condidate_embeddings = self.drop_layer(self.candidate_encoder(candidates))
         dis_final = []
         for k in range(len(query_embedding)):
             temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])
@@ -159,11 +160,12 @@ class SectionRanker(nn.Module):
         self.candidate_encoder = title_encoder
         self.loss_func = info_nec
         self.dis_func = distances.CosineSimilarity()
+        self.drop_layer = torch.nn.Dropout(0.25)
 
     def forward(self, query, candidates):
         # query:[B,D] candidates:[B,L,D]
-        query_embedding = self.query_encoder(query)
-        condidate_embeddings = self.candidate_encoder(candidates)
+        query_embedding = self.drop_layer(self.query_encoder(query))
+        condidate_embeddings = self.drop_layer(self.candidate_encoder(candidates))
         dis_final = []
         for k in range(len(query_embedding)):
             temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])

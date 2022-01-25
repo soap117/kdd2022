@@ -124,8 +124,6 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
                 print(logits_.shape)
                 print(targets_.shape)
                 print(e)
-
-
             loss = lossp.mean() + losss.mean() + lossd
             optimizer_p.zero_grad()
             optimizer_s.zero_grad()

@@ -20,9 +20,15 @@ def check_section(key, gsections, candidata_section, bm25, cind):
     gsections = [jieba.lcut(x) for x in gsections]
     inversed_punishment = 1/np.exp(1-len(gsections[0])/len(key_cut))
     can_simi = sentence_bleu([candidata_section], key_cut, weights=(0.5, 0.5), smoothing_function=smooth.method1)*inversed_punishment
-    can_simi_2 = sentence_bleu(gsections, candidata_section, weights=(0.5, 0.5), smoothing_function=smooth.method1)
+    can_simi_2 = sentence_bleu(gsections, candidata_section, weights=(0.25, 0.25, 0.25, 0.25), smoothing_function=smooth.method1)
     grd_simi = sentence_bleu(gsections, key_cut, weights=(0.5, 0.5), smoothing_function=smooth.method1)*inversed_punishment
     return (can_simi < 0.25*grd_simi or grd_simi <= 0) and can_simi_2 < 0.25
+
+def check_section_strong(gsections, candidata_section, bm25, cind):
+    candidata_section = jieba.lcut(candidata_section)
+    gsections = [jieba.lcut(x) for x in gsections]
+    can_simi_2 = sentence_bleu(gsections, candidata_section, weights=(0.25, 0.25, 0.25, 0.25), smoothing_function=smooth.method1)
+    return can_simi_2 < 0.5
 
 def neg_sample_title(key, gtitles, candidate_titles, n):
     count = 0
@@ -47,6 +53,22 @@ def neg_sample_section(key, gsections, candidate_sections, n, bm25):
         if len(candidate_section) < 30:
             continue
         if check_section(key, gsections, candidate_section, bm25, ind):
+            rs.append(candidate_section)
+            count += 1
+        try_t += 1
+    return rs
+
+def neg_sample_strong_section(key, gsections, candidate_sections, n, bm25):
+    count = 0
+    rs = []
+    try_t = 0
+    while count < n and try_t < 100:
+        ind = np.random.randint(0, len(candidate_sections))
+        candidate_section = candidate_sections[ind]
+        if len(candidate_section) < 30:
+            try_t += 1
+            continue
+        if check_section_strong(gsections, candidate_section, bm25, ind):
             rs.append(candidate_section)
             count += 1
         try_t += 1
@@ -118,6 +140,7 @@ def get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section):
     sample_section_candidates = []
     infer_title_candidates = []
     sample_pos_ans = []
+    sampe_strong_candidates = []
     for key in tqdm(keys):
         if len(key['anno']) == 0:
             continue
@@ -131,15 +154,22 @@ def get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section):
         infer_title_candidates.append(infer_titles)
         neg_titles = neg_sample_title(key['key'], [x[-1] for x in key['rpsecs']], titles, config.neg_num)
         neg_sections = neg_sample_section(key['key'], key['rsecs'], sections, config.neg_num, bm25_section)
+        temp_strong_neg_sections = []
+        for _ in key['rpsecs']:
+            temp_strong_neg_sections += _
+        neg_sections_strong = neg_sample_strong_section(key['key'], key['rsecs'], temp_strong_neg_sections, config.neg_num, bm25_section)
+        if len(neg_sections_strong) <= 0:
+            neg_sections_strong.append('无效字段')
         #pos_section = key['rsecs'][np.random.randint(len(key['rsecs']))]
         #pos_title = key['rpsecs'][np.random.randint(len(key['rpsecs']))][-1]
         sample_pos_ans.append((key['rsecs'], key['rpsecs']))
         sample_title_candidates.append(neg_titles)
         sample_section_candidates.append(neg_sections)
+        sampe_strong_candidates.append(neg_sections_strong)
         e = time.time()
         if e-s > 5:
             print(key['key'])
-    return sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_pos_ans, sample_annotation
+    return sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_pos_ans, sample_annotation, sampe_strong_candidates
 
 from torch.utils.data import Dataset, DataLoader
 import pickle, re
@@ -152,7 +182,7 @@ def read_clean_data(path):
     sec2id = {}
     for one in sample_data:
         if len(one['urls']) > 0:
-            for tid, (title, url) in enumerate(zip(one['rpsecs'], one['urls'])):
+            for tid, (title, url, tref) in enumerate(zip(one['rpsecs'], one['urls'], one['rsecs'])):
                 if len(title) > 0:
                     web_title = title[-1]
                     web_title = re.sub('_.+', '', web_title)
@@ -162,9 +192,11 @@ def read_clean_data(path):
                     titles.append(web_title)
                     if web_title in title2sections and url not in urls:
                         title2sections[web_title] += title[0:-1]
+                        title2sections[web_title].append(tref)
                         urls.add(url)
                     elif web_title not in title2sections:
                         title2sections[web_title] = title[0:-1]
+                        title2sections[web_title].append(tref)
                         urls.add(url)
 
     titles = list(set(titles))
@@ -181,6 +213,12 @@ def read_data(path):
     keys = []
     for one in sample_data:
         if len(one['urls']) > 0:
+            for tid, (title, url) in enumerate(zip(one['rpsecs'], one['urls'])):
+                if len(title) > 0:
+                    web_title = title[-1]
+                    web_title = re.sub('_.+', '', web_title)
+                    web_title = re.sub(' -.+', '', web_title)
+                    one['rpsecs'][tid][-1] = web_title
             keys.append(one)
     return keys
 from rank_bm25 import BM25Okapi
@@ -191,10 +229,11 @@ class MyData(Dataset):
         keys = read_data(data_path)
         self.title2sections = title2sections
         self.sec2id = sec2id
-        sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_pos_ans, sample_annotation = get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section)
+        sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_pos_ans, sample_annotation, sample_strong_section_candidates = get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section)
         self.sample_query = sample_query
         self.sample_title_candidates = sample_title_candidates
         self.sample_section_candidates = sample_section_candidates
+        self.sample_strong_section_candidates = sample_strong_section_candidates
         self.sample_pos_ans = sample_pos_ans
         self.sample_annotation = sample_annotation
         self.infer_title_candidates = infer_title_candidates
@@ -207,10 +246,11 @@ class MyData(Dataset):
 
     def __getitem__(self, item):
         pos_section = self.sample_pos_ans[item][0][np.random.randint(len(self.sample_pos_ans[item][0]))]
+        strong_neg_section = self.sample_strong_section_candidates[item][np.random.randint(len(self.sample_strong_section_candidates[item]))]
         pos_title = self.sample_pos_ans[item][1][np.random.randint(len(self.sample_pos_ans[item][1]))][-1]
         sample_query = self.sample_query[item]
         sample_title_candidates = [pos_title] + self.sample_title_candidates[item]
-        sample_section_candidates = [pos_section] + self.sample_section_candidates[item]
+        sample_section_candidates = [pos_section] + self.sample_section_candidates[item] + [strong_neg_section]
         infer_title_candidates = self.infer_title_candidates[item]
         sample_annotation = self.sample_annotation[item]
         return sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_annotation

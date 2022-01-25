@@ -136,8 +136,6 @@ class myThread(threading.Thread):
                             print(len(mark_done))
                             lock.release()
 
-
-#page_secs, flag = web_read('https://www.cnblogs.com/dagis/p/13659828.html')
 if os.path.exists('./mydata_done_baidu.pkl'):
     with open('./mydata_done_baidu.pkl','rb') as f:
         mark_done = pickle.load(f)
