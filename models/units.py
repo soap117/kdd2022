@@ -152,7 +152,7 @@ def read_clean_data(path):
     sec2id = {}
     for one in sample_data:
         if len(one['urls']) > 0:
-            for tid, (title, url) in enumerate(zip(one['rpsecs'], one['urls'])):
+            for tid, (title, url, tref) in enumerate(zip(one['rpsecs'], one['urls'], one['rsecs'])):
                 if len(title) > 0:
                     web_title = title[-1]
                     web_title = re.sub('_.+', '', web_title)
@@ -162,9 +162,11 @@ def read_clean_data(path):
                     titles.append(web_title)
                     if web_title in title2sections and url not in urls:
                         title2sections[web_title] += title[0:-1]
+                        title2sections[web_title] += tref
                         urls.add(url)
                     elif web_title not in title2sections:
                         title2sections[web_title] = title[0:-1]
+                        title2sections[web_title] += tref
                         urls.add(url)
 
     titles = list(set(titles))
