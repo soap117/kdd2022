@@ -1,9 +1,9 @@
 import os
 import pickle
-if os.path.exists('./mydata_done_baidu.pkl'):
-    with open('./mydata_done_baidu.pkl','rb') as f:
+if os.path.exists('mydata_done_baidu.pkl'):
+    with open('mydata_done_baidu.pkl', 'rb') as f:
         mark_done = pickle.load(f)
-    with open('./mydata_new_baidu.pkl', 'rb') as f:
+    with open('mydata_new_baidu_.pkl', 'rb') as f:
         my_data = pickle.load(f)
     with open('./mydata_url2secs_new_baidu.pkl', 'rb') as f:
         url2secs = pickle.load(f)
@@ -27,7 +27,7 @@ for dp in my_data:
     dp['rsecs'] = new_rsecs
     dp['rpsecs'] = new_rpsecs
     path2file[dp['file'][2:]] = dp
-with open('./mydata_new_baidu.pkl', 'wb') as f:
+with open('mydata_new_baidu_.pkl', 'wb') as f:
     pickle.dump(my_data, f)
 names = ['train', 'valid', 'test']
 sets = {}

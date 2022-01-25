@@ -13,7 +13,7 @@ from models.units import read_clean_data
 from rank_bm25 import BM25Okapi
 def build(config):
     tokenizer = BertTokenizer(vocab_file='./GPT2Chinese/vocab.txt', do_lower_case=False, never_split=['[SEP]'])
-    titles, sections, title2sections, sec2id = read_clean_data('data/mydata_new_baidu.pkl')
+    titles, sections, title2sections, sec2id = read_clean_data('data/mydata_new_baidu_.pkl')
     corpus = sections
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_section = BM25Okapi(tokenized_corpus)
@@ -55,7 +55,7 @@ def build(config):
     return modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
 def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
-    min_loss = 1000
+    min_loss_p = min_loss_s = min_loss_d = 1000
     for epoch in range(config.train_epoch):
         for step, (querys, titles, sections, infer_titles, annotations_ids) in tqdm(enumerate(train_dataloader)):
             dis_final, lossp = modelp(querys, titles)
@@ -140,13 +140,26 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
                 results = [x.replace('[PAD]', '') for x in results]
                 print(results)
         test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader, loss_func)
-        if test_loss < min_loss:
-            print('New Test Loss:%f' % test_loss)
+        p_eval_loss = test_loss[0]
+        s_eval_loss = test_loss[1]
+        d_eval_loss = test_loss[2]
+        if d_eval_loss < min_loss_d:
+            if p_eval_loss > min_loss_p:
+                for g in optimizer_p.param_groups:
+                    g['lr'] = g['lr']*0.1
+            else:
+                min_loss_p = p_eval_loss
+            if s_eval_loss > min_loss_s:
+                for g in optimizer_s.param_groups:
+                    g['lr'] = g['lr']*0.1
+            else:
+                min_loss_s = s_eval_loss
+            print('New Test Loss:%f' % d_eval_loss)
             t_count = 0
-            min_loss = test_loss
+            min_loss_d = d_eval_loss
             #_, _, _, test_loss, result_one = test(model, optimizer_bert, optimizer, test_dataloader, config, record,
             #                                      True)
-            state = {'epoch': epoch, 'config': config, 'models': models, 'modelp':modelp, 'model':model, 'eval_rs': eval_ans}
+            state = {'epoch': epoch, 'config': config, 'models': models, 'modelp': modelp, 'model':model, 'eval_rs': eval_ans}
             torch.save(state, './results/'+'best_model.bin')
         else:
             print('New Bigger Test Loss:%f' % test_loss)
@@ -226,12 +239,13 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.view(-1).to(config.device)
             lossd = loss_func(logits, targets)
-            loss = 0.1*(lossp.mean() + losss.mean()) + lossd
-            total_loss.append(loss.item())
+            loss = [lossp.mean().item(), losss.mean().item(), lossd.item()]
+            total_loss.append(loss)
         modelp.train()
         models.train()
         model.train()
-        return np.array(total_loss).mean(), eval_ans
+        total_loss = np.array(total_loss).mean(axis=0)
+        return total_loss, eval_ans
 
 
 modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer = build(config)

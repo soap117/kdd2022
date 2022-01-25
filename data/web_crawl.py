@@ -125,9 +125,9 @@ class myThread(threading.Thread):
                             mark_done.append(file)
                             if len(mark_done) % 100 == 0:
                                 print('Saving middle result finished=%d' %len(mark_done))
-                                with open('./mydata_done_baidu.pkl', 'wb') as f:
+                                with open('mydata_done_baidu.pkl', 'wb') as f:
                                     pickle.dump(mark_done, f)
-                                with open('./mydata_new_baidu.pkl', 'wb') as f:
+                                with open('mydata_new_baidu_.pkl', 'wb') as f:
                                     pickle.dump(my_data, f)
                                 with open('./mydata_url2secs_new_baidu.pkl', 'wb') as f:
                                     pickle.dump(url2secs, f)
@@ -136,10 +136,10 @@ class myThread(threading.Thread):
                             print(len(mark_done))
                             lock.release()
 
-if os.path.exists('./mydata_done_baidu.pkl'):
-    with open('./mydata_done_baidu.pkl','rb') as f:
+if os.path.exists('mydata_done_baidu.pkl'):
+    with open('mydata_done_baidu.pkl', 'rb') as f:
         mark_done = pickle.load(f)
-    with open('./mydata_new_baidu.pkl', 'rb') as f:
+    with open('mydata_new_baidu_.pkl', 'rb') as f:
         my_data = pickle.load(f)
     with open('./mydata_url2secs_new_baidu.pkl', 'rb') as f:
         url2secs = pickle.load(f)
@@ -173,9 +173,9 @@ for temp in thread_list:
 for t in threads:
     t.join()
 print(len(my_data))
-with open('./mydata_done_baidu.pkl', 'wb') as f:
+with open('mydata_done_baidu.pkl', 'wb') as f:
     pickle.dump(mark_done, f)
-with open('./mydata_new_baidu.pkl', 'wb') as f:
+with open('mydata_new_baidu_.pkl', 'wb') as f:
     pickle.dump(my_data, f)
 with open('./mydata_url2secs_new_baidu.pkl', 'wb') as f:
     pickle.dump(url2secs, f)
