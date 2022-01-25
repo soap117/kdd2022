@@ -22,27 +22,19 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    train_dataset = MyData(config, tokenizer, 'data/train.pkl', titles, sections, title2sections, sec2id, bm25_title, bm25_section)
-    train_dataloader = DataLoader(dataset=train_dataset, batch_size=config.batch_size
-                                  , collate_fn=train_dataset.collate_fn)
+    train_dataset = None
     valid_dataset = MyData(config, tokenizer, 'data/valid.pkl', titles, sections, title2sections, sec2id, bm25_title,
                            bm25_section)
     valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=config.batch_size
-                                  , collate_fn=train_dataset.collate_fn)
+                                  , collate_fn=valid_dataset.collate_fn)
     test_dataset = MyData(config, tokenizer, 'data/test.pkl', titles, sections, title2sections, sec2id, bm25_title,
                            bm25_section)
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=config.batch_size
-                                  , collate_fn=train_dataset.collate_fn)
+                                  , collate_fn=test_dataset.collate_fn)
 
-    title_encoder = TitleEncoder(config)
-    modelp = PageRanker(config, title_encoder)
-    modelp.cuda()
-    section_encoder = SecEncoder(config)
-    models = SectionRanker(config, section_encoder)
-    models.cuda()
-    model = GPT2LMHeadModel.from_pretrained("./GPT2Chinese/")
-    model.train()
-    model.cuda()
+    modelp = save_data['modelp']
+    models = save_data['models']
+    model = save_data['model']
     no_decay = ['bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
         {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
@@ -53,7 +45,7 @@ def build(config):
     optimizer_s = AdamW(models.parameters(), lr=config.lr)
     optimizer_decoder = AdamW(optimizer_grouped_parameters, lr=config.lr*0.1)
     loss_func = torch.nn.CrossEntropyLoss()
-    return modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
+    return modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, None, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
 def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dataloader, loss_func):
     with torch.no_grad():
@@ -138,3 +130,4 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
 
 
 modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer = build(config)
+test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader, loss_func)

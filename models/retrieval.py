@@ -10,7 +10,7 @@ def info_nec(pos_pairs, neg_pairs):
     ).detach()
     numerator = torch.exp(pos_pairs - max_val).squeeze(1)
     denominator = torch.sum(torch.exp(neg_pairs - max_val), dim=1) + numerator
-    log_exp = torch.log((numerator / denominator))
+    log_exp = -torch.log((numerator / denominator))
     return log_exp
 
 class TitleEncoder(nn.Module):
