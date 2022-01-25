@@ -155,8 +155,8 @@ def read_clean_data(path):
             for tid, (title, url) in enumerate(zip(one['rpsecs'], one['urls'])):
                 if len(title) > 0:
                     web_title = title[-1]
-                    web_title = re.sub('_.+', '', web_title)
-                    web_title = re.sub(' -.+', '', web_title)
+                    #web_title = re.sub('_.+', '', web_title)
+                    #web_title = re.sub(' -.+', '', web_title)
                     one['rpsecs'][tid][-1] = web_title
                     sections += title[0:-1]
                     titles.append(web_title)
