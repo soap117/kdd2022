@@ -135,7 +135,7 @@ class myThread(threading.Thread):
                                     pickle.dump(url_done, f)
                             print(len(mark_done))
                             lock.release()
-stops = tuple(open('stop_words.txt', 'r', encoding='utf-8').readlines())
+
 if os.path.exists('./mydata_done_baidu.pkl'):
     with open('./mydata_done_baidu.pkl','rb') as f:
         mark_done = pickle.load(f)
