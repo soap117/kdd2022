@@ -41,7 +41,7 @@ def build(config):
     section_encoder = SecEncoder(config)
     models = SectionRanker(config, section_encoder)
     models.cuda()
-    model = BertForTokenClassification.from_pretrained("bert-base-chinese", num_labels=tokenizer.vocab_size, max_position_embeddings=1024)
+    model = BertForTokenClassification.from_pretrained("bert-base-chinese", num_labels=tokenizer.vocab_size)
     model.train()
     model.cuda()
     no_decay = ['bias', 'LayerNorm.weight']
@@ -108,7 +108,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
                 temp = ' [SEP] '.join(temp)
-                reference.append(temp[0:1000])
+                reference.append(temp[0:500])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
