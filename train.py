@@ -1,7 +1,7 @@
 import torch
 from config import config
 from models.units import MyData, get_decoder_att_map
-from transformers.models.bert import BertTokenizer
+from transformers.models.bert import BertTokenizer, BertConfig
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
 from models.modeling_gpt2_att import GPT2LMHeadModel
@@ -41,7 +41,9 @@ def build(config):
     section_encoder = SecEncoder(config)
     models = SectionRanker(config, section_encoder)
     models.cuda()
-    model = BertForTokenClassification.from_pretrained("./GPT2Chinese/")
+    config_decoder = BertConfig.from_pretrained("bert-base-chinese")
+    config_decoder.num_labels = tokenizer.vocab_size
+    model = BertForTokenClassification(config).from_pretrained("bert-base-chinese")
     model.train()
     model.cuda()
     no_decay = ['bias', 'LayerNorm.weight']
