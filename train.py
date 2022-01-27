@@ -41,9 +41,7 @@ def build(config):
     section_encoder = SecEncoder(config)
     models = SectionRanker(config, section_encoder)
     models.cuda()
-    config_decoder = BertConfig.from_pretrained("bert-base-chinese")
-    config_decoder.num_labels = tokenizer.vocab_size
-    model = BertForTokenClassification(config).from_pretrained("bert-base-chinese")
+    model = BertForTokenClassification.from_pretrained("bert-base-chinese", num_labels=tokenizer.vocab_size)
     model.train()
     model.cuda()
     no_decay = ['bias', 'LayerNorm.weight']
