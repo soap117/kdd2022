@@ -120,7 +120,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             targets = targets_[:, 0:len_anno]
             _, predictions = torch.max(logits, dim=-1)
             logits = logits.reshape(-1, logits.shape[2])
-            targets = targets.view(-1).to(config.device)
+            targets = targets.reshape(-1).to(config.device)
             try:
                 lossd = loss_func(logits, targets)
             except Exception as e:
@@ -231,7 +231,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             ids = inputs['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
             outputs = model(ids.cuda(), attention_adjust=adj_matrix)
-            logits = outputs.logits
+            logits_ = outputs.logits
             _, predictions = torch.max(logits, dim=-1)
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
@@ -244,7 +244,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             targets = targets_[:, 0:len_anno]
             _, predictions = torch.max(logits, dim=-1)
             logits = logits.reshape(-1, logits.shape[2])
-            targets = targets.view(-1).to(config.device)
+            targets = targets.reshape(-1).to(config.device)
             lossd = loss_func(logits, targets)
             loss = [lossp.mean().item(), losss.mean().item(), lossd.item()]
             total_loss.append(loss)
