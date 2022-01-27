@@ -15,6 +15,7 @@ from rank_bm25 import BM25Okapi
 from transformers.models.bert import modeling_bert
 def build(config):
     tokenizer = config.title_tokenizer
+    model = BertForTokenClassification.from_pretrained("bert-base-chinese", num_labels=tokenizer.vocab_size)
     titles, sections, title2sections, sec2id = read_clean_data('data/mydata_new_baidu.pkl')
     corpus = sections
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
