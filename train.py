@@ -226,7 +226,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
                 temp = ' [SEP] '.join(temp)
-                reference.append(temp[0:1000])
+                reference.append(temp[0:500])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
@@ -238,9 +238,11 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
             eval_ans += results
-            targets = annotations_ids['input_ids']
-            len_anno = targets.shape[1]
-            logits = logits[:, 0:len_anno]
+            targets_ = annotations_ids['input_ids']
+            len_anno = min(targets_.shape[1], logits_.shape[1])
+            logits = logits_[:, 0:len_anno]
+            targets = targets_[:, 0:len_anno]
+            _, predictions = torch.max(logits, dim=-1)
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.view(-1).to(config.device)
             lossd = loss_func(logits, targets)
