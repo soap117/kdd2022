@@ -115,11 +115,12 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             outputs = model(ids.cuda(), attention_adjust=adj_matrix)
             logits_ = outputs.logits
             targets_ = annotations_ids['input_ids']
-            len_anno = targets_.shape[1]
+            len_anno = min(targets_.shape[1], logits_.shape[1])
             logits = logits_[:, 0:len_anno]
+            targets = targets_[:, 0:len_anno]
             _, predictions = torch.max(logits, dim=-1)
             logits = logits.reshape(-1, logits.shape[2])
-            targets = targets_.view(-1).to(config.device)
+            targets = targets.view(-1).to(config.device)
             try:
                 lossd = loss_func(logits, targets)
             except Exception as e:
