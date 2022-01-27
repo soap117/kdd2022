@@ -232,7 +232,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
             outputs = model(ids.cuda(), attention_adjust=adj_matrix)
             logits_ = outputs.logits
-            _, predictions = torch.max(logits, dim=-1)
+            _, predictions = torch.max(logits_, dim=-1)
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
             results = [x.replace(' ', '') for x in results]
