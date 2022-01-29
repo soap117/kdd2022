@@ -10,6 +10,7 @@ from config import config
 def batch_pointer_decode(source, pointers):
     temp = []
     source = source.cpu().numpy()
+    pointers = pointers.cpu().numpy()
     for p_list, s_list in zip(pointers, source):
         temp_c = []
         for p in p_list:
@@ -20,12 +21,13 @@ def pointer_generation(source, target):
     sind = 0
     header = np.zeros(len(target))
     for wid, word in enumerate(target):
-        while source[sind] != word and sind < len(source):
+        while sind < len(source) and source[sind] != word:
             sind += 1
-        if sind >= len(source):
+        if sind < len(source):
             header[wid] = sind
         else:
-            header[wid] = -1
+            sind = 0
+            header[wid] = 1
     return header
 
 def batch_pointer_generation(sources, targets):

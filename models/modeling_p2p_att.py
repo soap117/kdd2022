@@ -99,7 +99,8 @@ class Decoder(nn.Module):
     def forward(self, embedded_inputs,
                 decoder_input,
                 hidden,
-                context):
+                context,
+                out_length):
         """
         Decoder - Forward-pass
 
@@ -156,6 +157,8 @@ class Decoder(nn.Module):
             return hidden_t, c_t, output
 
         # Recurrence loop
+        if out_length is not None:
+            input_length = min(input_length, out_length)
         for _ in range(input_length):
             h_t, c_t, outs = step(decoder_input, hidden)
             hidden = (h_t, c_t)
@@ -211,7 +214,7 @@ class PointerNet(nn.Module):
         # Initialize decoder_input0
         nn.init.uniform(self.decoder_input0, -1, 1)
 
-    def forward(self, inputs, attention_adjust=None):
+    def forward(self, inputs, attention_adjust=None, out_length=None):
         """
         PointerNet - Forward-pass
 
@@ -234,6 +237,7 @@ class PointerNet(nn.Module):
         (outputs, pointers), decoder_hidden = self.decoder(embedded_inputs,
                                                            decoder_input0,
                                                            (h0, c0),
-                                                           encoder_outputs)
+                                                           encoder_outputs,
+                                                           out_length)
 
         return outputs, pointers

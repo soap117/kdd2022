@@ -108,18 +108,19 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
                 temp = [querys[bid]]
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
-                temp = ' [SEP] '.join(temp)
+                temp = '[UNK]'+'[SEP]'.join(temp)
                 reference.append(temp[0:500])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
-            outputs, pointers = model(ids.cuda(), attention_adjust=adj_matrix)
+            outputs, pointers = model(ids.cuda(), attention_adjust=adj_matrix, out_length=2*annotations_ids['input_ids'].shape[1])
             logits_ = outputs
             targets_ = annotations_ids['input_ids']
             targets_ = batch_pointer_generation(ids, targets_)
             len_anno = min(targets_.shape[1], logits_.shape[1])
             logits = logits_[:, 0:len_anno]
             targets = targets_[:, 0:len_anno]
+            pointers = pointers[:, 0:len_anno]
             predictions = batch_pointer_decode(ids, pointers)
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.reshape(-1).to(config.device)
