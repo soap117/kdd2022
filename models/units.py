@@ -6,6 +6,37 @@ from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 smooth = SmoothingFunction()
 from tqdm import tqdm
 from config import config
+
+def batch_pointer_decode(source, pointers):
+    temp = []
+    source = source.cpu().numpy()
+    for p_list, s_list in zip(pointers, source):
+        temp_c = []
+        for p in p_list:
+            temp_c.append(s_list[p])
+    temp.append(temp_c)
+    return temp
+def pointer_generation(source, target):
+    sind = 0
+    header = np.zeros(len(target))
+    for wid, word in enumerate(target):
+        while source[sind] != word and sind < len(source):
+            sind += 1
+        if sind >= len(source):
+            header[wid] = sind
+        else:
+            header[wid] = -1
+    return header
+
+def batch_pointer_generation(sources, targets):
+    headers = []
+    for source, target in zip(sources, targets):
+        header_one = pointer_generation(source, target)
+        headers.append(header_one)
+    headers = np.array(headers)
+    headers = torch.LongTensor(headers).to(config.device)
+    return headers
+
 def check(key, gtitles, candidata_title):
     key_cut = jieba.lcut(key)
     candidata_title = jieba.lcut(candidata_title)

@@ -1,10 +1,11 @@
 import torch
 from config import config
-from models.units import MyData, get_decoder_att_map
+from models.units import MyData, get_decoder_att_map, batch_pointer_generation, batch_pointer_decode
 from transformers.models.bert import BertTokenizer, BertConfig
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
 from models.modeling_gpt2_att import GPT2LMHeadModel
+from models.modeling_p2p_att import PointerNet
 from models.modeling_bert import BertForTokenClassification
 from tqdm import tqdm
 from transformers import AdamW
@@ -23,7 +24,7 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    train_dataset = MyData(config, tokenizer, 'data/train.pkl', titles, sections, title2sections, sec2id, bm25_title, bm25_section)
+    train_dataset = MyData(config, tokenizer, 'data/valid.pkl', titles, sections, title2sections, sec2id, bm25_title, bm25_section)
     train_dataloader = DataLoader(dataset=train_dataset, batch_size=config.batch_size
                                   , collate_fn=train_dataset.collate_fn)
     valid_dataset = MyData(config, tokenizer, 'data/valid.pkl', titles, sections, title2sections, sec2id, bm25_title,
@@ -41,19 +42,19 @@ def build(config):
     section_encoder = SecEncoder(config)
     models = SectionRanker(config, section_encoder)
     models.cuda()
-    model = BertForTokenClassification.from_pretrained("bert-base-chinese", num_labels=tokenizer.vocab_size)
+    model = PointerNet(128)
     model.train()
     model.cuda()
     no_decay = ['bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
-        {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+        {'params': [p for n, p in model.named_parameters() if not (any(nd in n for nd in no_decay) and 'encoder' in n)],
          'weight_decay': 0.01},
-        {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay) and 'encoder' in n], 'weight_decay': 0.0}
     ]
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
     optimizer_s = AdamW(models.parameters(), lr=config.lr)
     optimizer_decoder = AdamW(optimizer_grouped_parameters, lr=config.lr*0.1)
-    loss_func = torch.nn.CrossEntropyLoss()
+    loss_func = torch.nn.NLLLoss()
     return modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
 def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
@@ -112,13 +113,14 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
-            outputs = model(ids.cuda(), attention_adjust=adj_matrix)
-            logits_ = outputs.logits
+            outputs, pointers = model(ids.cuda(), attention_adjust=adj_matrix)
+            logits_ = outputs
             targets_ = annotations_ids['input_ids']
+            targets_ = batch_pointer_generation(ids, targets_)
             len_anno = min(targets_.shape[1], logits_.shape[1])
             logits = logits_[:, 0:len_anno]
             targets = targets_[:, 0:len_anno]
-            _, predictions = torch.max(logits, dim=-1)
+            predictions = batch_pointer_decode(ids, pointers)
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.reshape(-1).to(config.device)
             try:
@@ -230,9 +232,8 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
-            outputs = model(ids.cuda(), attention_adjust=adj_matrix)
-            logits_ = outputs.logits
-            _, predictions = torch.max(logits_, dim=-1)
+            outputs, pointers = model(ids.cuda(), attention_adjust=adj_matrix)
+            logits_ = outputs
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
             results = [x.replace(' ', '') for x in results]
