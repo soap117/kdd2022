@@ -233,20 +233,23 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
-            outputs, pointers = model(ids.cuda(), attention_adjust=adj_matrix)
+            outputs, pointers = model(ids.cuda(), attention_adjust=adj_matrix,
+                                      out_length=2 * annotations_ids['input_ids'].shape[1])
             logits_ = outputs
+            targets_ = annotations_ids['input_ids']
+            targets_ = batch_pointer_generation(ids, targets_)
+            len_anno = min(targets_.shape[1], logits_.shape[1])
+            logits = logits_[:, 0:len_anno]
+            targets = targets_[:, 0:len_anno]
+            pointers = pointers[:, 0:len_anno]
+            predictions = batch_pointer_decode(ids, pointers)
+            logits = logits.reshape(-1, logits.shape[2])
+            targets = targets.reshape(-1).to(config.device)
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
             eval_ans += results
-            targets_ = annotations_ids['input_ids']
-            len_anno = min(targets_.shape[1], logits_.shape[1])
-            logits = logits_[:, 0:len_anno]
-            targets = targets_[:, 0:len_anno]
-            _, predictions = torch.max(logits, dim=-1)
-            logits = logits.reshape(-1, logits.shape[2])
-            targets = targets.reshape(-1).to(config.device)
             lossd = loss_func(logits, targets)
             loss = [lossp.mean().item(), losss.mean().item(), lossd.item()]
             total_loss.append(loss)
