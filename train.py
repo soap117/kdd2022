@@ -54,7 +54,7 @@ def build(config):
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
     optimizer_s = AdamW(models.parameters(), lr=config.lr)
     optimizer_decoder = AdamW(optimizer_grouped_parameters, lr=config.lr*0.1)
-    loss_func = torch.nn.NLLLoss()
+    loss_func = torch.nn.CrossEntropyLoss()
     return modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
 def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
@@ -113,8 +113,8 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
-            outputs, pointers = model(ids.cuda(), attention_adjust=adj_matrix, out_length=2*annotations_ids['input_ids'].shape[1])
-            logits_ = outputs
+            outputs, outputs_logits, pointers = model(ids.cuda(), attention_adjust=adj_matrix, out_length=2*annotations_ids['input_ids'].shape[1])
+            logits_ = outputs_logits
             targets_ = annotations_ids['input_ids']
             targets_ = batch_pointer_generation(ids, targets_)
             len_anno = min(targets_.shape[1], logits_.shape[1])
@@ -233,9 +233,9 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
-            outputs, pointers = model(ids.cuda(), attention_adjust=adj_matrix,
+            outputs, outputs_logits, pointers = model(ids.cuda(), attention_adjust=adj_matrix,
                                       out_length=2 * annotations_ids['input_ids'].shape[1])
-            logits_ = outputs
+            logits_ = outputs_logits
             targets_ = annotations_ids['input_ids']
             targets_ = batch_pointer_generation(ids, targets_)
             len_anno = min(targets_.shape[1], logits_.shape[1])

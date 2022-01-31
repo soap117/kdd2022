@@ -63,7 +63,7 @@ class Attention(nn.Module):
 
         hidden_state = torch.bmm(ctx, alpha.unsqueeze(2)).squeeze(2)
 
-        return hidden_state, alpha
+        return hidden_state, alpha, att
 
     def init_inf(self, mask_size):
         self.inf = self._inf.unsqueeze(1).expand(*mask_size)
@@ -125,6 +125,7 @@ class Decoder(nn.Module):
         runner = runner.unsqueeze(0).expand(batch_size, -1).long()
 
         outputs = []
+        output_logits = []
         pointers = []
 
         def step(x, hidden):
@@ -151,16 +152,16 @@ class Decoder(nn.Module):
             h_t = out * F.tanh(c_t)
 
             # Attention section
-            hidden_t, output = self.att(h_t, context, torch.eq(mask, 0))
+            hidden_t, output, output_logits = self.att(h_t, context, torch.eq(mask, 0))
             hidden_t = F.tanh(self.hidden_out(torch.cat((hidden_t, h_t), 1)))
 
-            return hidden_t, c_t, output
+            return hidden_t, c_t, output, output_logits
 
         # Recurrence loop
         if out_length is not None:
             input_length = min(input_length, out_length)
         for _ in range(input_length):
-            h_t, c_t, outs = step(decoder_input, hidden)
+            h_t, c_t, outs, out_logits = step(decoder_input, hidden)
             hidden = (h_t, c_t)
 
             # Masking selected inputs
@@ -178,12 +179,14 @@ class Decoder(nn.Module):
             decoder_input = embedded_inputs[embedding_mask.data].view(batch_size, self.embedding_dim)
 
             outputs.append(outs.unsqueeze(0))
+            output_logits.append(out_logits.unsqueeze(0))
             pointers.append(indices.unsqueeze(1))
 
         outputs = torch.cat(outputs).permute(1, 0, 2)
         pointers = torch.cat(pointers, 1)
+        output_logits = torch.cat(output_logits).permute(1, 0, 2)
 
-        return (outputs, pointers), hidden
+        return (outputs, output_logits, pointers), hidden
 
 
 class PointerNet(nn.Module):
@@ -234,10 +237,10 @@ class PointerNet(nn.Module):
         decoder_hidden0 = bert_outputs.pooler_output
         h0 = self.ho_layer(decoder_hidden0)
         c0 = self.c0_layer(decoder_hidden0)
-        (outputs, pointers), decoder_hidden = self.decoder(embedded_inputs,
+        (outputs, output_logits, pointers), decoder_hidden = self.decoder(embedded_inputs,
                                                            decoder_input0,
                                                            (h0, c0),
                                                            encoder_outputs,
                                                            out_length)
 
-        return outputs, pointers
+        return outputs, output_logits, pointers
