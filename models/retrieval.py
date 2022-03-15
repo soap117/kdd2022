@@ -26,8 +26,6 @@ class TitleEncoder(nn.Module):
             tmp = nn.Conv1d(config.title_emb_dim, config.title_emb_dim, kernel_size=filter_size,
                             padding=int(filter_size - 1))
             self.conv.add_module('baseconv_%d' % l, tmp)
-            tmp = nn.MaxPool1d(2, 2)
-            self.conv.add_module('pool_%d' % l, tmp)
             tmp = nn.ReLU()
             self.conv.add_module('ReLu_%d' % l, tmp)
     def forward(self, title):
@@ -98,8 +96,6 @@ class KeyEncoder(nn.Module):
             tmp = nn.Conv1d(config.key_emb_dim, config.key_emb_dim, kernel_size=filter_size,
                             padding=int(filter_size - 1))
             self.conv.add_module('baseconv_%d' % l, tmp)
-            tmp = nn.MaxPool1d(2, 2)
-            self.conv.add_module('pool_%d' % l, tmp)
             tmp = nn.ReLU()
             self.conv.add_module('ReLu_%d' % l, tmp)
 
