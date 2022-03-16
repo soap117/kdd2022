@@ -147,6 +147,7 @@ if os.path.exists('mydata_done_baidu.pkl'):
         url_done = pickle.load(f)
 raw_data_new = json.load(open('./dataset_new_2.json', 'r', encoding='utf-8'))
 file_list = []
+
 mark_done_set = set(mark_done)
 for one in raw_data_new:
     if one['textid'] not in mark_done_set:
