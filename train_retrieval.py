@@ -42,18 +42,10 @@ def build(config):
     section_encoder = SecEncoder(config)
     models = SectionRanker(config, section_encoder)
     models.cuda()
-    model = PointerNet(128)
-    model.train()
-    model.cuda()
-    no_decay = ['bias', 'LayerNorm.weight']
-    optimizer_grouped_parameters = [
-        {'params': [p for n, p in model.named_parameters() if not (any(nd in n for nd in no_decay) and 'encoder' in n)],
-         'weight_decay': 0.01},
-        {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay) and 'encoder' in n], 'weight_decay': 0.0}
-    ]
+    model = None
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
     optimizer_s = AdamW(models.parameters(), lr=config.lr)
-    optimizer_decoder = AdamW(optimizer_grouped_parameters, lr=config.lr*0.1)
+    optimizer_decoder = None
     loss_func = torch.nn.CrossEntropyLoss()
     return modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
@@ -153,7 +145,6 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
     with torch.no_grad():
         modelp.eval()
         models.eval()
-        model.eval()
         total_loss = []
         eval_ans = []
         for step, (querys, titles, sections, infer_titles, annotations_ids) in tqdm(enumerate(dataloader)):
@@ -210,7 +201,6 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             total_loss.append(loss)
         modelp.train()
         models.train()
-        model.train()
         total_loss = np.array(total_loss).mean(axis=0)
         return total_loss, eval_ans
 

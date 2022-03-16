@@ -40,13 +40,13 @@ for name in names:
         for dp_c in data_list:
             r_name = dp_c[3]
             ans = re.findall(r"\\(.*)\.pkl", r_name)[0]
-            sets[name].append(dp_c[3][-1-12:])
+            sets[name].append(ans)
 for name in names:
     plist = sets[name]
     temp = []
     for path in plist:
-        if path[7:] in path2file:
-            temp.append(path2file[path[7:]])
+        if path in path2file:
+            temp.append(path2file[path])
     with open('./'+name+'.pkl', 'wb') as f:
         pickle.dump(temp, f)
 
