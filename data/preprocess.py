@@ -1,5 +1,7 @@
 import os
 import pickle
+import re
+
 if os.path.exists('mydata_done_baidu.pkl'):
     with open('mydata_done_baidu.pkl', 'rb') as f:
         mark_done = pickle.load(f)
@@ -26,7 +28,7 @@ for dp in my_data:
     dp['urls'] = new_urls
     dp['rsecs'] = new_rsecs
     dp['rpsecs'] = new_rpsecs
-    path2file[dp['file'][2:]] = dp
+    path2file[dp['file']['textid']] = dp
 with open('mydata_new_baidu_.pkl', 'wb') as f:
     pickle.dump(my_data, f)
 names = ['train', 'valid', 'test']
@@ -36,7 +38,9 @@ for name in names:
     with open(name+'/dataset.pkl', 'rb') as f:
         data_list = pickle.load(f)
         for dp_c in data_list:
-            sets[name].append(dp_c[3])
+            r_name = dp_c[3]
+            ans = re.findall(r"\\(.*)\.pkl", r_name)[0]
+            sets[name].append(dp_c[3][-1-12:])
 for name in names:
     plist = sets[name]
     temp = []
