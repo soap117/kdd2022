@@ -116,28 +116,19 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
         test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader, loss_func)
         p_eval_loss = test_loss[0]
         s_eval_loss = test_loss[1]
-        d_eval_loss = test_loss[2]
-        if d_eval_loss < min_loss_d:
+        if s_eval_loss < min_loss_s:
+            min_loss_s = s_eval_loss
             if p_eval_loss > min_loss_p:
                 for g in optimizer_p.param_groups:
                     g['lr'] = g['lr']*0.1
             else:
                 min_loss_p = p_eval_loss
-            if s_eval_loss > min_loss_s:
-                for g in optimizer_s.param_groups:
-                    g['lr'] = g['lr']*0.1
-            else:
-                min_loss_s = s_eval_loss
-            print('New Test Loss:%f' % d_eval_loss)
-            t_count = 0
-            min_loss_d = d_eval_loss
-            #_, _, _, test_loss, result_one = test(model, optimizer_bert, optimizer, test_dataloader, config, record,
-            #                                      True)
-            state = {'epoch': epoch, 'config': config, 'models': models, 'modelp': modelp, 'model':model, 'eval_rs': eval_ans}
-            torch.save(state, './results/'+'best_model.bin')
+            print('New Test Loss:%f' % s_eval_loss)
+            state = {'epoch': epoch, 'config': config, 'models': models, 'modelp': modelp, 'model': model,
+                     'eval_rs': eval_ans}
+            torch.save(state, './results/' + 'best_model.bin')
         else:
-            print('New Bigger Test Loss:%f' % d_eval_loss)
-            for g in optimizer_decoder.param_groups:
+            for g in optimizer_s.param_groups:
                 g['lr'] = g['lr'] * 0.1
     return state
 

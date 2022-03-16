@@ -84,6 +84,12 @@ class myThread(threading.Thread):
         for sid, s in enumerate(secs):
             new_s = re.sub('<[^<>]*>', '', s)
             secs[sid] = new_s
+        if len(secs) == 0:
+            secs_ = justext.justext(r.content, stoplist=self.stops)
+            secs = []
+            for sec_ in secs_:
+                if sec_.cf_class != 'short' and len(sec_.text) > 15:
+                    secs.append(sec_.text)
         lock.acquire()
         url2secs[url] = secs
         lock.release()
@@ -111,7 +117,7 @@ class myThread(threading.Thread):
                         except:
                             flag = True
                             page_secs = []
-                        if not flag:
+                        if not flag and len(page_secs) > 0:
                             urls.append(url)
                             rsecs.append(rsec)
                             rpo_secs.append(page_secs)
