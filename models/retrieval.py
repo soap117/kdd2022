@@ -5,11 +5,11 @@ from pytorch_metric_learning import losses
 from pytorch_metric_learning import distances
 
 def info_nec(pos_pairs, neg_pairs):
-    max_val = torch.max(
-        pos_pairs, torch.max(neg_pairs, dim=1, keepdim=True)[0]
-    ).detach()
-    numerator = torch.exp(pos_pairs - max_val).squeeze(1)
-    denominator = torch.sum(torch.exp(neg_pairs - max_val), dim=1) + numerator
+    #max_val = torch.max(
+    #    pos_pairs, torch.max(neg_pairs, dim=1, keepdim=True)[0]
+    #).detach()
+    numerator = torch.exp(pos_pairs).squeeze(1)
+    denominator = torch.sum(torch.exp(neg_pairs), dim=1) + numerator
     log_exp = -torch.log((numerator / denominator))
     return log_exp
 
@@ -17,7 +17,7 @@ class TitleEncoder(nn.Module):
     def __init__(self, config):
         super(TitleEncoder, self).__init__()
         self.tokenizer = config.title_tokenizer
-        filter_size = 2
+        filter_size = 3
         self.device = config.device
         self.conv = nn.ModuleList()
         self.embed = nn.Embedding(self.tokenizer.vocab_size, config.title_emb_dim)
@@ -51,7 +51,7 @@ class SecEncoder(nn.Module):
     def __init__(self, config):
         super(SecEncoder, self).__init__()
         self.tokenizer = config.title_tokenizer
-        filter_size = 2
+        filter_size = 3
         self.device = config.device
         self.conv = nn.ModuleList()
         self.embed = nn.Embedding(self.tokenizer.vocab_size, config.title_emb_dim)
@@ -87,7 +87,7 @@ class KeyEncoder(nn.Module):
     def __init__(self, config):
         super(KeyEncoder, self).__init__()
         self.tokenizer = config.key_tokenizer
-        filter_size = 2
+        filter_size = 3
         self.device = config.device
         self.conv = nn.ModuleList()
         self.embed = nn.Embedding(self.tokenizer.vocab_size, config.key_emb_dim)
