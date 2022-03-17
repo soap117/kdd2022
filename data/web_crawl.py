@@ -64,14 +64,8 @@ class myThread(threading.Thread):
         if r.status_code != 200:
             print('Failed to access %s' % url)
             return [], True
-        if 'a-hospital' in url:
-            secs = re.findall('<p>(.*)</p>', html)
-        elif 'baidu' in url:
+        if 'baidu' in url:
             secs = re.findall('<div class="para" label-module="para">(.*)</div>', html)
-        elif 'yixue' in url:
-            secs = re.findall('<p>(.*)</p>', html)
-        elif 'iask' in url:
-            secs = re.findall('<pre class ="list-text" >(.*)</pre>', html)
         else:
             secs_ = justext.justext(r.content, stoplist=self.stops)
             secs = []
@@ -117,7 +111,7 @@ class myThread(threading.Thread):
                         except:
                             flag = True
                             page_secs = []
-                        if not flag and len(page_secs) > 0:
+                        if not flag:
                             urls.append(url)
                             rsecs.append(rsec)
                             rpo_secs.append(page_secs)
@@ -141,7 +135,7 @@ class myThread(threading.Thread):
                                 pickle.dump(url_done, f)
                         print(len(mark_done))
                         lock.release()
-
+'''
 if os.path.exists('mydata_done_baidu.pkl'):
     with open('mydata_done_baidu.pkl', 'rb') as f:
         mark_done = pickle.load(f)
@@ -151,6 +145,7 @@ if os.path.exists('mydata_done_baidu.pkl'):
         url2secs = pickle.load(f)
     with open('./mydata_url_new_baidu.pkl', 'rb') as f:
         url_done = pickle.load(f)
+'''
 raw_data_new = json.load(open('./dataset_new_2.json', 'r', encoding='utf-8'))
 file_list = []
 

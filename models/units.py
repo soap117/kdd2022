@@ -185,6 +185,9 @@ def get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section):
         key_cut = jieba.lcut(key['key'])
         infer_titles = bm25_title.get_top_n(key_cut, titles, config.infer_title_range)
         infer_title_candidates.append(infer_titles)
+        for x in key['rpsecs']:
+            if len(x) == 0:
+                x.append('')
         neg_titles = neg_sample_title(key['key'], [x[-1] for x in key['rpsecs']], titles, config.neg_num)
         neg_sections = neg_sample_section(key['key'], key['rsecs'], sections, config.neg_num, bm25_section)
         temp_strong_neg_sections = []
