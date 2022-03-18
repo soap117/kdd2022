@@ -193,7 +193,7 @@ def get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section):
         temp_strong_neg_sections = []
         for _ in key['rpsecs']:
             temp_strong_neg_sections += _
-        neg_sections_strong = neg_sample_strong_section(key['key'], key['rsecs'], temp_strong_neg_sections, config.neg_num, bm25_section)
+        neg_sections_strong = neg_sample_strong_section(key['key'], key['rsecs'], temp_strong_neg_sections, 1, bm25_section)
         if len(neg_sections_strong) <= 0:
             neg_sections_strong.append('无效字段')
         #pos_section = key['rsecs'][np.random.randint(len(key['rsecs']))]

@@ -109,19 +109,19 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             loss.backward()
             optimizer_p.step()
             optimizer_s.step()
-            if step%100 == 0:
+            if step%10 == 0:
                 print('loss P:%f loss S:%f' %(lossp.mean().item(), losss.mean().item()))
         test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader, loss_func)
         p_eval_loss = test_loss[0]
         s_eval_loss = test_loss[1]
-        if s_eval_loss < min_loss_s:
-            min_loss_s = s_eval_loss
+        if p_eval_loss < min_loss_p:
+            min_loss_p = p_eval_loss
             if p_eval_loss > min_loss_p:
                 for g in optimizer_p.param_groups:
                     g['lr'] = g['lr']*0.1
             else:
                 min_loss_p = p_eval_loss
-            print('New Test Loss:%f' % s_eval_loss)
+            print('New Test Loss:%f' % p_eval_loss)
             state = {'epoch': epoch, 'config': config, 'models': models, 'modelp': modelp, 'model': model,
                      'eval_rs': eval_ans}
             torch.save(state, './results/' + 'best_model.bin')

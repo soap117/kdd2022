@@ -18,11 +18,11 @@ class Config(object):
         self.lr = 1e-4
         self.train_epoch = 100
         self.data_path = './data/mydata.pkl'
-        self.neg_num = 5
+        self.neg_num = 9
         self.infer_title_range = 10
         self.infer_title_select = 3
         self.batch_size = batch_size
         self.infer_section_range = 10
         self.infer_section_select = 3
         self.maxium_sec = 200
-config = Config(2)
+config = Config(16)
