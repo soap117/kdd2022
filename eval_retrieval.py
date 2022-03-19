@@ -15,7 +15,7 @@ from rank_bm25 import BM25Okapi
 def build(config):
     save_data = torch.load('./results/best_model.bin', map_location=torch.device('cuda:0'))
     tokenizer = BertTokenizer(vocab_file='./GPT2Chinese/vocab.txt', do_lower_case=False, never_split=['[SEP]'])
-    titles, sections, title2sections, sec2id = read_clean_data('data/mydata_new_baidu.pkl')
+    titles, sections, title2sections, sec2id = read_clean_data('data/mydata_new_baidu_.pkl')
     corpus = sections
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_section = BM25Okapi(tokenized_corpus)
@@ -48,6 +48,8 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
         models.eval()
         total_loss = []
         eval_ans = []
+        tp = 0
+        total = 0
         for step, (querys, titles, sections, infer_titles, annotations_ids) in tqdm(enumerate(dataloader)):
             dis_final, lossp = modelp(querys, titles)
             dis_final, losss = models(querys, sections)
@@ -59,14 +61,26 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             infer_section_candidates_pured = []
             mapping_title = np.zeros([len(querys), config.infer_title_select, config.infer_section_range])
             for query, bid in zip(querys, range(len(inds))):
+                total += 1
                 temp = []
                 temp2 = []
                 temp3 = []
+                count = 0
                 for nid, cid in enumerate(inds[bid]):
                     temp.append(infer_titles[bid][cid])
+                    if infer_titles[bid][cid] == titles[bid][0]:
+                        count += 1
                     temp2 += title2sections[infer_titles[bid][cid]]
                     temp3 += [nid for x in title2sections[infer_titles[bid][cid]]]
                 temp2_id = []
+                tp += count
+                if count == 0:
+                    print('Failed Examples:')
+                    print(query)
+                    print(titles[bid][0])
+                    print(infer_titles[bid])
+                    print(temp)
+                    print('------------------------------------')
                 for t_sec in temp2:
                     if t_sec in sec2id:
                         temp2_id.append(sec2id[t_sec])
@@ -102,6 +116,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             total_loss.append(loss.item())
         modelp.train()
         models.train()
+        print('accuracy: %f' %(tp/total))
         return np.array(total_loss).mean(), eval_ans
 
 
