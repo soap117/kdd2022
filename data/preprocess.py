@@ -21,6 +21,8 @@ for dp in my_data:
     url_set = set()
     for url, rsec, rpsec in zip(dp['urls'], dp['rsecs'], dp['rpsecs']):
         if url not in url_set:
+            if len(rpsec) == 0:
+                rpsec = url2secs[url]
             new_urls.append(url)
             new_rsecs.append(rsec)
             new_rpsecs.append(rpsec)
@@ -29,7 +31,9 @@ for dp in my_data:
     dp['rsecs'] = new_rsecs
     dp['rpsecs'] = new_rpsecs
     path2file[dp['file']['textid']] = dp
-with open('mydata_new_baidu_.pkl', 'wb') as f:
+    if len(new_rpsecs) == 0:
+        print(dp)
+with open('mydata_new_clean.pkl', 'wb') as f:
     pickle.dump(my_data, f)
 names = ['train', 'valid', 'test']
 sets = {}

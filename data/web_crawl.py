@@ -1,44 +1,23 @@
 import os
 import pickle
 import time
-import numpy as np
-import queue
-import threading
-import re
-import json
-import justext
-apiKey = 'HU8af50ccf0318014312fR0R'
-import requests
-def add_white_list(ip):
-    url = "https://h.shanchendaili.com/api.html?action=addWhiteList&appKey={}&ip={}".format(apiKey, ip)
-    res = requests.get(url)
-    print(res.status_code)
-    print(res.text)
 
-def get_proxy():
-    url = 'https://h.shanchendaili.com/api.html?action=get_ip&key={}&time=10&count=1&protocol=http&type=json&only=0'.format(apiKey)
-    res = requests.get(url)
-    print(res.status_code)
-    data = json.loads(res.text)['list']
-    ip = data[0]['sever']
-    port = data[0]['port']
-    return '{}:{}'.format(ip, port)
-
-
-ip = '98.235.88.171'
-add_white_list(ip)
-
-proxy = get_proxy()
-
-proxies = {
-    "http": 'http://{}'.format(proxy),
-    "https": 'http://{}' . format(proxy),
-}
 count ={}
 my_data = []
 url2secs = {}
 mark_done = []
 url_done = set()
+from tqdm import tqdm
+import requests
+import time
+import numpy as np
+import queue
+import threading
+from lxml import etree              # 导入库
+from bs4 import BeautifulSoup
+import re
+import json
+import justext
 
 lock = threading.Lock()
 lock_m = threading.Lock()
@@ -53,11 +32,9 @@ class myThread(threading.Thread):
         self.stops = tuple(stops)
 
     def web_read(self, url):
-        '''
         if 'baike.baidu' not in url or len(url) < 2:
             #print('Skipping')
             return [], True
-        '''
         lock_d.acquire()
         if url in url_done:
             lock_d.release()
@@ -72,7 +49,7 @@ class myThread(threading.Thread):
         try_count = 0
         while try_count < 3:
             try:
-                r = requests.get(url, headers=headers, timeout=5, proxies=proxies)
+                r = requests.get(url, headers=headers, timeout=5)
                 break
             except Exception as e:
                 try_count += 1
@@ -87,8 +64,14 @@ class myThread(threading.Thread):
         if r.status_code != 200:
             print('Failed to access %s' % url)
             return [], True
-        if 'baidu' in url:
+        if 'a-hospital' in url:
+            secs = re.findall('<p>(.*)</p>', html)
+        elif 'baidu' in url:
             secs = re.findall('<div class="para" label-module="para">(.*)</div>', html)
+        elif 'yixue' in url:
+            secs = re.findall('<p>(.*)</p>', html)
+        elif 'iask' in url:
+            secs = re.findall('<pre class ="list-text" >(.*)</pre>', html)
         else:
             secs_ = justext.justext(r.content, stoplist=self.stops)
             secs = []
@@ -134,7 +117,7 @@ class myThread(threading.Thread):
                         except:
                             flag = True
                             page_secs = []
-                        if not flag:
+                        if not flag and len(page_secs) > 0:
                             urls.append(url)
                             rsecs.append(rsec)
                             rpo_secs.append(page_secs)
@@ -158,7 +141,7 @@ class myThread(threading.Thread):
                                 pickle.dump(url_done, f)
                         print(len(mark_done))
                         lock.release()
-'''
+
 if os.path.exists('mydata_done_baidu.pkl'):
     with open('mydata_done_baidu.pkl', 'rb') as f:
         mark_done = pickle.load(f)
@@ -168,7 +151,6 @@ if os.path.exists('mydata_done_baidu.pkl'):
         url2secs = pickle.load(f)
     with open('./mydata_url_new_baidu.pkl', 'rb') as f:
         url_done = pickle.load(f)
-'''
 raw_data_new = json.load(open('./dataset_new_2.json', 'r', encoding='utf-8'))
 file_list = []
 
