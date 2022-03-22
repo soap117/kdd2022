@@ -89,6 +89,9 @@ def neg_sample_section(key, gsections, candidate_sections, n, bm25):
             rs.append(candidate_section)
             count += 1
         try_t += 1
+    while count < n:
+        count += 1
+        rs.append("                          ")
     return rs
 
 def neg_sample_strong_section(key, gsections, candidate_sections, n, bm25):
@@ -105,6 +108,9 @@ def neg_sample_strong_section(key, gsections, candidate_sections, n, bm25):
             rs.append(candidate_section)
             count += 1
         try_t += 1
+    while count < n:
+        count += 1
+        rs.append("                          ")
     return rs
 
 def get_decoder_att_map(tokenizer, sep, ids, scores):
@@ -195,7 +201,7 @@ def get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section):
             temp_strong_neg_sections += _
         neg_sections_strong = neg_sample_strong_section(key['key'], key['rsecs'], temp_strong_neg_sections, 1, bm25_section)
         if len(neg_sections_strong) <= 0:
-            neg_sections_strong.append('无效字段')
+            neg_sections_strong.append('                                                            ')
         #pos_section = key['rsecs'][np.random.randint(len(key['rsecs']))]
         #pos_title = key['rpsecs'][np.random.randint(len(key['rpsecs']))][-1]
         sample_pos_ans.append((key['rsecs'], key['rpsecs']))

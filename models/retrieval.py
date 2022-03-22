@@ -87,9 +87,11 @@ class SecEncoder(nn.Module):
         title_new = []
         for one in title:
             title_new += one
+            if len(one) != L:
+                print(one)
         es = self.tokenizer(title_new, return_tensors='pt', padding=True, truncation=True).to(self.device)
-        x = es['input_ids']
-        x = self.embed(x)
+        x_ = es['input_ids']
+        x = self.embed(x_)
         x = x.transpose(1, 2)
         tmp = x
         for idx, md in enumerate(self.conv):
