@@ -1,0 +1,5 @@
+1. key 通用kg映射实体， 提取标准名词
+2. title, sections 医学kg 提取实体
+3. 比较，实体-实体相似度，1 一个实体 else 周围实体相似度
+https://www.ownthink.com/docs/kg/
+http://cmekg.pcl.ac.cn/

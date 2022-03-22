@@ -11,9 +11,13 @@ if os.path.exists('mydata_done_baidu.pkl'):
         url2secs = pickle.load(f)
     with open('./mydata_url_new_baidu.pkl', 'rb') as f:
         url_done = pickle.load(f)
-    with open('./paths.pkl', 'rb') as f:
-        paths = pickle.load(f)
 path2file = {}
+def isChinese(word):
+    for ch in word:
+        if '\u4e00' <= ch <= '\u9fff' or ch == ' ' or ch == '_' or ch == '-':
+            return True
+    return False
+
 for dp in my_data:
     new_urls = []
     new_rsecs = []
@@ -23,6 +27,10 @@ for dp in my_data:
         if url not in url_set:
             if len(rpsec) == 0:
                 rpsec = url2secs[url]
+            title = rpsec[-1]
+            if not isChinese(title):
+                print(title)
+
             new_urls.append(url)
             new_rsecs.append(rsec)
             new_rpsecs.append(rpsec)
