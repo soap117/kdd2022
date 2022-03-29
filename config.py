@@ -15,7 +15,7 @@ class Config(object):
         self.key_tokenizer= self.title_tokenizer
         self.title_emb_dim = 64
         self.key_emb_dim = 64
-        self.lr = 1e-4
+        self.lr = 2e-4
         self.train_epoch = 100
         self.data_path = './data/mydata.pkl'
         self.neg_num = 9

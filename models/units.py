@@ -184,7 +184,7 @@ def get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section):
         if len(key['anno']) == 0:
             continue
         s = time.time()
-        if len(key['rpsecs'][0]) <= 0 or len(key['key']) < 1:
+        if len(key['rpsecs'][0]) <= 1 or len(key['key']) < 1:
             continue
         sample_query.append(key['key'])
         sample_annotation.append(key['anno'])
