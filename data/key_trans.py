@@ -13,7 +13,6 @@ from lxml import etree              # 导入库
 from bs4 import BeautifulSoup
 import re
 import json
-import justext
 
 lock = threading.Lock()
 lock_m = threading.Lock()
