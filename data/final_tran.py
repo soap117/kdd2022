@@ -67,7 +67,7 @@ class myThread(threading.Thread):
             for one in results:
                 answers = re.sub('[^\u4e00-\u9fa5, ]', '', re.sub('<[^<>]*>',  ' ', one)).split('  ')
                 for ans in answers:
-                    if len(ans) > 0:
+                    if len(ans) > 0 and '词典' not in ans:
                         name_set.add(ans.replace(' ', ''))
             name_list = list(name_set)
             new_key = ' '.join(name_list)
