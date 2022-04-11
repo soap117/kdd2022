@@ -2,7 +2,7 @@ import os
 import pickle
 import re
 import sys
-from models.config import config
+from config import config
 if os.path.exists(config.data_file):
     with open(config.data_file) as f:
         my_data = pickle.load(f)
