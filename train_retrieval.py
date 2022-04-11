@@ -1,5 +1,5 @@
 import torch
-from models.config import config
+from config import config
 from models.units import MyData
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -13,7 +13,7 @@ from rank_bm25 import BM25Okapi
 
 def build(config):
     tokenizer = config.title_tokenizer
-    titles, sections, title2sections, sec2id = read_clean_data('data/%s' %config.data_file)
+    titles, sections, title2sections, sec2id = read_clean_data(config.data_file)
     corpus = sections
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_section = BM25Okapi(tokenized_corpus)

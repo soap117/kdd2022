@@ -1,5 +1,5 @@
 import torch
-from models.config import config
+from config import config
 from models.units import MyData, get_decoder_att_map
 from models.bert_tokenizer import BertTokenizer
 from torch.utils.data import DataLoader

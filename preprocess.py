@@ -1,7 +1,7 @@
 import os
 import pickle
 import re
-from models.config import config
+from config import config
 if os.path.exists(config.data_file):
     with open(config.data_file) as f:
         my_data = pickle.load(f)
@@ -26,17 +26,11 @@ for dp in my_data:
                     dp['rpsecs'].append([])
     for url, rsec, rpsec in zip(dp['urls'], dp['rsecs'], dp['rpsecs']):
         if url not in url_set:
-            if len(rpsec) == 0:
-                if url not in url2secs:
-                    continue
-                rpsec = url2secs[url]
             title = rpsec[-1]
             if not isChinese(title):
                 print(title)
                 fail_count += 1
                 continue
-            if url not in url2secs:
-                url2secs[url] = rpsec
             new_urls.append(url)
             new_rsecs.append(rsec)
             new_rpsecs.append(rpsec)
@@ -49,13 +43,11 @@ for dp in my_data:
         fail_count += 1
         print(dp)
 print(fail_count)
-with open('mydata_new_clean_v2.pkl', 'wb') as f:
-    pickle.dump(my_data, f)
 names = ['train', 'valid', 'test']
 sets = {}
 for name in names:
     sets[name] = []
-    with open(name+'/dataset.pkl', 'rb') as f:
+    with open('data/'+name+'/dataset.pkl', 'rb') as f:
         data_list = pickle.load(f)
         for dp_c in data_list:
             r_name = dp_c[3]
@@ -67,6 +59,6 @@ for name in names:
     for path in plist:
         if path in path2file:
             temp.append(path2file[path])
-    with open('./'+name+'.pkl', 'wb') as f:
+    with open('data/'+name+'.pkl', 'wb') as f:
         pickle.dump(temp, f)
 
