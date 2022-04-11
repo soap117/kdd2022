@@ -15,7 +15,7 @@ from rank_bm25 import BM25Okapi
 def build(config):
     save_data = torch.load('./results/best_model.bin', map_location=torch.device('cuda:0'))
     tokenizer = BertTokenizer(vocab_file='./GPT2Chinese/vocab.txt', do_lower_case=False, never_split=['[SEP]'])
-    titles, sections, title2sections, sec2id = read_clean_data('data/mydata_new_clean_v4.pkl')
+    titles, sections, title2sections, sec2id = read_clean_data('data/%s' %config.data_file)
     corpus = sections
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_section = BM25Okapi(tokenized_corpus)

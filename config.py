@@ -26,4 +26,5 @@ class Config(object):
         self.infer_section_range = 10
         self.infer_section_select = 3
         self.maxium_sec = 200
+        self.data_file = 'mydata_new_clean_v4_sec.pkl'
 config = Config(16)

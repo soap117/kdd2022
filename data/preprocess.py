@@ -1,9 +1,10 @@
 import os
 import pickle
 import re
-
-if os.path.exists('mydata_new_clean_v4.pkl'):
-    with open('mydata_new_clean_v4.pkl', 'rb') as f:
+import sys
+from ...kdd2022.config import config
+if os.path.exists(config.data_file):
+    with open(config.data_file, 'rb') as f:
         my_data = pickle.load(f)
 path2file = {}
 def isChinese(word):
