@@ -5,7 +5,7 @@ import re
 if os.path.exists('mydata_new_clean.pkl'):
     with open('mydata_done_baidu.pkl', 'rb') as f:
         mark_done = pickle.load(f)
-    with open('mydata_new_clean.pkl', 'rb') as f:
+    with open('mydata_new_clean_v4.pkl', 'rb') as f:
         my_data = pickle.load(f)
     with open('./mydata_url2secs_new_baidu.pkl', 'rb') as f:
         url2secs = pickle.load(f)
