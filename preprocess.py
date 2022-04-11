@@ -3,7 +3,7 @@ import pickle
 import re
 from config import config
 if os.path.exists(config.data_file):
-    with open(config.data_file) as f:
+    with open(config.data_file, 'rb') as f:
         my_data = pickle.load(f)
 path2file = {}
 def isChinese(word):
