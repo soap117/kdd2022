@@ -15,7 +15,7 @@ from rank_bm25 import BM25Okapi
 def build(config):
     save_data = torch.load('./results/best_model.bin', map_location=torch.device('cuda:0'))
     tokenizer = BertTokenizer(vocab_file='./GPT2Chinese/vocab.txt', do_lower_case=False, never_split=['[SEP]'])
-    titles, sections, title2sections, sec2id = read_clean_data('data/mydata_new_clean_v3.pkl')
+    titles, sections, title2sections, sec2id = read_clean_data('data/mydata_new_clean_v4.pkl')
     corpus = sections
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_section = BM25Okapi(tokenized_corpus)
@@ -50,6 +50,8 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
         eval_ans = []
         tp = 0
         total = 0
+        tp_s = 0
+        total_s = 0
         for step, (querys, titles, sections, infer_titles, annotations_ids) in tqdm(enumerate(dataloader)):
             dis_final, lossp = modelp(querys, titles)
             dis_final, losss = models(querys, sections)
@@ -105,18 +107,23 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             rs2 = torch.topk(scores, config.infer_section_select, dim=1)
             scores = rs2[0]
             reference = []
+            count = 0
             inds_sec = rs2[1].cpu().numpy()
             for bid in range(len(inds_sec)):
+                total_s += 1
                 temp = []
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
+                if infer_section_candidates_pured[bid][cid] == sections[bid][0]:
+                    count += 1
                 temp = ' [SEP] '.join(temp)
                 reference.append(temp[0:1000])
-            loss = 0.1*(lossp.mean() + losss.mean())
+            tp_s += count
+            loss = (lossp.mean() + losss.mean())
             total_loss.append(loss.item())
         modelp.train()
         models.train()
-        print('accuracy: %f' %(tp/total))
+        print('accuracy title: %f accuracy section: %f' %(tp/total, tp_s/total_s))
         return np.array(total_loss).mean(), eval_ans
 
 

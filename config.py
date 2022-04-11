@@ -15,10 +15,11 @@ class Config(object):
         self.key_tokenizer= self.title_tokenizer
         self.title_emb_dim = 64
         self.key_emb_dim = 64
-        self.lr = 2e-4
+        self.lr = 5e-4
         self.train_epoch = 100
         self.data_path = './data/mydata.pkl'
         self.neg_num = 9
+        self.neg_strong_num = 3
         self.infer_title_range = 10
         self.infer_title_select = 3
         self.batch_size = batch_size

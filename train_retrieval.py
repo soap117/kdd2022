@@ -16,7 +16,7 @@ from rank_bm25 import BM25Okapi
 from transformers.models.bert import modeling_bert
 def build(config):
     tokenizer = config.title_tokenizer
-    titles, sections, title2sections, sec2id = read_clean_data('data/mydata_new_clean_v3.pkl')
+    titles, sections, title2sections, sec2id = read_clean_data('data/mydata_new_clean_v4.pkl')
     corpus = sections
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_section = BM25Okapi(tokenized_corpus)
@@ -116,18 +116,19 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
         s_eval_loss = test_loss[1]
         if p_eval_loss < min_loss_p:
             min_loss_p = p_eval_loss
-            if p_eval_loss > min_loss_p:
-                for g in optimizer_p.param_groups:
-                    g['lr'] = g['lr']*0.1
-            else:
-                min_loss_p = p_eval_loss
-            print('New Test Loss:%f' % p_eval_loss)
+        elif p_eval_loss > min_loss_p:
+            for g in optimizer_p.param_groups:
+                g['lr'] = g['lr']*0.01
+        if s_eval_loss < min_loss_s:
+            min_loss_s = s_eval_loss
+        elif s_eval_loss > min_loss_s:
+            for g in optimizer_s.param_groups:
+                g['lr'] = g['lr']*0.01
+        if p_eval_loss <= min_loss_p or s_eval_loss <= min_loss_s:
+            print('New Test Loss:%f' % (p_eval_loss+s_eval_loss))
             state = {'epoch': epoch, 'config': config, 'models': models, 'modelp': modelp, 'model': model,
                      'eval_rs': eval_ans}
             torch.save(state, './results/' + 'best_model.bin')
-        else:
-            for g in optimizer_s.param_groups:
-                g['lr'] = g['lr'] * 0.1
     return state
 
 def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dataloader, loss_func):
