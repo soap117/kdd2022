@@ -43,17 +43,22 @@ for fid, file in tqdm(enumerate(my_data)):
     top_n_sentences = bm25_sentences.get_top_n(key_cut, sentences, 3)
     file['rsecs'] = [top_n_sentences[0]]
     sentences = []
-    for group in file['rpsecs']:
-        sentences += group
-    sentences = ('。'.join(sentences)).split('。')
-    sentences = [x for x in sentences if len(x) > 3]
-    tokenized_corpus = [jieba.lcut(doc) for doc in sentences]
-    if len(tokenized_corpus) == 0 or len(tokenized_corpus[0]) == 0:
-        continue
-    bm25_sentences = BM25Okapi(tokenized_corpus)
-    key_cut = jieba.lcut(anno)
-    top_n_sentences = bm25_sentences.get_top_n(key_cut, sentences, 10)
-    file['rpsecs'] = [top_n_sentences]
+    title = file['rpsecs'][-1]
+    for gid, group in enumerate(file['rpsecs']):
+        sentences = group[0:-1]
+        title = group[-1]
+        sentences = ('。'.join(sentences)).split('。')
+        sentences = [x for x in sentences if len(x) > 3]
+        tokenized_corpus = [jieba.lcut(doc) for doc in sentences]
+        if len(tokenized_corpus) == 0 or len(tokenized_corpus[0]) == 0:
+            continue
+        bm25_sentences = BM25Okapi(tokenized_corpus)
+        key_cut = jieba.lcut(anno)
+        top_n_sentences = bm25_sentences.get_top_n(key_cut, sentences, 5)
+        new = top_n_sentences.append(title)
+        file['rpsecs'][gid] = new
+    if len(file['rpsecs']) == 0:
+        print('here')
     data_new.append(file)
     #print(top_n_sentences)
 

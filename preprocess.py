@@ -35,13 +35,13 @@ for dp in my_data:
             new_rsecs.append(rsec)
             new_rpsecs.append(rpsec)
             url_set.add(url)
+    if len(new_rpsecs) == 0:
+        fail_count += 1
+        print(dp)
     dp['urls'] = new_urls
     dp['rsecs'] = new_rsecs
     dp['rpsecs'] = new_rpsecs
     path2file[dp['file']['textid']] = dp
-    if len(new_rpsecs) == 0:
-        fail_count += 1
-        print(dp)
 print(fail_count)
 names = ['train', 'valid', 'test']
 sets = {}
