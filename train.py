@@ -1,19 +1,17 @@
 import torch
-from config import config
+from models.config import config
 from models.units import MyData, get_decoder_att_map, batch_pointer_generation, batch_pointer_decode
-from transformers.models.bert import BertTokenizer, BertConfig
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
-from models.modeling_gpt2_att import GPT2LMHeadModel
 from models.modeling_p2p_att import PointerNet
-from models.modeling_bert import BertForTokenClassification
 from tqdm import tqdm
 from transformers import AdamW
 import numpy as np
 import jieba
 from models.units import read_clean_data
 from rank_bm25 import BM25Okapi
-from transformers.models.bert import modeling_bert
+
+
 def build(config):
     tokenizer = config.title_tokenizer
     titles, sections, title2sections, sec2id = read_clean_data('data/mydata_new_baidu.pkl')

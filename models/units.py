@@ -5,7 +5,7 @@ import time
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 smooth = SmoothingFunction()
 from tqdm import tqdm
-from config import config
+from models.config import config
 
 def batch_pointer_decode(source, pointers):
     temp = []
@@ -213,7 +213,7 @@ def get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section):
             print(key['key'])
     return sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_pos_ans, sample_annotation, sampe_strong_candidates
 
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 import pickle, re
 def read_clean_data(path):
     sample_data = pickle.load(open(path, 'rb'))
@@ -263,7 +263,8 @@ def read_data(path):
                     one['rpsecs'][tid][-1] = web_title
             keys.append(one)
     return keys
-from rank_bm25 import BM25Okapi
+
+
 class MyData(Dataset):
     def __init__(self, config, tokenizer, data_path, titles, sections, title2sections, sec2id, bm25_title, bm25_section):
         self.config = config
