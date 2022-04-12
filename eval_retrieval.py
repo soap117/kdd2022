@@ -9,7 +9,8 @@ import numpy as np
 import jieba
 from models.units import read_clean_data
 from rank_bm25 import BM25Okapi
-
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+smooth = SmoothingFunction()
 def build(config):
     save_data = torch.load('./results/best_model.bin', map_location=torch.device('cuda:0'))
     tokenizer = BertTokenizer(vocab_file='./GPT2Chinese/vocab.txt', do_lower_case=False, never_split=['[SEP]'])
@@ -25,11 +26,11 @@ def build(config):
     valid_dataset = MyData(config, tokenizer, 'data/valid.pkl', titles, sections, title2sections, sec2id, bm25_title,
                            bm25_section)
     valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=config.batch_size
-                                  , collate_fn=valid_dataset.collate_fn)
+                                  , collate_fn=valid_dataset.collate_fn_test)
     test_dataset = MyData(config, tokenizer, 'data/test.pkl', titles, sections, title2sections, sec2id, bm25_title,
                            bm25_section)
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=config.batch_size
-                                  , collate_fn=test_dataset.collate_fn)
+                                  , collate_fn=test_dataset.collate_fn_test)
 
     modelp = save_data['modelp']
     models = save_data['models']
@@ -39,6 +40,31 @@ def build(config):
     optimizer_decoder = None
     loss_func = torch.nn.CrossEntropyLoss()
     return modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, None, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
+
+def check(query, infer_titles, pos_titles, secs=False):
+    for pos_title in pos_titles:
+        for infer_title in infer_titles:
+            key_cut = list(pos_title)
+            candidata_title = list(infer_title)
+            if secs:
+                if min(len(key_cut), len(candidata_title)) == 1:
+                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(1.0, 0.0),
+                                             smoothing_function=smooth.method1)
+                else:
+                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(0.5, 0.5),
+                                             smoothing_function=smooth.method1)
+                if can_simi > 0.6 or pos_title in infer_title:
+                    return True
+            else:
+                if min(len(key_cut), len(candidata_title)) == 1:
+                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(1.0, 0.0),
+                                             smoothing_function=smooth.method1)
+                else:
+                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(0.5, 0.5),
+                                             smoothing_function=smooth.method1)
+                if can_simi > 0.6 or pos_title in infer_title or query in infer_title:
+                    return True
+    return False
 
 def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dataloader, loss_func):
     with torch.no_grad():
@@ -50,7 +76,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
         total = 0
         tp_s = 0
         total_s = 0
-        for step, (querys, titles, sections, infer_titles, annotations_ids) in tqdm(enumerate(dataloader)):
+        for step, (querys, titles, sections, infer_titles, annotations_ids, pos_titles, pos_sections) in tqdm(enumerate(dataloader)):
             dis_final, lossp = modelp(querys, titles)
             dis_final, losss = models(querys, sections)
             rs2 = modelp.infer(querys, infer_titles)
@@ -68,17 +94,16 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
                 count = 0
                 for nid, cid in enumerate(inds[bid]):
                     temp.append(infer_titles[bid][cid])
-                    if infer_titles[bid][cid] == titles[bid][0]:
-                        count += 1
                     temp2 += title2sections[infer_titles[bid][cid]]
                     temp3 += [nid for x in title2sections[infer_titles[bid][cid]]]
+                if check(query, temp, pos_titles[bid]):
+                    count += 1
                 temp2_id = []
                 tp += count
                 if count == 0:
                     print('Failed Examples:')
                     print(query)
                     print(titles[bid][0])
-                    print(infer_titles[bid])
                     print(temp)
                     print('------------------------------------')
                 for t_sec in temp2:
@@ -105,18 +130,24 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             rs2 = torch.topk(scores, config.infer_section_select, dim=1)
             scores = rs2[0]
             reference = []
-            count = 0
             inds_sec = rs2[1].cpu().numpy()
             for bid in range(len(inds_sec)):
+                count_s = 0
                 total_s += 1
                 temp = []
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
-                if infer_section_candidates_pured[bid][cid] == sections[bid][0]:
-                    count += 1
+                if check(query, temp, pos_sections[bid], secs=True):
+                    count_s += 1
+                if count_s == 0:
+                    print('Failed Examples:')
+                    print(query)
+                    print(sections[bid][0])
+                    print(temp)
+                    print('++++++++++++++++++++++++++++++++++++')
                 temp = ' [SEP] '.join(temp)
                 reference.append(temp[0:1000])
-            tp_s += count
+                tp_s += count_s
             loss = (lossp.mean() + losss.mean())
             total_loss.append(loss.item())
         modelp.train()

@@ -296,7 +296,9 @@ class MyData(Dataset):
         sample_section_candidates = [pos_section] + self.sample_section_candidates[item] + [strong_neg_section]
         infer_title_candidates = self.infer_title_candidates[item]
         sample_annotation = self.sample_annotation[item]
-        return sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_annotation
+        pos_titles = [x[-1] for x in self.sample_pos_ans[item][1]]
+        pos_sections = self.sample_pos_ans[item][0]
+        return sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_annotation, pos_titles, pos_sections
 
     def collate_fn(self, train_data):
         querys = [data[0] for data in train_data]
@@ -306,6 +308,17 @@ class MyData(Dataset):
         annotations = [data[4] for data in train_data]
         annotations_ids = self.tokenizer(annotations, return_tensors="pt", padding=True)
         return querys, titles, sections, infer_titles, annotations_ids
+
+    def collate_fn_test(self, train_data):
+        querys = [data[0] for data in train_data]
+        titles = [data[1] for data in train_data]
+        sections = [data[2] for data in train_data]
+        infer_titles = [data[3] for data in train_data]
+        annotations = [data[4] for data in train_data]
+        annotations_ids = self.tokenizer(annotations, return_tensors="pt", padding=True)
+        pos_titles = [data[5] for data in train_data]
+        pos_sections = [data[6] for data in train_data]
+        return querys, titles, sections, infer_titles, annotations_ids, pos_titles, pos_sections
 
 
 
