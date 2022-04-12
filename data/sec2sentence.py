@@ -61,12 +61,13 @@ for fid, (file, index_list) in tqdm(enumerate(zip(my_data, group_list))):
     key_cut = jieba.lcut(anno)
     batch_scores = bm25_sentences.get_batch_scores(key_cut, index_list)
     top_n_sentence = ''.join(complete_corpus[index_list[np.argmax(batch_scores)]])
-    #print(anno)
-    #print(top_n_sentence)
+    print(anno)
+    print(top_n_sentence)
     if max(batch_scores) <= 2 and key not in top_n_sentence:
         if anno in key:
             key = anno
             file['key'] = key
+
         else:
             count_f += 1
             print(key)

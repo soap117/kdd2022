@@ -126,28 +126,26 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             scores_title = scores_title.unsqueeze(1)
             scores_title = scores_title.matmul(mapping).squeeze(1)
             rs_scores = models.infer(querys, infer_section_candidates_pured)
-            scores = scores_title * rs_scores
+            scores = scores_title + rs_scores
             rs2 = torch.topk(scores, config.infer_section_select, dim=1)
             scores = rs2[0]
             reference = []
             inds_sec = rs2[1].cpu().numpy()
             for bid in range(len(inds_sec)):
-                count_s = 0
                 total_s += 1
                 temp = []
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
                 if check(query, temp, pos_sections[bid], secs=True):
-                    count_s += 1
-                if count_s == 0:
+                    tp_s += 1
+                else:
                     print('Failed Examples:')
-                    print(query)
+                    print(querys[bid])
                     print(sections[bid][0])
                     print(temp)
                     print('++++++++++++++++++++++++++++++++++++')
                 temp = ' [SEP] '.join(temp)
                 reference.append(temp[0:1000])
-                tp_s += count_s
             loss = (lossp.mean() + losss.mean())
             total_loss.append(loss.item())
         modelp.train()
