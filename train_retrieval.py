@@ -97,7 +97,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
                 temp = [querys[bid]]
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
-                temp = '[UNK]'+'[SEP]'.join(temp)
+                temp = ' [SEP] '.join(temp)
                 reference.append(temp[0:500])
 
             loss = lossp.mean() + losss.mean()
@@ -179,7 +179,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             reference = []
             inds_sec = rs2[1].cpu().numpy()
             for bid in range(len(inds_sec)):
-                temp = []
+                temp = [querys[bid]]
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
                 temp = ' [SEP] '.join(temp)

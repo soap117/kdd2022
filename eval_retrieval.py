@@ -12,7 +12,7 @@ from rank_bm25 import BM25Okapi
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 smooth = SmoothingFunction()
 def build(config):
-    save_data = torch.load('./results/best_model.bin', map_location=torch.device('cuda:0'))
+    save_data = torch.load('./results/best_model.bin')
     tokenizer = BertTokenizer(vocab_file='./GPT2Chinese/vocab.txt', do_lower_case=False, never_split=['[SEP]'])
     titles, sections, title2sections, sec2id = read_clean_data(config.data_file)
     corpus = sections

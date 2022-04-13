@@ -14,7 +14,7 @@ from rank_bm25 import BM25Okapi
 
 def build(config):
     tokenizer = config.title_tokenizer
-    titles, sections, title2sections, sec2id = read_clean_data('data/mydata_new_baidu.pkl')
+    titles, sections, title2sections, sec2id = read_clean_data(config.data_file)
     corpus = sections
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_section = BM25Okapi(tokenized_corpus)
@@ -106,7 +106,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
                 temp = [querys[bid]]
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
-                temp = '[UNK]'+'[SEP]'.join(temp)
+                temp = ' [SEP] '.join(temp)
                 reference.append(temp[0:500])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
@@ -147,17 +147,17 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
         p_eval_loss = test_loss[0]
         s_eval_loss = test_loss[1]
         d_eval_loss = test_loss[2]
+        if p_eval_loss > min_loss_p:
+            for g in optimizer_p.param_groups:
+                g['lr'] = g['lr'] * 0.1
+        else:
+            min_loss_p = p_eval_loss
+        if s_eval_loss > min_loss_s:
+            for g in optimizer_s.param_groups:
+                g['lr'] = g['lr'] * 0.1
+        else:
+            min_loss_s = s_eval_loss
         if d_eval_loss < min_loss_d:
-            if p_eval_loss > min_loss_p:
-                for g in optimizer_p.param_groups:
-                    g['lr'] = g['lr']*0.1
-            else:
-                min_loss_p = p_eval_loss
-            if s_eval_loss > min_loss_s:
-                for g in optimizer_s.param_groups:
-                    g['lr'] = g['lr']*0.1
-            else:
-                min_loss_s = s_eval_loss
             print('New Test Loss:%f' % d_eval_loss)
             t_count = 0
             min_loss_d = d_eval_loss
@@ -217,13 +217,13 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             scores_title = scores_title.unsqueeze(1)
             scores_title = scores_title.matmul(mapping).squeeze(1)
             rs_scores = models.infer(querys, infer_section_candidates_pured)
-            scores = scores_title * rs_scores
+            scores = scores_title + rs_scores
             rs2 = torch.topk(scores, config.infer_section_select, dim=1)
             scores = rs2[0]
             reference = []
             inds_sec = rs2[1].cpu().numpy()
             for bid in range(len(inds_sec)):
-                temp = []
+                temp = [querys[bid]]
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
                 temp = ' [SEP] '.join(temp)
