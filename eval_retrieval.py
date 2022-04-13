@@ -50,10 +50,13 @@ def check(query, infer_titles, pos_titles, secs=False):
                 if min(len(key_cut), len(candidata_title)) == 1:
                     can_simi = sentence_bleu([candidata_title], key_cut, weights=(1.0, 0.0),
                                              smoothing_function=smooth.method1)
-                else:
+                elif min(len(key_cut), len(candidata_title)) == 2:
                     can_simi = sentence_bleu([candidata_title], key_cut, weights=(0.5, 0.5),
                                              smoothing_function=smooth.method1)
-                if can_simi > 0.6 or pos_title in infer_title:
+                else:
+                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(0.3333, 0.3333, 0.3333),
+                                             smoothing_function=smooth.method1)
+                if can_simi > 0.5 or pos_title in infer_title:
                     return True
             else:
                 if min(len(key_cut), len(candidata_title)) == 1:
@@ -62,7 +65,7 @@ def check(query, infer_titles, pos_titles, secs=False):
                 else:
                     can_simi = sentence_bleu([candidata_title], key_cut, weights=(0.5, 0.5),
                                              smoothing_function=smooth.method1)
-                if can_simi > 0.6 or pos_title in infer_title or query in infer_title:
+                if can_simi > 0.5 or pos_title in infer_title or query in infer_title:
                     return True
     return False
 
