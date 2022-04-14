@@ -118,12 +118,12 @@ class myThread(threading.Thread):
                     pickle.dump(mark_done, f)
             lock_m.release()
 if os.path.exists('mydata_new_clean_v3.pkl'):
-    with open('mydata_new_clean_v2.pkl', 'rb') as f:
+    with open('mydata_new_clean.pkl', 'rb') as f:
         my_data = pickle.load(f)
     with open('mydata_new_clean_v3_mark.pkl', 'rb') as f:
         mark_done = pickle.load(f)
 else:
-    with open('mydata_new_clean_v2.pkl', 'rb') as f:
+    with open('mydata_new_clean.pkl', 'rb') as f:
         my_data = pickle.load(f)
 
 len_file = len(my_data)
