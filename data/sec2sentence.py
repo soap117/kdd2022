@@ -36,7 +36,7 @@ def find_location(file):
     count = 0
     for content in file['file']['contents']:
         for tooltip in content['tooltips']:
-            if tooltip['translation'] == anno:
+            if tooltip['translation'] == anno and tooltip['origin'] == file['key']:
                 file['sentence'] = content['text']
                 file['position'] = (tooltip['l'], tooltip['l']+len(tooltip['origin']))
                 file['origin_key'] = tooltip['origin']
@@ -74,7 +74,6 @@ bm25_sentences = BM25Okapi(complete_corpus)
 for fid, (file, index_list) in tqdm(enumerate(zip(my_data, group_list))):
     if len(index_list) <= 0:
         continue
-    file = find_location(file)
     # print(file)
     key = file['key']
     anno = file['anno']
@@ -105,6 +104,7 @@ for fid, (file, index_list) in tqdm(enumerate(zip(my_data, group_list))):
         print(top_n_sentences)
         print('--------------')
         continue
+    file = find_location(file)
     file['rsecs'] = top_n_sentences
     sentences = []
     for gid, group in enumerate(file['rpsecs']):
