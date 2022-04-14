@@ -36,7 +36,7 @@ def find_location(file):
     count = 0
     for content in file['file']['contents']:
         for tooltip in content['tooltips']:
-            if tooltip['translation'] == anno and tooltip['origin'] == file['key']:
+            if tooltip['translation'] == anno and tooltip['origin'] == file['original_key']:
                 file['sentence'] = content['text']
                 file['position'] = (tooltip['l'], tooltip['l']+len(tooltip['origin']))
                 file['origin_key'] = tooltip['origin']
@@ -87,7 +87,7 @@ for fid, (file, index_list) in tqdm(enumerate(zip(my_data, group_list))):
         can_simi = sentence_bleu([complete_corpus[exp_id_list[np.argmax(batch_scores)]]], key_cut, weights=(0.5, 0.5),
                                  smoothing_function=smooth.method1)
         inversed_punishment = 1 / np.exp(1 - len(complete_corpus[exp_id_list[np.argmax(batch_scores)]]) / len(key_cut))
-        if max(batch_scores) <= 2 and key not in top_n_sentence and can_simi*inversed_punishment < 0.75:
+        if max(batch_scores) <= 2 and key not in top_n_sentence and can_simi*inversed_punishment < 0.6:
             if anno in key:
                 key = anno
                 file['key'] = key
