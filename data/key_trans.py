@@ -101,6 +101,7 @@ class myThread(threading.Thread):
             if len(new_key) == 0:
                 new_key = key
             lock_m.acquire()
+            file['old_key'] = file['key'].copy()
             file['key'] = new_key
             mark_done[key] = new_key
             if key!=new_key:
