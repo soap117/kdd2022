@@ -34,6 +34,6 @@ for name in names:
     for path in plist:
         if path in path2file:
             temp += path2file[path]
-    with open('data/'+name+'.pkl', 'wb') as f:
+    with open(config.data_file.replace('.pkl', '_%s_dataset_raw.pkl' %(name)), 'wb') as f:
         pickle.dump(temp, f)
 
