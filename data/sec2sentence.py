@@ -41,8 +41,6 @@ def find_location(file):
                 file['position'] = (tooltip['l'], tooltip['l']+len(tooltip['origin']))
                 file['origin_key'] = tooltip['origin']
                 count += 1
-    if count > 1:
-        print('errpr')
     return file
 for fid, file in tqdm(enumerate(my_data)):
     sen_set = set()
