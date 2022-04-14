@@ -75,7 +75,8 @@ for fid, (file, index_list) in tqdm(enumerate(zip(my_data, group_list))):
         top_n_sentence = ''.join(complete_corpus[exp_id_list[np.argmax(batch_scores)]])
         can_simi = sentence_bleu([complete_corpus[exp_id_list[np.argmax(batch_scores)]]], key_cut, weights=(0.5, 0.5),
                                  smoothing_function=smooth.method1)
-        if max(batch_scores) <= 2 and key not in top_n_sentence and can_simi < 0.5:
+        inversed_punishment = 1 / np.exp(1 - len(complete_corpus[exp_id_list[np.argmax(batch_scores)]]) / len(key_cut))
+        if max(batch_scores) <= 2 and key not in top_n_sentence and can_simi*inversed_punishment < 0.75:
             if anno in key:
                 key = anno
                 file['key'] = key
