@@ -1,3 +1,4 @@
+from cuda import *
 import torch
 from config import config
 from models.units import MyData
@@ -21,10 +22,10 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    if os.path.exists('data/train_dataset.bin'):
-        train_dataset = torch.load('data/train_dataset.bin')
-        valid_dataset = torch.load('data/valid_dataset.bin')
-        test_dataset = torch.load('data/test_dataset.bin')
+    if os.path.exists(config.data_file.replace('.pkl', '_train_dataset.pkl')):
+        train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset.pkl'))
+        valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset.pkl'))
+        test_dataset = torch.load(config.data_file.replace('.pkl', '_test_dataset.pkl'))
     else:
         train_dataset = MyData(config, tokenizer, 'data/train.pkl', titles, sections, title2sections, sec2id, bm25_title, bm25_section)
         valid_dataset = MyData(config, tokenizer, 'data/valid.pkl', titles, sections, title2sections, sec2id,
@@ -32,9 +33,9 @@ def build(config):
                                bm25_section)
         test_dataset = MyData(config, tokenizer, 'data/test.pkl', titles, sections, title2sections, sec2id, bm25_title,
                               bm25_section)
-        torch.save(train_dataset, 'data/train_dataset.bin')
-        torch.save(valid_dataset, 'data/valid_dataset.bin')
-        torch.save(test_dataset, 'data/test_dataset.bin')
+        torch.save(train_dataset, config.data_file.replace('.pkl', '_train_dataset.pkl'))
+        torch.save(valid_dataset, config.data_file.replace('.pkl', '_valid_dataset.pkl'))
+        torch.save(test_dataset, config.data_file.replace('.pkl', '_test_dataset.pkl'))
 
     train_dataloader = DataLoader(dataset=train_dataset, batch_size=config.batch_size
                                   , collate_fn=train_dataset.collate_fn)
