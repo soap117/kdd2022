@@ -18,6 +18,7 @@ def isChinese(word):
             return True
     return False
 fail_count = 0
+new_data = []
 for dp in my_data:
     new_urls = []
     new_rsecs = []
@@ -33,7 +34,8 @@ for dp in my_data:
     for url, rsec, rpsec in zip(dp['urls'], dp['rsecs'], dp['rpsecs']):
         if url not in url_set:
             if len(rpsec) == 0:
-                if url not in url2secs:
+                if url not in url2secs or len(url2secs[url])==0:
+                    fail_count += 1
                     continue
                 rpsec = url2secs[url]
             title = rpsec[-1]
@@ -54,6 +56,7 @@ for dp in my_data:
     if len(new_rpsecs) == 0:
         fail_count += 1
         print(dp)
+    new_data.append(dp)
 print(fail_count)
 with open('mydata_new_clean_v2.pkl', 'wb') as f:
-    pickle.dump(my_data, f)
+    pickle.dump(new_data, f)

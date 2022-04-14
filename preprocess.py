@@ -11,38 +11,8 @@ def isChinese(word):
         if '\u4e00' <= ch <= '\u9fff' or ch == ' ' or ch == '_' or ch == '-':
             return True
     return False
-fail_count = 0
 for dp in my_data:
-    new_urls = []
-    new_rsecs = []
-    new_rpsecs = []
-    url_set = set()
-    if len(dp['urls'])==0:
-        for small_data in dp['file']['contents']:
-            for list_anno in small_data['tooltips']:
-                for temp in list_anno['sources']:
-                    dp['urls'].append(temp['link'])
-                    dp['rsecs'].append(temp['reference'])
-                    dp['rpsecs'].append([])
-    for url, rsec, rpsec in zip(dp['urls'], dp['rsecs'], dp['rpsecs']):
-        if url not in url_set:
-            title = rpsec[-1]
-            if not isChinese(title):
-                print(title)
-                fail_count += 1
-                continue
-            new_urls.append(url)
-            new_rsecs.append(rsec)
-            new_rpsecs.append(rpsec)
-            url_set.add(url)
-    if len(new_rpsecs) == 0:
-        fail_count += 1
-        print(dp)
-    dp['urls'] = new_urls
-    dp['rsecs'] = new_rsecs
-    dp['rpsecs'] = new_rpsecs
     path2file[dp['file']['textid']] = dp
-print(fail_count)
 names = ['train', 'valid', 'test']
 sets = {}
 for name in names:
