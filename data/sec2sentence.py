@@ -33,12 +33,16 @@ group_list = []
 sen2id = {}
 def find_location(file):
     anno = file['anno']
+    count = 0
     for content in file['file']['contents']:
         for tooltip in content['tooltips']:
             if tooltip['translation'] == anno:
                 file['sentence'] = content['text']
                 file['position'] = (tooltip['l'], tooltip['l']+len(tooltip['origin']))
                 file['origin_key'] = tooltip['origin']
+                count += 1
+    if count > 1:
+        print('errpr')
     return file
 for fid, file in tqdm(enumerate(my_data)):
     sen_set = set()
