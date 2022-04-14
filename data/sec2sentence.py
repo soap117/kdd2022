@@ -31,6 +31,15 @@ count_f = 0
 complete_corpus = []
 group_list = []
 sen2id = {}
+def find_location(file):
+    anno = file['anno']
+    for content in file['file']['contents']:
+        for tooltip in content['tooltips']:
+            if tooltip['translation'] == anno:
+                file['sentence'] = content['text']
+                file['position'] = (tooltip['l'], tooltip['l']+len(tooltip['origin']))
+                file['origin_key'] = tooltip['origin']
+    return file
 for fid, file in tqdm(enumerate(my_data)):
     sen_set = set()
     id_list = []
@@ -61,6 +70,7 @@ bm25_sentences = BM25Okapi(complete_corpus)
 for fid, (file, index_list) in tqdm(enumerate(zip(my_data, group_list))):
     if len(index_list) <= 0:
         continue
+    file = find_location(file)
     # print(file)
     key = file['key']
     anno = file['anno']
