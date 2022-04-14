@@ -12,7 +12,10 @@ def isChinese(word):
             return True
     return False
 for dp in my_data:
-    path2file[dp['file']['textid']] = dp
+    if dp['file']['textid'] in path2file:
+        path2file[dp['file']['textid']].append(dp)
+    else:
+        path2file[dp['file']['textid']] = [dp]
 names = ['train', 'valid', 'test']
 sets = {}
 for name in names:
@@ -28,7 +31,7 @@ for name in names:
     temp = []
     for path in plist:
         if path in path2file:
-            temp.append(path2file[path])
+            temp += path2file[path]
     with open('data/'+name+'.pkl', 'wb') as f:
         pickle.dump(temp, f)
 
