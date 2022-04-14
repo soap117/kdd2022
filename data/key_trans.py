@@ -94,6 +94,7 @@ class myThread(threading.Thread):
             rs = json.loads(r.text)
             rs = rs['data']
             name_set = set()
+            name_set.add(file['key'])
             for one in rs:
                 name_set.add(re.sub(r'\[.*\]', '',one[0]))
             name_list = list(name_set)
