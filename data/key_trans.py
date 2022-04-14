@@ -55,6 +55,7 @@ class myThread(threading.Thread):
         for fid, file in enumerate(self.files):
             # print(file)
             key = file['key']
+            file['original_key'] = file['key']
             if key in mark_done:
                 file['key'] = mark_done[key]
                 continue
@@ -102,7 +103,6 @@ class myThread(threading.Thread):
             if len(new_key) == 0:
                 new_key = key
             lock_m.acquire()
-            file['original_key'] = file['key']
             file['key'] = new_key
             mark_done[key] = new_key
             if key!=new_key:
