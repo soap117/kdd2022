@@ -23,12 +23,10 @@ def build(config):
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
     train_dataset = None
-    valid_dataset = MyData(config, tokenizer, 'data/valid.pkl', titles, sections, title2sections, sec2id, bm25_title,
-                           bm25_section)
+    valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset.pkl'))
+    test_dataset = torch.load(config.data_file.replace('.pkl', '_test_dataset.pkl'))
     valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=config.batch_size
                                   , collate_fn=valid_dataset.collate_fn_test)
-    test_dataset = MyData(config, tokenizer, 'data/test.pkl', titles, sections, title2sections, sec2id, bm25_title,
-                           bm25_section)
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=config.batch_size
                                   , collate_fn=test_dataset.collate_fn_test)
 
