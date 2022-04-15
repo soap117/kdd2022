@@ -71,7 +71,7 @@ class SecEncoder(nn.Module):
         filter_size = 3
         self.device = config.device
         self.conv = nn.ModuleList()
-        self.embed = nn.Embedding(self.tokenizer.vocab_size, config.title_emb_dim)
+        self.embed = nn.Embedding(self.tokenizer.vocab_size, config.context_emb_dim)
         self.trans_layer = nn.Linear(config.context_emb_dim, config.title_emb_dim)
         self.trans_layer_score = nn.Linear(config.context_emb_dim, 1)
         self.final_activation = nn.Tanh()
