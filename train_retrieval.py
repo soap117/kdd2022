@@ -60,9 +60,9 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
     min_loss_p = min_loss_s = min_loss_d = 1000
     for epoch in range(config.train_epoch):
         for step, (querys, titles, sections, infer_titles, annotations_ids) in tqdm(enumerate(train_dataloader)):
-            dis_final, lossp = modelp(querys, titles)
-            dis_final, losss = models(querys, sections)
-            rs2 = modelp.infer(querys, infer_titles)
+            dis_final, lossp, query_embedding = modelp(querys, titles)
+            dis_final, losss = models(query_embedding, sections)
+            rs2 = modelp.infer(query_embedding, infer_titles)
             rs2 = torch.topk(rs2, config.infer_title_select, dim=1)
             scores_title = rs2[0]
             inds = rs2[1].cpu().numpy()
@@ -97,7 +97,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             mapping = torch.FloatTensor(mapping_title).to(config.device)
             scores_title = scores_title.unsqueeze(1)
             scores_title = scores_title.matmul(mapping).squeeze(1)
-            rs_scores = models.infer(querys, infer_section_candidates_pured)
+            rs_scores = models.infer(query_embedding, infer_section_candidates_pured)
             scores = scores_title + rs_scores
             rs2 = torch.topk(scores, config.infer_section_select, dim=1)
             scores = rs2[0]
@@ -145,9 +145,9 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
         total_loss = []
         eval_ans = []
         for step, (querys, titles, sections, infer_titles, annotations_ids) in tqdm(enumerate(dataloader)):
-            dis_final, lossp = modelp(querys, titles)
-            dis_final, losss = models(querys, sections)
-            rs2 = modelp.infer(querys, infer_titles)
+            dis_final, lossp, query_embedding = modelp(querys, titles)
+            dis_final, losss = models(query_embedding, sections)
+            rs2 = modelp.infer(query_embedding, infer_titles)
             rs2 = torch.topk(rs2, config.infer_title_select, dim=1)
             scores_title = rs2[0]
             inds = rs2[1].cpu().numpy()
@@ -182,7 +182,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             mapping = torch.FloatTensor(mapping_title).to(config.device)
             scores_title = scores_title.unsqueeze(1)
             scores_title = scores_title.matmul(mapping).squeeze(1)
-            rs_scores = models.infer(querys, infer_section_candidates_pured)
+            rs_scores = models.infer(query_embedding, infer_section_candidates_pured)
             scores = scores_title + rs_scores
             rs2 = torch.topk(scores, config.infer_section_select, dim=1)
             scores = rs2[0]
