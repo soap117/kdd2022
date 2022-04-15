@@ -75,13 +75,13 @@ class SecEncoder(nn.Module):
         self.trans_layer = nn.Linear(config.context_emb_dim, config.title_emb_dim)
         self.trans_layer_score = nn.Linear(config.context_emb_dim, 1)
         self.final_activation = nn.Tanh()
-        for l in range(3):
+        for l in range(4):
             tmp = nn.Conv1d(config.context_emb_dim, config.context_emb_dim, kernel_size=filter_size,
                             padding=int(filter_size - 1))
             self.conv.add_module('baseconv_%d' % l, tmp)
             tmp = nn.ReLU()
             self.conv.add_module('ReLU_%d' % l, tmp)
-            if l == 0:
+            if l <= 1:
                 tmp = nn.MaxPool1d(2, 2)
                 self.conv.add_module('maxpool_%d' % l, tmp)
     def forward(self, title):
@@ -99,9 +99,9 @@ class SecEncoder(nn.Module):
             tmp = md(tmp)
         x = tmp
         x, _ = torch.max(x, dim=2)
+        score_context = self.trans_layer_score(x)
         x = self.trans_layer(x)
         x = self.final_activation(x)
-        score_context = self.trans_layer_score(x)
         score_context = self.final_activation(score_context)
         x = x.view(B, L, -1)
         score_context = score_context.view(B, L)
