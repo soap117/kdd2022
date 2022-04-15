@@ -1,3 +1,4 @@
+from cuda import *
 import torch
 from config import config
 from models.units import MyData
