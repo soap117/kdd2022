@@ -47,8 +47,7 @@ def build(config):
     title_encoder = TitleEncoder(config)
     modelp = PageRanker(config, title_encoder)
     modelp.cuda()
-    section_encoder = SecEncoder(config)
-    models = SectionRanker(config, section_encoder)
+    models = SectionRanker(config, title_encoder)
     models.cuda()
     model = None
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
