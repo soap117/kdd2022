@@ -11,6 +11,7 @@ from models.units import read_clean_data
 from rank_bm25 import BM25Okapi
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 smooth = SmoothingFunction()
+import os
 def build(config):
     save_data = torch.load('./results/best_model.bin')
     tokenizer = BertTokenizer(vocab_file='./GPT2Chinese/vocab.txt', do_lower_case=False, never_split=['[SEP]'])
@@ -23,8 +24,20 @@ def build(config):
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
     train_dataset = None
-    valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset.pkl'))
-    test_dataset = torch.load(config.data_file.replace('.pkl', '_test_dataset.pkl'))
+    if os.path.exists(config.data_file.replace('.pkl', '_train_dataset.pkl')):
+        valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset.pkl'))
+        test_dataset = torch.load(config.data_file.replace('.pkl', '_test_dataset.pkl'))
+    else:
+        valid_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_valid_dataset_raw.pkl'), titles,
+                               sections, title2sections, sec2id,
+                               bm25_title,
+                               bm25_section)
+        test_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_test_dataset_raw.pkl'), titles,
+                              sections, title2sections, sec2id, bm25_title,
+                              bm25_section)
+        torch.save(train_dataset, config.data_file.replace('.pkl', '_train_dataset.pkl'))
+        torch.save(valid_dataset, config.data_file.replace('.pkl', '_valid_dataset.pkl'))
+        torch.save(test_dataset, config.data_file.replace('.pkl', '_test_dataset.pkl'))
     valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=config.batch_size
                                   , collate_fn=valid_dataset.collate_fn_test)
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=config.batch_size
