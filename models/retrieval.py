@@ -75,6 +75,7 @@ class SecEncoder(nn.Module):
         self.trans_layer = nn.Linear(config.context_emb_dim, config.title_emb_dim)
         self.trans_layer_score = nn.Linear(config.context_emb_dim, 1)
         self.final_activation = nn.Tanh()
+        self.drop_layer = torch.nn.Dropout(0.5)
         for l in range(4):
             tmp = nn.Conv1d(config.context_emb_dim, config.context_emb_dim, kernel_size=filter_size,
                             padding=int(filter_size - 1))
@@ -97,10 +98,9 @@ class SecEncoder(nn.Module):
         tmp = x
         for idx, md in enumerate(self.conv):
             tmp = md(tmp)
-        x = tmp
-        x, _ = torch.max(x, dim=2)
-        score_context = self.trans_layer_score(x)
-        x = self.trans_layer(x)
+        tmp, _ = torch.max(tmp, dim=2)
+        score_context = self.trans_layer_score(self.drop_layer(tmp))
+        x = self.trans_layer(tmp)
         x = self.final_activation(x)
         score_context = self.final_activation(score_context)
         x = x.view(B, L, -1)
@@ -156,7 +156,8 @@ class SectionRanker(nn.Module):
     def forward(self, query_embedding, candidates):
         # query:[B,D] candidates:[B,L,D]
         #query_embedding = self.drop_layer(self.query_encoder.query_forward(query))
-        condidate_embeddings, candidate_scores = self.drop_layer(self.candidate_encoder(candidates))
+        condidate_embeddings, candidate_scores = self.candidate_encoder(candidates)
+        condidate_embeddings = self.drop_layer(condidate_embeddings)
         dis_final = []
         for k in range(len(query_embedding)):
             temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])
