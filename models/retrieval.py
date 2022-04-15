@@ -171,8 +171,8 @@ class SectionRanker(nn.Module):
 
     def __init__(self, config, title_encoder):
         super(SectionRanker, self).__init__()
-        self.query_encoder = KeyEncoder(config)
-        self.candidate_encoder = title_encoder
+        self.query_encoder = title_encoder
+        self.candidate_encoder = SecEncoder(config)
         self.loss_func = info_nec
         self.dis_func = distances.CosineSimilarity()
         self.drop_layer = torch.nn.Dropout(0.25)

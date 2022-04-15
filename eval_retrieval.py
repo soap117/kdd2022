@@ -146,7 +146,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             scores = rs2[0]
             reference = []
             inds_sec = rs2[1].cpu().numpy()
-            for bid in range(len(inds_sec)):
+            for query, bid in zip(querys, range(len(inds))):
                 total_s += 1
                 temp = []
                 for indc in inds_sec[bid]:
