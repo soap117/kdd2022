@@ -179,7 +179,7 @@ class SectionRanker(nn.Module):
 
     def forward(self, query, candidates):
         # query:[B,D] candidates:[B,L,D]
-        query_embedding = self.drop_layer(self.query_encoder(query))
+        query_embedding = self.drop_layer(self.query_encoder.query_forward(query))
         condidate_embeddings = self.drop_layer(self.candidate_encoder(candidates))
         dis_final = []
         for k in range(len(query_embedding)):
@@ -193,7 +193,7 @@ class SectionRanker(nn.Module):
 
     def infer(self, query, candidates):
         # query:[B,D] candidates:[B,L,D]
-        query_embedding = self.query_encoder(query)
+        query_embedding = self.drop_layer(self.query_encoder.query_forward(query))
         condidate_embeddings = self.candidate_encoder(candidates)
         dis_final = []
         for k in range(len(query_embedding)):
