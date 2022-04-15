@@ -13,7 +13,7 @@ from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 smooth = SmoothingFunction()
 import os
 def build(config):
-    save_data = torch.load('./results/best_model.bin')
+    save_data = torch.load(config.data_file.replace('.pkl', '_models.pkl').replace('data/', ''))
     tokenizer = BertTokenizer(vocab_file='./GPT2Chinese/vocab.txt', do_lower_case=False, never_split=['[SEP]'])
     titles, sections, title2sections, sec2id = read_clean_data(config.data_file)
     corpus = sections
