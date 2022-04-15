@@ -76,7 +76,7 @@ class SecEncoder(nn.Module):
         self.trans_layer_score = nn.Linear(config.context_emb_dim, 1)
         self.final_activation = nn.Tanh()
         for l in range(3):
-            tmp = nn.Conv1d(config.title_emb_dim, config.context_emb_dim, kernel_size=filter_size,
+            tmp = nn.Conv1d(config.context_emb_dim, config.context_emb_dim, kernel_size=filter_size,
                             padding=int(filter_size - 1))
             self.conv.add_module('baseconv_%d' % l, tmp)
             tmp = nn.ReLU()
