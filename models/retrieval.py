@@ -81,7 +81,7 @@ class SecEncoder(nn.Module):
             self.conv.add_module('baseconv_%d' % l, tmp)
             tmp = nn.ReLU()
             self.conv.add_module('ReLU_%d' % l, tmp)
-            if l == 2:
+            if l == 0:
                 tmp = nn.MaxPool1d(2, 2)
                 self.conv.add_module('maxpool_%d' % l, tmp)
     def forward(self, title):
