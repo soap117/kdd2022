@@ -13,8 +13,9 @@ class Config(object):
         except:
             torch.cuda.set_device(0)
         self.key_tokenizer= self.title_tokenizer
-        self.title_emb_dim = 64
-        self.key_emb_dim = 64
+        self.title_emb_dim = 128
+        self.key_emb_dim = 128
+        self.context_emb_dim = 256
         self.lr = 5e-4
         self.train_epoch = 100
         self.data_path = './data/mydata.pkl'
