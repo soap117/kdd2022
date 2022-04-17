@@ -234,11 +234,13 @@ def read_clean_data(path):
                     titles.append(web_title)
                     if web_title in title2sections and url not in urls:
                         title2sections[web_title] += title[0:-1]
-                        title2sections[web_title].append(tref)
+                        if tref not in title2sections[web_title]:
+                            title2sections[web_title].append(tref)
                         urls.add(url)
                     elif web_title not in title2sections:
                         title2sections[web_title] = title[0:-1]
-                        title2sections[web_title].append(tref)
+                        if tref not in title2sections[web_title]:
+                            title2sections[web_title].append(tref)
                         urls.add(url)
 
     titles = list(set(titles))
