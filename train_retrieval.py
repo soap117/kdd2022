@@ -59,8 +59,8 @@ def build(config):
 def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
     min_loss_p = min_loss_s = min_loss_d = 1000
     for epoch in range(config.train_epoch):
-        for step, (querys, titles, sections, infer_titles, annotations_ids) in tqdm(enumerate(train_dataloader)):
-            dis_final, lossp, query_embedding = modelp(querys, titles)
+        for step, (querys, querys_context, titles, sections, infer_titles, annotations_ids) in tqdm(enumerate(train_dataloader)):
+            dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
             rs2 = modelp.infer(query_embedding, infer_titles)
             rs2 = torch.topk(rs2, config.infer_title_select, dim=1)
@@ -144,8 +144,8 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
         models.eval()
         total_loss = []
         eval_ans = []
-        for step, (querys, titles, sections, infer_titles, annotations_ids) in tqdm(enumerate(dataloader)):
-            dis_final, lossp, query_embedding = modelp(querys, titles)
+        for step, (querys, querys_context, titles, sections, infer_titles, annotations_ids) in tqdm(enumerate(dataloader)):
+            dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
             rs2 = modelp.infer(query_embedding, infer_titles)
             rs2 = torch.topk(rs2, config.infer_title_select, dim=1)
