@@ -156,7 +156,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
                 else:
                     print('Failed Examples:')
                     print(querys[bid])
-                    print(sections[bid][0])
+                    print(pos_sections[bid])
                     print(temp)
                     print('++++++++++++++++++++++++++++++++++++')
                 temp = ' [SEP] '.join(temp)

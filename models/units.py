@@ -180,12 +180,14 @@ def get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section):
     infer_title_candidates = []
     sample_pos_ans = []
     sampe_strong_candidates = []
+    sample_query_context = []
     for key in tqdm(keys):
         if len(key['anno']) == 0:
             continue
         s = time.time()
         if len(key['rpsecs'][0]) <= 1 or len(key['key']) < 1:
             continue
+        sample_query_context.append(key['sentence'])
         sample_query.append(key['key'])
         sample_annotation.append(key['anno'])
         key_cut = jieba.lcut(key['key'])
@@ -211,7 +213,7 @@ def get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section):
         e = time.time()
         if e-s > 5:
             print(key['key'])
-    return sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_pos_ans, sample_annotation, sampe_strong_candidates
+    return sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_pos_ans, sample_annotation, sampe_strong_candidates, sample_query_context
 
 from torch.utils.data import Dataset
 import pickle, re
@@ -274,8 +276,11 @@ class MyData(Dataset):
         keys = read_data(data_path)
         self.title2sections = title2sections
         self.sec2id = sec2id
-        sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_pos_ans, sample_annotation, sample_strong_section_candidates = get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section)
+        sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, \
+        sample_pos_ans, sample_annotation, sample_strong_section_candidates, sample_query_context \
+            = get_retrieval_train_batch(keys, titles, sections, bm25_title, bm25_section)
         self.sample_query = sample_query
+        self.sample_query_context = sample_query_context
         self.sample_title_candidates = sample_title_candidates
         self.sample_section_candidates = sample_section_candidates
         self.sample_strong_section_candidates = sample_strong_section_candidates
@@ -300,19 +305,22 @@ class MyData(Dataset):
         sample_annotation = self.sample_annotation[item]
         pos_titles = [x[-1] for x in self.sample_pos_ans[item][1]]
         pos_sections = self.sample_pos_ans[item][0]
-        return sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_annotation, pos_titles, pos_sections
+        sample_query_context = self.sample_query_context[item]
+        return sample_query, sample_title_candidates, sample_section_candidates, infer_title_candidates, sample_annotation, pos_titles, pos_sections, sample_query_context
 
     def collate_fn(self, train_data):
         querys = [data[0] for data in train_data]
+        querys_context = [data[7] for data in train_data]
         titles = [data[1] for data in train_data]
         sections = [data[2] for data in train_data]
         infer_titles = [data[3] for data in train_data]
         annotations = [data[4] for data in train_data]
         annotations_ids = self.tokenizer(annotations, return_tensors="pt", padding=True)
-        return querys, titles, sections, infer_titles, annotations_ids
+        return querys, querys_context, titles, sections, infer_titles, annotations_ids
 
     def collate_fn_test(self, train_data):
         querys = [data[0] for data in train_data]
+        querys_context = [data[7] for data in train_data]
         titles = [data[1] for data in train_data]
         sections = [data[2] for data in train_data]
         infer_titles = [data[3] for data in train_data]
@@ -320,7 +328,7 @@ class MyData(Dataset):
         annotations_ids = self.tokenizer(annotations, return_tensors="pt", padding=True)
         pos_titles = [data[5] for data in train_data]
         pos_sections = [data[6] for data in train_data]
-        return querys, titles, sections, infer_titles, annotations_ids, pos_titles, pos_sections
+        return querys, querys_context, titles, sections, infer_titles, annotations_ids, pos_titles, pos_sections
 
 
 

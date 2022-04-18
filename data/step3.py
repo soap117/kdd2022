@@ -15,6 +15,11 @@ import re
 import json
 def is_english(key):
     return key.encode('UTF-8').isalpha()
+def return_eng(key):
+    for sub_key in key.split(' '):
+        if is_english(sub_key):
+            return sub_key
+    return None
 lock = threading.Lock()
 lock_m = threading.Lock()
 lock_d = threading.Lock()
@@ -35,12 +40,12 @@ class myThread(threading.Thread):
         print(len(self.files))
         for fid, file in enumerate(self.files):
             # print(file)
-            key = file['key']
+            key = return_eng(file['key'])
+            if key is None:
+                continue
             key = key.replace(' ', '%20').lower()
             if key in mark_done:
                 file['key'] = mark_done[key]
-                continue
-            if not is_english(key):
                 continue
             time.sleep(0.5)
             url = 'http://www.mcd8.com/w/%s' %key
@@ -66,9 +71,17 @@ class myThread(threading.Thread):
             name_set = set()
             for one in results:
                 answers = re.sub('[^\u4e00-\u9fa5, ]', '', re.sub('<[^<>]*>',  ' ', one)).split('  ')
+                flag = False
                 for ans in answers:
-                    if len(ans) > 0 and '词典' not in ans:
+                    if '医学' in ans:
+                        flag = True
+                if not flag:
+                    continue
+                for ans in answers:
+                    if len(ans) > 0 and '词典' not in ans and '词条' not in ans:
                         name_set.add(ans.replace(' ', ''))
+            for sub_key in file['key'].split(' '):
+                name_set.add(sub_key.replace(' ', ''))
             name_list = list(name_set)
             new_key = ' '.join(name_list)
             if len(new_key) == 0:
