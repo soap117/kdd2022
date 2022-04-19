@@ -71,30 +71,28 @@ class ContextEncoder(nn.Module):
         self.device = config.device
         self.conv = nn.ModuleList()
         self.embed = nn.Embedding(self.tokenizer.vocab_size, config.title_emb_dim)
-        self.trans_layer = nn.Linear(config.title_emb_dim*2, config.title_emb_dim)
+        self.trans_layer = nn.Linear(config.title_emb_dim, config.title_emb_dim)
         self.final_activation = nn.Tanh()
-        self.gru = torch.nn.GRU(config.title_emb_dim, config.title_emb_dim, batch_first=True, bidirectional=True)
-        for l in range(2):
+        for l in range(4):
             tmp = nn.Conv1d(config.title_emb_dim, config.title_emb_dim, kernel_size=filter_size,
                             padding=int(filter_size - 1))
             self.conv.add_module('baseconv_%d' % l, tmp)
             tmp = nn.ReLU()
             self.conv.add_module('ReLU_%d' % l, tmp)
-            if l <= 1:
+            if l <= 2:
                 tmp = nn.MaxPool1d(2, 2)
                 self.conv.add_module('maxpool_%d' % l, tmp)
+
     def forward(self, title):
         es = self.tokenizer(title, return_tensors='pt', padding=True, truncation=True).to(self.device)
-        x = es['input_ids']
-        x = self.embed(x)
+        x_ = es['input_ids']
+        x = self.embed(x_)
         x = x.transpose(1, 2)
         tmp = x
         for idx, md in enumerate(self.conv):
             tmp = md(tmp)
         x = tmp
-        x = x.transpose(1, 2)
-        output, x = self.gru(x)
-        x = torch.cat([x[0], x[1]], dim=1)
+        x, _ = torch.max(x, dim=2)
         x = self.trans_layer(x)
         x = self.final_activation(x)
         return x
@@ -107,12 +105,11 @@ class SecEncoder(nn.Module):
         self.device = config.device
         self.conv = nn.ModuleList()
         self.embed = nn.Embedding(self.tokenizer.vocab_size, config.context_emb_dim)
-        self.trans_layer = nn.Linear(config.context_emb_dim*2, config.title_emb_dim)
-        self.trans_layer_score = nn.Linear(config.context_emb_dim*2, 1)
+        self.trans_layer = nn.Linear(config.context_emb_dim, config.title_emb_dim)
+        self.trans_layer_score = nn.Linear(config.context_emb_dim, 1)
         self.final_activation = nn.Tanh()
-        self.drop_layer = torch.nn.Dropout(0.25)
-        self.gru = torch.nn.GRU(config.context_emb_dim, config.context_emb_dim, batch_first=True, bidirectional=True)
-        for l in range(2):
+        self.drop_layer = nn.Dropout(0.25)
+        for l in range(4):
             tmp = nn.Conv1d(config.context_emb_dim, config.context_emb_dim, kernel_size=filter_size,
                             padding=int(filter_size - 1))
             self.conv.add_module('baseconv_%d' % l, tmp)
@@ -135,13 +132,11 @@ class SecEncoder(nn.Module):
         for idx, md in enumerate(self.conv):
             tmp = md(tmp)
         x = tmp
-        x = x.transpose(1, 2)
-        output, x = self.gru(x)
-        x = torch.cat([x[0], x[1]], dim=1)
-        score_context = self.trans_layer_score(self.drop_layer(x))
+        x, _ = torch.max(x, dim=2)
+        score_context = self.trans_layer_score(x)
         x = self.trans_layer(x)
         x = self.final_activation(x)
-        score_context = self.final_activation(score_context)
+        score_context = self.final_activation(self.drop_layer(score_context))
         x = x.view(B, L, -1)
         score_context = score_context.view(B, L)
         return x, score_context
