@@ -40,8 +40,11 @@ class myThread(threading.Thread):
         print(len(self.files))
         for fid, file in enumerate(self.files):
             # print(file)
-            key = return_eng(file['key'])
-            if key is None:
+            #key = return_eng(file['key'])
+            #if key is None:
+            #    continue
+            key = file['key']
+            if not is_english(key):
                 continue
             key = key.replace(' ', '%20').lower()
             if key in mark_done:
