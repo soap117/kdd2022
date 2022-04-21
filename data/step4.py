@@ -123,5 +123,5 @@ for fid, (file, index_list) in tqdm(enumerate(zip(my_data, group_list))):
     data_new.append(file)
     #print(top_n_sentences)
 print(count_f)
-with open('mydata_new_clean_v4_sec.pkl', 'wb') as f:
+with open('mydata_new_clean_v4_sec_sub_trn.pkl', 'wb') as f:
     pickle.dump(data_new, f)

@@ -155,8 +155,8 @@ class PageRanker(nn.Module):
     def forward(self, query, context, candidates):
         # query:[B,D] candidates:[B,L,D]
         query_embedding = self.query_encoder.query_forward(query)
-        #context_embedding = self.context_encoder(context)
-        query_embedding = self.drop_layer(query_embedding)
+        context_embedding = self.context_encoder(context)
+        query_embedding = self.drop_layer(query_embedding*context_embedding)
         condidate_embeddings = self.drop_layer(self.candidate_encoder(candidates))
         dis_final = []
         for k in range(len(query_embedding)):
