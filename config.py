@@ -26,6 +26,6 @@ class Config(object):
         self.batch_size = batch_size
         self.infer_section_range = 10
         self.infer_section_select = 3
-        self.maxium_sec = 200
+        self.maxium_sec = 300
         self.data_file = 'data/mydata_new_clean_v4_sec_sub_trn.pkl'
-config = Config(48)
+config = Config(464)
