@@ -131,7 +131,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
         elif s_eval_loss > min_loss_s:
             for g in optimizer_s.param_groups:
                 g['lr'] = g['lr']*0.01
-        if p_eval_loss <= min_loss_p or s_eval_loss <= min_loss_s:
+        if p_eval_loss + s_eval_loss < min_loss_p + min_loss_s:
             print('New Test Loss:%f' % (p_eval_loss+s_eval_loss))
             state = {'epoch': epoch, 'config': config, 'models': models, 'modelp': modelp, 'model': model,
                      'eval_rs': eval_ans}
