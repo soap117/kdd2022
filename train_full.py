@@ -165,7 +165,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             print('New Test Loss D:%f' % (d_eval_loss))
             state = {'epoch': epoch, 'config': config, 'models': models, 'modelp': modelp, 'model': model,
                      'eval_rs': eval_ans}
-            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models.pkl').replace('data/', ''))
+            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
     return state
 
 def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dataloader, loss_func):

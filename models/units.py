@@ -114,14 +114,14 @@ def neg_sample_strong_section(key, gsections, candidate_sections, n, bm25):
     return rs
 
 def get_decoder_att_map(tokenizer, sep, ids, scores):
-    spe_seq = tokenizer.encode(sep)
+    spe_seq = [102]
     mapping = np.zeros([len(ids), scores.shape[1], ids.shape[1]])
     adding = np.zeros([len(ids), ids.shape[1]])
     for bindex, (bscore, bids) in enumerate(zip(scores, ids)):
         i = 0
         c_father = -1
         while i < len(bids):
-            if c_father >= 0:
+            if c_father >= 0 and c_father < scores.shape[1]:
                 mapping[bindex, c_father, i] = 1
             else:
                 adding[bindex, i] = 1
