@@ -202,7 +202,7 @@ class SectionRanker(nn.Module):
             temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])
             dis_final.append(temp_dis)
         weights = torch.relu(self.a_layer(query_embedding.unsqueeze(1) * condidate_embeddings).squeeze())
-        dis_final = torch.cat(dis_final, 0) +  weights*candidate_scores
+        dis_final = torch.cat(dis_final, 0) + weights * candidate_scores
         p_dis = dis_final[:, 0].unsqueeze(1)
         n_dis = dis_final[:, 1:]
         loss = self.loss_func(p_dis, n_dis)
@@ -216,7 +216,8 @@ class SectionRanker(nn.Module):
         for k in range(len(query_embedding)):
             temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])
             dis_final.append(temp_dis)
-        dis_final = torch.cat(dis_final, 0) + torch.relu(self.a_layer(query_embedding*condidate_embeddings))*candidate_scores
+        weights = torch.relu(self.a_layer(query_embedding.unsqueeze(1) * condidate_embeddings).squeeze())
+        dis_final = torch.cat(dis_final, 0) + weights * candidate_scores
         dis_final += dis_final.min()
         dis_final /= dis_final.max()
         return dis_final
