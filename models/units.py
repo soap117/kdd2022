@@ -5,7 +5,7 @@ import time
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 smooth = SmoothingFunction()
 from tqdm import tqdm
-from train_retrieval import config
+from config import config
 
 def batch_pointer_decode(source, pointers):
     temp = []
