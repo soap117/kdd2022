@@ -1,7 +1,7 @@
 from cuda import *
 import torch
 from config import config
-from models.units import MyData
+from models.units import MyData, get_decoder_att_map, batch_pointer_generation, batch_pointer_decode
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
 from tqdm import tqdm
@@ -10,6 +10,7 @@ import numpy as np
 import jieba
 from models.units import read_clean_data
 from rank_bm25 import BM25Okapi
+from models.modeling_gpt2_att import GPT2LMHeadModel
 import os
 
 def build(config):
@@ -49,10 +50,17 @@ def build(config):
     modelp.cuda()
     models = SectionRanker(config, title_encoder)
     models.cuda()
-    model = None
+    model = GPT2LMHeadModel.from_pretrained("./GPT2Chinese/")
+    model.cuda()
+    no_decay = ['bias', 'LayerNorm.weight']
+    optimizer_grouped_parameters = [
+        {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+         'weight_decay': 0.01},
+        {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+    ]
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
     optimizer_s = AdamW(models.parameters(), lr=config.lr)
-    optimizer_decoder = None
+    optimizer_decoder = AdamW(optimizer_grouped_parameters, lr=config.lr * 0.1)
     loss_func = torch.nn.CrossEntropyLoss()
     return modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
@@ -110,18 +118,33 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
                 temp = ' [SEP] '.join(temp)
                 reference.append(temp[0:500])
-
-            loss = lossp.mean() + losss.mean()
+            inputs = tokenizer(reference, return_tensors="pt", padding=True)
+            ids = inputs['input_ids']
+            adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
+            outputs = model(ids.cuda(), attention_adjust=adj_matrix)
+            logits_ = outputs.logits
+            targets_ = annotations_ids['input_ids']
+            len_anno = min(targets_.shape[1], logits_.shape[1])
+            logits = logits_[:, 0:len_anno]
+            targets = targets_[:, 0:len_anno]
+            _, predictions = torch.max(logits, dim=-1)
+            logits = logits.reshape(-1, logits.shape[2])
+            targets = targets.reshape(-1).to(config.device)
+            lossd = loss_func(logits, targets)
+            loss = lossp.mean() + losss.mean() + lossd
             optimizer_p.zero_grad()
             optimizer_s.zero_grad()
+            optimizer_decoder.zero_grad()
             loss.backward()
             optimizer_p.step()
             optimizer_s.step()
-            if step%10 == 0:
-                print('loss P:%f loss S:%f' %(lossp.mean().item(), losss.mean().item()))
+            optimizer_decoder.step()
+            if step%100 == 0:
+                print('loss P:%f loss S:%f loss D:%f' %(lossp.mean().item(), losss.mean().item(), lossd.item()))
         test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader, loss_func)
         p_eval_loss = test_loss[0]
         s_eval_loss = test_loss[1]
+        d_eval_loss = test_loss[2]
         if p_eval_loss < min_loss_p:
             min_loss_p = p_eval_loss
         elif p_eval_loss > min_loss_p:
@@ -132,8 +155,14 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
         elif s_eval_loss > min_loss_s:
             for g in optimizer_s.param_groups:
                 g['lr'] = g['lr']*0.01
-        if p_eval_loss + s_eval_loss <= min_loss_p + min_loss_s:
-            print('New Test Loss:%f' % (p_eval_loss+s_eval_loss))
+        if d_eval_loss < min_loss_d:
+            min_loss_d = d_eval_loss
+        elif d_eval_loss > min_loss_d:
+            for g in optimizer_decoder.param_groups:
+                g['lr'] = g['lr']*0.01
+        if p_eval_loss + s_eval_loss <= min_loss_p + min_loss_s or d_eval_loss <= min_loss_d:
+            print('New Test Loss R:%f' % (p_eval_loss+s_eval_loss))
+            print('New Test Loss D:%f' % (d_eval_loss))
             state = {'epoch': epoch, 'config': config, 'models': models, 'modelp': modelp, 'model': model,
                      'eval_rs': eval_ans}
             torch.save(state, './results/' + config.data_file.replace('.pkl', '_models.pkl').replace('data/', ''))
@@ -195,7 +224,25 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
                 temp = ' [SEP] '.join(temp)
                 reference.append(temp[0:500])
-            loss = [lossp.mean().item(), losss.mean().item()]
+            inputs = tokenizer(reference, return_tensors="pt", padding=True)
+            ids = inputs['input_ids']
+            adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
+            outputs = model(ids.cuda(), attention_adjust=adj_matrix)
+            logits_ = outputs.logits
+            targets_ = annotations_ids['input_ids']
+            len_anno = min(targets_.shape[1], logits_.shape[1])
+            logits = logits_[:, 0:len_anno]
+            targets = targets_[:, 0:len_anno]
+            _, predictions = torch.max(logits, dim=-1)
+            logits = logits.reshape(-1, logits.shape[2])
+            targets = targets.reshape(-1).to(config.device)
+            results = tokenizer.batch_decode(predictions)
+            results = [tokenizer.convert_tokens_to_string(x) for x in results]
+            results = [x.replace(' ', '') for x in results]
+            results = [x.replace('[PAD]', '') for x in results]
+            eval_ans += results
+            lossd = loss_func(logits, targets)
+            loss = [lossp.mean().item(), losss.mean().item(), lossd.item()]
             total_loss.append(loss)
         modelp.train()
         models.train()
