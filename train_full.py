@@ -129,6 +129,10 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             logits = logits_[:, 0:len_anno]
             targets = targets_[:, 0:len_anno]
             _, predictions = torch.max(logits, dim=-1)
+            results = tokenizer.batch_decode(predictions)
+            results = [tokenizer.convert_tokens_to_string(x) for x in results]
+            results = [x.replace(' ', '') for x in results]
+            results = [x.replace('[PAD]', '') for x in results]
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.reshape(-1).to(config.device)
             lossd = loss_func(logits, targets)
@@ -142,6 +146,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             optimizer_decoder.step()
             if step%100 == 0:
                 print('loss P:%f loss S:%f loss D:%f' %(lossp.mean().item(), losss.mean().item(), lossd.item()))
+                print(results[0:5])
         test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader, loss_func)
         p_eval_loss = test_loss[0]
         s_eval_loss = test_loss[1]
