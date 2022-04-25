@@ -119,7 +119,7 @@ def get_decoder_att_map(tokenizer, sep, ids, scores):
     adding = np.zeros([len(ids), ids.shape[1]])
     for bindex, (bscore, bids) in enumerate(zip(scores, ids)):
         i = 0
-        c_father = -1
+        c_father = 0
         while i < len(bids):
             if c_father >= 0 and c_father < scores.shape[1]:
                 mapping[bindex, c_father, i] = 1

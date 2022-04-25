@@ -1,6 +1,7 @@
 from cuda import *
 import torch
-from config import config
+from config import Config
+config = Config(64)
 from models.units import MyData
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
