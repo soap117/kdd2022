@@ -7,11 +7,6 @@ class Config(object):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')   # 设备
         self.title_tokenizer = BertTokenizer.from_pretrained('bert-base-chinese')
         self.title_tokenizer.model_max_length = 300
-        self.gpu_id = 1
-        try:
-            torch.cuda.set_device(self.gpu_id)
-        except:
-            torch.cuda.set_device(0)
         self.key_tokenizer= self.title_tokenizer
         self.title_emb_dim = 128
         self.key_emb_dim = 128
