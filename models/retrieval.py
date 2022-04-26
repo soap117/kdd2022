@@ -155,8 +155,8 @@ class PageRanker(nn.Module):
     def forward(self, query, context, candidates):
         # query:[B,D] candidates:[B,L,D]
         query_embedding = self.query_encoder.query_forward(query)
-        context_embedding = self.context_encoder(context)
-        query_embedding = self.drop_layer(query_embedding*context_embedding)
+        #context_embedding = self.context_encoder(context)
+        query_embedding = self.drop_layer(query_embedding)
         condidate_embeddings = self.drop_layer(self.candidate_encoder(candidates))
         dis_final = []
         for k in range(len(query_embedding)):
@@ -177,6 +177,7 @@ class PageRanker(nn.Module):
             temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])
             dis_final.append(temp_dis)
         dis_final = torch.cat(dis_final, 0)
+
         return dis_final
 
 class SectionRanker(nn.Module):
@@ -187,7 +188,6 @@ class SectionRanker(nn.Module):
         self.candidate_encoder = SecEncoder(config)
         self.loss_func = info_nec
         self.dis_func = distances.CosineSimilarity()
-        self.a_layer = nn.Linear(config.title_emb_dim, 1)
         self.drop_layer = torch.nn.Dropout(0.25)
 
     def forward(self, query_embedding, candidates):
@@ -199,8 +199,7 @@ class SectionRanker(nn.Module):
         for k in range(len(query_embedding)):
             temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])
             dis_final.append(temp_dis)
-        weights = torch.relu(self.a_layer(query_embedding.unsqueeze(1) * condidate_embeddings).squeeze())
-        dis_final = torch.cat(dis_final, 0) + weights * candidate_scores
+        dis_final = torch.cat(dis_final, 0) + candidate_scores
         p_dis = dis_final[:, 0].unsqueeze(1)
         n_dis = dis_final[:, 1:]
         loss = self.loss_func(p_dis, n_dis)
@@ -214,6 +213,6 @@ class SectionRanker(nn.Module):
         for k in range(len(query_embedding)):
             temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])
             dis_final.append(temp_dis)
-        weights = torch.relu(self.a_layer(query_embedding.unsqueeze(1) * condidate_embeddings).squeeze())
-        dis_final = torch.cat(dis_final, 0) + weights * candidate_scores
+        dis_final = torch.cat(dis_final, 0) + candidate_scores
+
         return dis_final
