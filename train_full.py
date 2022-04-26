@@ -151,6 +151,12 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
         p_eval_loss = test_loss[0]
         s_eval_loss = test_loss[1]
         d_eval_loss = test_loss[2]
+        if p_eval_loss + s_eval_loss <= min_loss_p + min_loss_s or d_eval_loss <= min_loss_d:
+            print('New Test Loss R:%f' % (p_eval_loss+s_eval_loss))
+            print('New Test Loss D:%f' % (d_eval_loss))
+            state = {'epoch': epoch, 'config': config, 'models': models, 'modelp': modelp, 'model': model,
+                     'eval_rs': eval_ans}
+            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
         if p_eval_loss < min_loss_p:
             min_loss_p = p_eval_loss
         elif p_eval_loss > min_loss_p:
@@ -166,12 +172,6 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
         elif d_eval_loss > min_loss_d:
             for g in optimizer_decoder.param_groups:
                 g['lr'] = g['lr']*0.01
-        if p_eval_loss + s_eval_loss <= min_loss_p + min_loss_s or d_eval_loss <= min_loss_d:
-            print('New Test Loss R:%f' % (p_eval_loss+s_eval_loss))
-            print('New Test Loss D:%f' % (d_eval_loss))
-            state = {'epoch': epoch, 'config': config, 'models': models, 'modelp': modelp, 'model': model,
-                     'eval_rs': eval_ans}
-            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
     return state
 
 def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dataloader, loss_func):
