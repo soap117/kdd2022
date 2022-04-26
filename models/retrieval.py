@@ -177,8 +177,6 @@ class PageRanker(nn.Module):
             temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])
             dis_final.append(temp_dis)
         dis_final = torch.cat(dis_final, 0)
-        dis_final += 1
-        dis_final /= 2
         return dis_final
 
 class SectionRanker(nn.Module):
@@ -218,5 +216,4 @@ class SectionRanker(nn.Module):
             dis_final.append(temp_dis)
         weights = torch.relu(self.a_layer(query_embedding.unsqueeze(1) * condidate_embeddings).squeeze())
         dis_final = torch.cat(dis_final, 0) + weights * candidate_scores
-        dis_final -= (min(dis_final.min().detach(), 0) - 1e-5)
         return dis_final
