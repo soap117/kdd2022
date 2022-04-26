@@ -177,7 +177,7 @@ class PageRanker(nn.Module):
             temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])
             dis_final.append(temp_dis)
         dis_final = torch.cat(dis_final, 0)
-
+        dis_final = (dis_final + 1)/2
         return dis_final
 
 class SectionRanker(nn.Module):
@@ -199,7 +199,7 @@ class SectionRanker(nn.Module):
         for k in range(len(query_embedding)):
             temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])
             dis_final.append(temp_dis)
-        dis_final = torch.cat(dis_final, 0) + candidate_scores
+        dis_final = 0.5 * torch.cat(dis_final, 0) + 0.5 * candidate_scores
         p_dis = dis_final[:, 0].unsqueeze(1)
         n_dis = dis_final[:, 1:]
         loss = self.loss_func(p_dis, n_dis)
@@ -213,6 +213,6 @@ class SectionRanker(nn.Module):
         for k in range(len(query_embedding)):
             temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])
             dis_final.append(temp_dis)
-        dis_final = torch.cat(dis_final, 0) + candidate_scores
-
+        dis_final = 0.5 * torch.cat(dis_final, 0) + 0.5 * candidate_scores
+        dis_final = (dis_final + 1) / 2
         return dis_final
