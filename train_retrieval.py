@@ -1,7 +1,7 @@
 from cuda import *
 import torch
 from config import Config
-config = Config(64)
+config = Config(16)
 from models.units import MyData
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -60,8 +60,9 @@ def build(config):
 def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
     min_loss_p = min_loss_s = min_loss_d = 1000
     state = None
+    data_size = len(train_dataloader)
     for epoch in range(config.train_epoch):
-        for step, (querys, querys_context, titles, sections, infer_titles, annotations_ids) in tqdm(enumerate(train_dataloader)):
+        for step, (querys, querys_context, titles, sections, infer_titles, annotations_ids) in zip(tqdm(range(data_size)), train_dataloader):
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
             rs2 = modelp.infer(query_embedding, infer_titles)
@@ -99,8 +100,8 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             mapping = torch.FloatTensor(mapping_title).to(config.device)
             scores_title = scores_title.unsqueeze(1)
             scores_title = scores_title.matmul(mapping).squeeze(1)
-            rs_scores = models.infer(query_embedding, infer_section_candidates_pured)
-            scores = scores_title * rs_scores
+            scores_sentence = models.infer(query_embedding, infer_section_candidates_pured)
+            scores = scores_title * scores_sentence
             rs2 = torch.topk(scores, config.infer_section_select, dim=1)
             scores = rs2[0]
             reference = []
@@ -118,7 +119,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             loss.backward()
             optimizer_p.step()
             optimizer_s.step()
-            if step%10 == 0:
+            if step%100 == 0:
                 print('loss P:%f loss S:%f' %(lossp.mean().item(), losss.mean().item()))
         test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader, loss_func)
         p_eval_loss = test_loss[0]
@@ -146,7 +147,8 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
         models.eval()
         total_loss = []
         eval_ans = []
-        for step, (querys, querys_context, titles, sections, infer_titles, annotations_ids) in tqdm(enumerate(dataloader)):
+        data_size = len(dataloader)
+        for step, (querys, querys_context, titles, sections, infer_titles, annotations_ids) in zip(tqdm(range(data_size)), dataloader):
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
             rs2 = modelp.infer(query_embedding, infer_titles)
