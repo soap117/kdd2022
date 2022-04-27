@@ -59,7 +59,7 @@ def build(config):
 
 def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
     min_loss_p = min_loss_s = min_loss_d = 1000
-    state = None
+    state = {}
     data_size = len(train_dataloader)
     for epoch in range(config.train_epoch):
         for step, (querys, querys_context, titles, sections, infer_titles, annotations_ids) in zip(tqdm(range(data_size)), train_dataloader):
@@ -126,19 +126,31 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
         s_eval_loss = test_loss[1]
         if p_eval_loss + s_eval_loss <= min_loss_p + min_loss_s:
             print('New Test Loss:%f' % (p_eval_loss+s_eval_loss))
-            state = {'epoch': epoch, 'config': config, 'models': models, 'modelp': modelp, 'model': model,
-                     'eval_rs': eval_ans}
-            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models.pkl').replace('data/', ''))
         if p_eval_loss < min_loss_p:
+            print('update-p')
+            state['modelp'] = modelp.state_dict()
             min_loss_p = p_eval_loss
-        elif p_eval_loss > min_loss_p:
+            count_p = 0
+            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models.pkl').replace('data/', ''))
+        elif count_p > 1:
             for g in optimizer_p.param_groups:
-                g['lr'] = g['lr']*0.01
+                g['lr'] = g['lr'] * 0.1
+        else:
+            count_p += 1
         if s_eval_loss < min_loss_s:
+            print('update-s')
+            state['models'] = models.state_dict()
             min_loss_s = s_eval_loss
-        elif s_eval_loss > min_loss_s:
+            count_s = 0
+            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models.pkl').replace('data/', ''))
+        elif count_s > 1:
             for g in optimizer_s.param_groups:
-                g['lr'] = g['lr']*0.01
+                g['lr'] = g['lr'] * 0.1
+        else:
+            count_s += 1
+        if count_s > 2 and count_p > 2:
+            print('early stop')
+            return state
     return state
 
 def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dataloader, loss_func):

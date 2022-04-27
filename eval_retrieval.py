@@ -3,6 +3,7 @@ import torch
 from config import Config
 config = Config(64)
 from models.units import MyData
+from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
 from models.bert_tokenizer import BertTokenizer
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -45,9 +46,12 @@ def build(config):
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=config.batch_size
                                   , collate_fn=test_dataset.collate_fn_test)
 
-    modelp = save_data['modelp']
-    models = save_data['models']
-    model = save_data['model']
+    title_encoder = TitleEncoder(config)
+    modelp = PageRanker(config, title_encoder).load_state_dict(save_data['modelp'])
+    modelp.cuda()
+    models = SectionRanker(config, title_encoder).load_state_dict(save_data['models'])
+    models.cuda()
+    model = None
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
     optimizer_s = AdamW(models.parameters(), lr=config.lr)
     optimizer_decoder = None
