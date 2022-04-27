@@ -47,9 +47,11 @@ def build(config):
                                   , collate_fn=test_dataset.collate_fn_test)
 
     title_encoder = TitleEncoder(config)
-    modelp = PageRanker(config, title_encoder).load_state_dict(save_data['modelp'])
+    modelp = PageRanker(config, title_encoder)
+    modelp.load_state_dict(save_data['modelp'])
     modelp.cuda()
-    models = SectionRanker(config, title_encoder).load_state_dict(save_data['models'])
+    models = SectionRanker(config, title_encoder)
+    models.load_state_dict(save_data['models'])
     models.cuda()
     model = None
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
