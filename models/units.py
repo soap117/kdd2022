@@ -83,7 +83,7 @@ def neg_sample_section(key, gsections, candidate_sections, n, bm25):
     while count < n and try_t < 100:
         ind = np.random.randint(0, len(candidate_sections))
         candidate_section = candidate_sections[ind]
-        if len(candidate_section) < 30:
+        if len(candidate_section) < 5:
             continue
         if check_section(key, gsections, candidate_section, bm25, ind):
             rs.append(candidate_section)
@@ -101,7 +101,7 @@ def neg_sample_strong_section(key, gsections, candidate_sections, n, bm25):
     while count < n and try_t < 100:
         ind = np.random.randint(0, len(candidate_sections))
         candidate_section = candidate_sections[ind]
-        if len(candidate_section) < 30:
+        if len(candidate_section) < 5:
             try_t += 1
             continue
         if check_section_strong(gsections, candidate_section, bm25, ind):
