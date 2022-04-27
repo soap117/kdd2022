@@ -12,7 +12,8 @@ import jieba
 from models.units import read_clean_data
 from rank_bm25 import BM25Okapi
 import os
-
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+smooth = SmoothingFunction()
 def build(config):
     tokenizer = config.title_tokenizer
     titles, sections, title2sections, sec2id = read_clean_data(config.data_file)
@@ -155,14 +156,45 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             return state
     return state
 
+def check(query, infer_titles, pos_titles, secs=False):
+    for pos_title in pos_titles:
+        for infer_title in infer_titles:
+            key_cut = list(pos_title)
+            candidata_title = list(infer_title)
+            if secs:
+                if min(len(key_cut), len(candidata_title)) == 1:
+                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(1.0, 0.0),
+                                             smoothing_function=smooth.method1)
+                elif min(len(key_cut), len(candidata_title)) == 2:
+                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(0.5, 0.5),
+                                             smoothing_function=smooth.method1)
+                else:
+                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(0.3333, 0.3333, 0.3333),
+                                             smoothing_function=smooth.method1)
+                if can_simi > 0.5 or pos_title in infer_title:
+                    return True
+            else:
+                if min(len(key_cut), len(candidata_title)) == 1:
+                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(1.0, 0.0),
+                                             smoothing_function=smooth.method1)
+                else:
+                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(0.5, 0.5),
+                                             smoothing_function=smooth.method1)
+                if can_simi > 0.5 or pos_title in infer_title or query in infer_title:
+                    return True
+    return False
+
 def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dataloader, loss_func):
     with torch.no_grad():
         modelp.eval()
         models.eval()
         total_loss = []
         eval_ans = []
-        data_size = len(dataloader)
-        for step, (querys, querys_context, titles, sections, infer_titles, annotations_ids) in zip(tqdm(range(data_size)), dataloader):
+        tp = 0
+        total = 0
+        tp_s = 0
+        total_s = 0
+        for step, (querys, querys_context, titles, sections, infer_titles, annotations_ids, pos_titles, pos_sections) in tqdm(enumerate(dataloader)):
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
             rs2 = modelp.infer(query_embedding, infer_titles)
@@ -173,14 +205,19 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             infer_section_candidates_pured = []
             mapping_title = np.zeros([len(querys), config.infer_title_select, config.infer_section_range])
             for query, bid in zip(querys, range(len(inds))):
+                total += 1
                 temp = []
                 temp2 = []
                 temp3 = []
+                count = 0
                 for nid, cid in enumerate(inds[bid]):
                     temp.append(infer_titles[bid][cid])
                     temp2 += title2sections[infer_titles[bid][cid]]
                     temp3 += [nid for x in title2sections[infer_titles[bid][cid]]]
+                if check(query, temp, pos_titles[bid]):
+                    count += 1
                 temp2_id = []
+                tp += count
                 for t_sec in temp2:
                     if t_sec in sec2id:
                         temp2_id.append(sec2id[t_sec])
@@ -206,18 +243,21 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             scores = rs2[0]
             reference = []
             inds_sec = rs2[1].cpu().numpy()
-            for bid in range(len(inds_sec)):
-                temp = [querys[bid]]
+            for query, bid in zip(querys, range(len(inds))):
+                total_s += 1
+                temp = []
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
+                if check(query, temp, pos_sections[bid], secs=True):
+                    tp_s += 1
                 temp = ' [SEP] '.join(temp)
-                reference.append(temp[0:500])
-            loss = [lossp.mean().item(), losss.mean().item()]
-            total_loss.append(loss)
+                reference.append(temp[0:1000])
+            loss = (lossp.mean() + losss.mean())
+            total_loss.append(loss.item())
         modelp.train()
         models.train()
-        total_loss = np.array(total_loss).mean(axis=0)
-        return total_loss, eval_ans
+        print('accuracy title: %f accuracy section: %f' %(tp/total, tp_s/total_s))
+        return (-tp/total, -tp_s/total_s), eval_ans
 
 
 modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer = build(config)
