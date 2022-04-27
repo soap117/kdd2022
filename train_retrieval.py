@@ -1,7 +1,7 @@
 from cuda import *
 import torch
 from config import Config
-config = Config(16)
+config = Config(64)
 from models.units import MyData
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -119,7 +119,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             loss.backward()
             optimizer_p.step()
             optimizer_s.step()
-            if step%100 == 0:
+            if step%500 == 0:
                 print('loss P:%f loss S:%f' %(lossp.mean().item(), losss.mean().item()))
         test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader, loss_func)
         p_eval_loss = test_loss[0]
@@ -133,6 +133,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             count_p = 0
             torch.save(state, './results/' + config.data_file.replace('.pkl', '_models.pkl').replace('data/', ''))
         elif count_p > 1:
+            print('p froezen')
             for g in optimizer_p.param_groups:
                 g['lr'] = g['lr'] * 0.1
         else:
@@ -144,6 +145,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             count_s = 0
             torch.save(state, './results/' + config.data_file.replace('.pkl', '_models.pkl').replace('data/', ''))
         elif count_s > 1:
+            print('s froezen')
             for g in optimizer_s.param_groups:
                 g['lr'] = g['lr'] * 0.1
         else:
