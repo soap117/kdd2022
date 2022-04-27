@@ -142,7 +142,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             scores_title = scores_title.unsqueeze(1)
             scores_title = scores_title.matmul(mapping).squeeze(1)
             rs_scores = models.infer(query_embedding, infer_section_candidates_pured)
-            scores = scores_title + rs_scores
+            scores = scores_title * rs_scores
             rs2 = torch.topk(scores, config.infer_section_select, dim=1)
             scores = rs2[0]
             reference = []
