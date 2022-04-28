@@ -164,6 +164,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
         s_eval_loss = test_loss[1]
         d_eval_loss = test_loss[2]
         if d_eval_loss < min_loss_d:
+            print('update-all')
             print('New Test Loss D:%f' % (d_eval_loss))
             state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(), 'model': model.state_dict(),
                      'eval_rs': eval_ans}
