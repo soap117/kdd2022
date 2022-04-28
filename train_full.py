@@ -143,7 +143,10 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.reshape(-1).to(config.device)
             lossd = loss_func(logits, targets)
-            loss = lossd
+            if epoch < 3:
+                loss = 0
+            else:
+                loss = lossd
             if count_s <= 1:
                 loss += losss.mean()
             if count_p <= 1:
