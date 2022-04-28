@@ -155,7 +155,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             optimizer_p.step()
             optimizer_s.step()
             optimizer_decoder.step()
-            if step%100 == 0:
+            if step%1000 == 0:
                 print('loss P:%f loss S:%f loss D:%f' %(lossp.mean().item(), losss.mean().item(), lossd.item()))
                 for one in results[0:5]:
                     print(one)
@@ -165,6 +165,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
         s_eval_loss = test_loss[1]
         d_eval_loss = test_loss[2]
         if d_eval_loss < min_loss_d:
+            print(count_p, count_s)
             print('update-all')
             print('New Test Loss D:%f' % (d_eval_loss))
             state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(), 'model': model.state_dict(),
@@ -174,13 +175,17 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             for one in eval_ans[0:10]:
                 print(one)
             print('+++++++++++++++++++++++++++++++')
+        else:
+            print(count_p, count_s)
+            print('New Test Loss D:%f' % (d_eval_loss))
+            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
         if p_eval_loss < min_loss_p:
             print('update-p')
             state['modelp'] = modelp.state_dict()
             min_loss_p = p_eval_loss
             count_p = min(0, epoch-10)
         elif count_p == 2:
-            print('s froezen')
+            print('p froezen')
             for g in optimizer_p.param_groups:
                 g['lr'] = g['lr'] * 0.1
             count_p += 1
