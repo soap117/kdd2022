@@ -151,12 +151,12 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
                 loss += losss.mean()
             if count_p <= 1:
                 loss += lossp.mean()
-            loss.backward()
             optimizer_p.zero_grad()
-            optimizer_p.step()
             optimizer_s.zero_grad()
-            optimizer_s.step()
             optimizer_decoder.zero_grad()
+            loss.backward()
+            optimizer_p.step()
+            optimizer_s.step()
             optimizer_decoder.step()
             if step%100 == 0:
                 print('loss P:%f loss S:%f loss D:%f' %(lossp.mean().item(), losss.mean().item(), lossd.item()))
