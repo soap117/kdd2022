@@ -63,7 +63,7 @@ def build(config):
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
     optimizer_s = AdamW(models.parameters(), lr=config.lr)
     optimizer_decoder = AdamW(optimizer_grouped_parameters, lr=config.lr * 0.1)
-    loss_func = torch.nn.CrossEntropyLoss()
+    loss_func = torch.nn.CrossEntropyLoss(reduction='sum')
     return modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
 def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
@@ -142,7 +142,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             results = [x.replace('[CLS]', '') for x in results]
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.reshape(-1).to(config.device)
-            lossd = loss_func(logits, targets)
+            lossd = loss_func(logits, targets)/config.batch_size
             loss = lossd
             if count_s <= 1:
                 loss += losss.mean()
@@ -280,7 +280,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
             eval_ans += results
-            lossd = loss_func(logits, targets)
+            lossd = loss_func(logits, targets)/config.batch_size
             loss = [lossp.mean().item(), losss.mean().item(), lossd.item()]
             total_loss.append(loss)
         modelp.train()
