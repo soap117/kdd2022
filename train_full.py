@@ -61,13 +61,15 @@ def build(config):
     ]
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
     optimizer_s = AdamW(models.parameters(), lr=config.lr)
-    optimizer_decoder = AdamW(optimizer_grouped_parameters, lr=config.lr * 0.1)
+    optimizer_decoder = AdamW(optimizer_grouped_parameters+modelp.parameters()+models.parameters(), lr=config.lr * 0.1)
     loss_func = torch.nn.CrossEntropyLoss()
     return modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
 def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
     min_loss_p = min_loss_s = min_loss_d = 1000
     state = None
+    count_s = -1
+    count_p = -1
     data_size = len(train_dataloader)
     for epoch in range(config.train_epoch):
         for step, (querys, querys_context, titles, sections, infer_titles, annotations_ids) in zip(
@@ -135,45 +137,52 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
+            results = [x.replace('[SEP]', '') for x in results]
+            results = [x.replace('[CLS]', '') for x in results]
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.reshape(-1).to(config.device)
             lossd = loss_func(logits, targets)
-            loss = lossp.mean() + losss.mean() + lossd
-            optimizer_p.zero_grad()
-            optimizer_s.zero_grad()
-            optimizer_decoder.zero_grad()
+            loss = lossd
+            if count_s <= 1:
+                loss += losss.mean()
+            if count_p <= 1:
+                loss += lossp.mean()
             loss.backward()
+            optimizer_p.zero_grad()
             optimizer_p.step()
+            optimizer_s.zero_grad()
             optimizer_s.step()
+            optimizer_decoder.zero_grad()
             optimizer_decoder.step()
             if step%100 == 0:
                 print('loss P:%f loss S:%f loss D:%f' %(lossp.mean().item(), losss.mean().item(), lossd.item()))
-                print(results[0:5])
+                for one in results[0:5]:
+                    print(one)
+                print('---------------------------')
         test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader, loss_func)
         p_eval_loss = test_loss[0]
         s_eval_loss = test_loss[1]
         d_eval_loss = test_loss[2]
-        if p_eval_loss + s_eval_loss <= min_loss_p + min_loss_s or d_eval_loss <= min_loss_d:
-            print('New Test Loss R:%f' % (p_eval_loss+s_eval_loss))
+        if d_eval_loss < min_loss_d:
             print('New Test Loss D:%f' % (d_eval_loss))
-            state = {'epoch': epoch, 'config': config, 'models': models, 'modelp': modelp, 'model': model,
+            state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(), 'model': model.state_dict(),
                      'eval_rs': eval_ans}
             torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
-        if p_eval_loss < min_loss_p:
-            min_loss_p = p_eval_loss
-        elif p_eval_loss > min_loss_p:
-            for g in optimizer_p.param_groups:
-                g['lr'] = g['lr']*0.01
-        if s_eval_loss < min_loss_s:
-            min_loss_s = s_eval_loss
-        elif s_eval_loss > min_loss_s:
-            for g in optimizer_s.param_groups:
-                g['lr'] = g['lr']*0.01
-        if d_eval_loss < min_loss_d:
             min_loss_d = d_eval_loss
-        elif d_eval_loss > min_loss_d:
-            for g in optimizer_decoder.param_groups:
-                g['lr'] = g['lr']*0.01
+        if p_eval_loss < min_loss_p:
+            print('update-p')
+            state['modelp'] = modelp.state_dict()
+            min_loss_p = p_eval_loss
+            count_p = min(0, epoch-10)
+        else:
+            count_p += 1
+        if s_eval_loss < min_loss_s:
+            print('update-s')
+            state['models'] = models.state_dict()
+            min_loss_s = s_eval_loss
+            count_s = min(0, epoch-10)
+        else:
+            count_s += 1
     return state
 
 def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dataloader, loss_func):
