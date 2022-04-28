@@ -176,6 +176,11 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             state['modelp'] = modelp.state_dict()
             min_loss_p = p_eval_loss
             count_p = min(0, epoch-10)
+        elif count_p == 2:
+            print('s froezen')
+            for g in optimizer_p.param_groups:
+                g['lr'] = g['lr'] * 0.1
+            count_p += 1
         else:
             count_p += 1
         if s_eval_loss < min_loss_s:
@@ -183,6 +188,11 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             state['models'] = models.state_dict()
             min_loss_s = s_eval_loss
             count_s = min(0, epoch-10)
+        elif count_s == 2:
+            print('s froezen')
+            for g in optimizer_s.param_groups:
+                g['lr'] = g['lr'] * 0.1
+            count_s += 1
         else:
             count_s += 1
     return state
