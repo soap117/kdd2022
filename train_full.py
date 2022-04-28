@@ -171,6 +171,9 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
                      'eval_rs': eval_ans}
             torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
             min_loss_d = d_eval_loss
+            for one in eval_ans[0:10]:
+                print(one)
+            print('+++++++++++++++++++++++++++++++')
         if p_eval_loss < min_loss_p:
             print('update-p')
             state['modelp'] = modelp.state_dict()
