@@ -54,7 +54,7 @@ def build(config):
     models = SectionRanker(config, title_encoder)
     models.load_state_dict(save_data['models'])
     models.cuda()
-    model = GPT2LMHeadModel.from_pretrained("./GPT2Chinese/")
+    model = GPT2LMHeadModel.from_pretrained("./GPT2Chinese/", add_cross_attention=True)
     model.load_state_dict(save_data['model'])
     model.cuda()
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr)

@@ -51,7 +51,7 @@ def build(config):
     modelp.cuda()
     models = SectionRanker(config, title_encoder)
     models.cuda()
-    model = GPT2LMHeadModel.from_pretrained("./GPT2Chinese/")
+    model = GPT2LMHeadModel.from_pretrained("./GPT2Chinese/", add_cross_attention=True)
     model.cuda()
     no_decay = ['bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
