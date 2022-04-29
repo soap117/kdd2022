@@ -15,7 +15,7 @@ import os
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 smooth = SmoothingFunction()
 def build(config):
-    tokenizer = config.title_tokenizer
+    tokenizer = config.tokenizer
     titles, sections, title2sections, sec2id = read_clean_data(config.data_file)
     corpus = sections
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]

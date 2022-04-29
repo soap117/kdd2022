@@ -1,7 +1,7 @@
 from cuda2 import *
 import torch
 from config import Config
-config = Config(20)
+config = Config(2)
 from models.units import MyData, get_decoder_att_map, batch_pointer_generation, batch_pointer_decode
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -12,15 +12,15 @@ import jieba
 from models.units import read_clean_data
 from rank_bm25 import BM25Okapi
 from models.modeling_gpt2_att import GPT2LMHeadModel
+from models.modeling_bart_att import BartForConditionalGeneration
 import os
 
 def build(config):
-    tokenizer = config.title_tokenizer
     titles, sections, title2sections, sec2id = read_clean_data(config.data_file)
     corpus = sections
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_section = BM25Okapi(tokenized_corpus)
-
+    tokenizer = config.tokenizer
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
@@ -51,7 +51,7 @@ def build(config):
     modelp.cuda()
     models = SectionRanker(config, title_encoder)
     models.cuda()
-    model = GPT2LMHeadModel.from_pretrained("./GPT2Chinese/", add_cross_attention=True)
+    modeld = config.modeld.from_pretrained(config.bert_model)
     model.cuda()
     no_decay = ['bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [

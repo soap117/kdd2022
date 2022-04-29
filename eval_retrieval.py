@@ -17,7 +17,7 @@ smooth = SmoothingFunction()
 import os
 def build(config):
     save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models.pkl').replace('data/', ''))
-    tokenizer = BertTokenizer(vocab_file='./GPT2Chinese/vocab.txt', do_lower_case=False, never_split=['[SEP]'])
+    tokenizer = config.tokenizer
     titles, sections, title2sections, sec2id = read_clean_data(config.data_file)
     corpus = sections
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
