@@ -152,7 +152,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             optimizer_decoder.step()
             if step%100 == 0:
                 print('loss P:%f loss S:%f loss D:%f' %(lossp.mean().item(), losss.mean().item(), lossd.item()))
-                print(results)
+                print(results[0:5])
                 print('---------------------------')
         test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader, loss_func)
         p_eval_loss = test_loss[0]
