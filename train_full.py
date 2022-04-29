@@ -138,7 +138,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
-            results = [x.replace('[SEP]', '') for x in results]
+            results = [x.split('[SEP]')[0] for x in results]
             results = [x.replace('[CLS]', '') for x in results]
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.reshape(-1).to(config.device)
@@ -285,6 +285,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
+            results = [x.split('[SEP]')[0] for x in results]
             eval_ans += results
             lossd = (masks*loss_func(logits, targets)).sum()/config.batch_size
             loss = [lossp.mean().item(), losss.mean().item(), lossd.item()]
