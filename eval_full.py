@@ -54,14 +54,14 @@ def build(config):
     models = SectionRanker(config, title_encoder)
     models.load_state_dict(save_data['models'])
     models.cuda()
-    model = GPT2LMHeadModel.from_pretrained("./GPT2Chinese/", add_cross_attention=True)
-    model.load_state_dict(save_data['model'])
-    model.cuda()
-    optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
-    optimizer_s = AdamW(models.parameters(), lr=config.lr)
+    modeld = config.modeld.from_pretrained(config.bert_model)
+    modeld.load_state_dict(save_data['model'])
+    modeld.cuda()
+    optimizer_p = None
+    optimizer_s = None
     optimizer_decoder = None
     loss_func = torch.nn.CrossEntropyLoss(reduction='none')
-    return modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, None, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
+    return modelp, models, modeld, optimizer_p, optimizer_s, optimizer_decoder, None, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
 def check(query, infer_titles, pos_titles, secs=False):
     for pos_title in pos_titles:
@@ -103,7 +103,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
         total = 0
         tp_s = 0
         total_s = 0
-        for step, (querys, querys_context, titles, sections, infer_titles, annotations_ids, pos_titles, pos_sections) in tqdm(enumerate(dataloader)):
+        for step, (querys, querys_context, titles, sections, infer_titles, annotations, pos_titles, pos_sections) in tqdm(enumerate(dataloader)):
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
             rs2 = modelp.infer(query_embedding, infer_titles)
@@ -174,11 +174,11 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
                 temp = ' [SEP] '.join(temp)
                 reference.append(temp[0:500])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
+            targets_ = tokenizer(annotations, return_tensors="pt", padding=True)['input_ids']
             ids = inputs['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
             outputs = model(ids.cuda(), attention_adjust=adj_matrix)
             logits_ = outputs.logits
-            targets_ = annotations_ids['input_ids']
             len_anno = min(targets_.shape[1], logits_.shape[1])
             logits = logits_[:, 0:len_anno]
             targets = targets_[:, 0:len_anno]

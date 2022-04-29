@@ -114,7 +114,7 @@ def neg_sample_strong_section(key, gsections, candidate_sections, n, bm25):
     return rs
 
 def get_decoder_att_map(tokenizer, sep, ids, scores):
-    spe_seq = [102]
+    spe_seq = [config.SEP]
     mapping = np.zeros([len(ids), scores.shape[1], ids.shape[1]])
     adding = np.zeros([len(ids), ids.shape[1]])
     for bindex, (bscore, bids) in enumerate(zip(scores, ids)):
@@ -315,8 +315,7 @@ class MyData(Dataset):
         sections = [data[2] for data in train_data]
         infer_titles = [data[3] for data in train_data]
         annotations = [data[4] for data in train_data]
-        annotations_ids = self.tokenizer(annotations, return_tensors="pt", padding=True)
-        return querys, querys_context, titles, sections, infer_titles, annotations_ids
+        return querys, querys_context, titles, sections, infer_titles, annotations
 
     def collate_fn_test(self, train_data):
         querys = [data[0] for data in train_data]
@@ -325,10 +324,9 @@ class MyData(Dataset):
         sections = [data[2] for data in train_data]
         infer_titles = [data[3] for data in train_data]
         annotations = [data[4] for data in train_data]
-        annotations_ids = self.tokenizer(annotations, return_tensors="pt", padding=True)
         pos_titles = [data[5] for data in train_data]
         pos_sections = [data[6] for data in train_data]
-        return querys, querys_context, titles, sections, infer_titles, annotations_ids, pos_titles, pos_sections
+        return querys, querys_context, titles, sections, infer_titles, annotations, pos_titles, pos_sections
 
 
 

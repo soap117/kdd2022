@@ -7,10 +7,10 @@ class Config(object):
     """配置参数"""
     def __init__(self, batch_size):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')   # 设备bert_model = 'facebook/bart-base'
-        self.bert_model = 'fnlp/bart-large-chinese'
+        self.bert_model = 'fnlp/bart-base-chinese'
         self.tokenizer = BertTokenizer.from_pretrained(self.bert_model)
-        self.CLS = self.tokenizer.cls_token
-        self.SEP = self.tokenizer.sep_token
+        self.CLS = self.tokenizer.cls_token_id
+        self.SEP = self.tokenizer.sep_token_id
         self.title_tokenizer = self.tokenizer
         self.title_tokenizer.model_max_length = 300
         self.key_tokenizer = self.title_tokenizer

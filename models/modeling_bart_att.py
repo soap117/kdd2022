@@ -232,9 +232,11 @@ class BartAttention(nn.Module):
 
         attn_weights = nn.functional.softmax(attn_weights, dim=-1)
         if attention_adjust is not None and self.idx < 3 and not self.is_decoder:
+            attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
             attention_adjust_ = attention_adjust.unsqueeze(1).unsqueeze(1)
-            attn_weights = (1 / float(self.layer_idx + 1)) * attention_adjust_ * attn_weights + (
-                        1 - 1 / float(self.layer_idx + 1)) * attn_weights
+            attn_weights = (1 / float(self.idx + 1)) * attention_adjust_ * attn_weights + (
+                        1 - 1 / float(self.idx + 1)) * attn_weights
+            attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
         if layer_head_mask is not None:
             if layer_head_mask.size() != (self.num_heads,):
                 raise ValueError(
@@ -1165,6 +1167,7 @@ class BartModel(BartPretrainedModel):
         self,
         input_ids=None,
         attention_mask=None,
+        attention_adjust=None,
         decoder_input_ids=None,
         decoder_attention_mask=None,
         head_mask=None,
@@ -1205,6 +1208,7 @@ class BartModel(BartPretrainedModel):
             encoder_outputs = self.encoder(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
+                attention_adjust=attention_adjust,
                 head_mask=head_mask,
                 inputs_embeds=inputs_embeds,
                 output_attentions=output_attentions,

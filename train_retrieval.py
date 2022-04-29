@@ -63,7 +63,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
     state = {}
     data_size = len(train_dataloader)
     for epoch in range(config.train_epoch):
-        for step, (querys, querys_context, titles, sections, infer_titles, annotations_ids) in zip(tqdm(range(data_size)), train_dataloader):
+        for step, (querys, querys_context, titles, sections, infer_titles, annotations) in zip(tqdm(range(data_size)), train_dataloader):
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
             rs2 = modelp.infer(query_embedding, infer_titles)
@@ -194,7 +194,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
         total = 0
         tp_s = 0
         total_s = 0
-        for step, (querys, querys_context, titles, sections, infer_titles, annotations_ids, pos_titles, pos_sections) in tqdm(enumerate(dataloader)):
+        for step, (querys, querys_context, titles, sections, infer_titles, annotations, pos_titles, pos_sections) in tqdm(enumerate(dataloader)):
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
             rs2 = modelp.infer(query_embedding, infer_titles)

@@ -1,7 +1,7 @@
 from cuda2 import *
 import torch
 from config import Config
-config = Config(2)
+config = Config(20)
 from models.units import MyData, get_decoder_att_map, batch_pointer_generation, batch_pointer_decode
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -52,19 +52,18 @@ def build(config):
     models = SectionRanker(config, title_encoder)
     models.cuda()
     modeld = config.modeld.from_pretrained(config.bert_model)
-    model.cuda()
+    modeld.cuda()
     no_decay = ['bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
-        {'params': [p for n, p in model.named_parameters() if not any(nd in n for nd in no_decay)],
+        {'params': [p for n, p in modeld.named_parameters() if not any(nd in n for nd in no_decay)],
          'weight_decay': 0.01},
-        {'params': [p for n, p in model.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+        {'params': [p for n, p in modeld.named_parameters() if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
     ]
-    models.named_parameters()
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
     optimizer_s = AdamW(models.parameters(), lr=config.lr)
     optimizer_decoder = AdamW(optimizer_grouped_parameters, lr=config.lr)
     loss_func = torch.nn.CrossEntropyLoss(reduction='none')
-    return modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
+    return modelp, models, modeld, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
 def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
     min_loss_p = min_loss_s = min_loss_d = 1000
@@ -73,7 +72,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
     count_p = -1
     data_size = len(train_dataloader)
     for epoch in range(config.train_epoch):
-        for step, (querys, querys_context, titles, sections, infer_titles, annotations_ids) in zip(
+        for step, (querys, querys_context, titles, sections, infer_titles, annotations) in zip(
                 tqdm(range(data_size)), train_dataloader):
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
@@ -126,10 +125,10 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
                 reference.append(temp[0:500])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
+            targets_ = tokenizer(annotations, return_tensors="pt", padding=True)['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
             outputs = model(ids.cuda(), attention_adjust=adj_matrix)
             logits_ = outputs.logits
-            targets_ = annotations_ids['input_ids']
             len_anno = min(targets_.shape[1], logits_.shape[1])
             logits = logits_[:, 0:len_anno]
             targets = targets_[:, 0:len_anno]
@@ -216,7 +215,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
         total_loss = []
         eval_ans = []
         data_size = len(dataloader)
-        for step, (querys, querys_context, titles, sections, infer_titles, annotations_ids) in zip(
+        for step, (querys, querys_context, titles, sections, infer_titles, annotations) in zip(
                 tqdm(range(data_size)), dataloader):
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
@@ -269,10 +268,10 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
                 reference.append(temp[0:500])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
+            targets_ = tokenizer(annotations, return_tensors="pt", padding=True)['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
             outputs = model(ids.cuda(), attention_adjust=adj_matrix)
             logits_ = outputs.logits
-            targets_ = annotations_ids['input_ids']
             len_anno = min(targets_.shape[1], logits_.shape[1])
             logits = logits_[:, 0:len_anno]
             targets = targets_[:, 0:len_anno]
