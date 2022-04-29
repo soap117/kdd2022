@@ -208,12 +208,12 @@ class GPT2Attention(nn.Module):
         if attention_mask is not None:
             # Apply the attention mask
             attn_weights = attn_weights + attention_mask
+
+        attn_weights = nn.Softmax(dim=-1)(attn_weights)
         if attention_adjust is not None and self.layer_idx < 3:
             attention_adjust_ = attention_adjust.unsqueeze(1).unsqueeze(1)
 
             attn_weights = (1 / float(self.layer_idx + 1)) * attention_adjust_ * attn_weights + (1 - 1 / float(self.layer_idx + 1)) * attn_weights
-
-        attn_weights = nn.Softmax(dim=-1)(attn_weights)
 
         # Downcast (if necessary) back to V's dtype (if in mixed-precision) -- No-Op otherwise
         attn_weights = attn_weights.type(value.dtype)
