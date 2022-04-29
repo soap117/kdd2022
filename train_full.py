@@ -62,8 +62,8 @@ def build(config):
     models.named_parameters()
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
     optimizer_s = AdamW(models.parameters(), lr=config.lr)
-    optimizer_decoder = AdamW(optimizer_grouped_parameters, lr=config.lr * 0.1)
-    loss_func = torch.nn.CrossEntropyLoss(reduction='sum')
+    optimizer_decoder = AdamW(optimizer_grouped_parameters, lr=config.lr)
+    loss_func = torch.nn.CrossEntropyLoss(reduction='none')
     return modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
 def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
@@ -142,7 +142,9 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             results = [x.replace('[CLS]', '') for x in results]
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.reshape(-1).to(config.device)
-            lossd = loss_func(logits, targets)/config.batch_size
+            masks = torch.ones_like(targets)
+            masks[torch.where(targets == 0)] = 0
+            lossd = (masks*loss_func(logits, targets)).sum()/config.batch_size
             loss = lossd
             if count_s <= 1:
                 loss += losss.mean()
@@ -178,6 +180,8 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
         else:
             print(count_p, count_s)
             print('New Test Loss D:%f' % (d_eval_loss))
+            for one in eval_ans[0:10]:
+                print(one)
             torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
         if p_eval_loss < min_loss_p:
             print('update-p')
@@ -275,12 +279,14 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             _, predictions = torch.max(logits, dim=-1)
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.reshape(-1).to(config.device)
+            masks = torch.ones_like(targets)
+            masks[torch.where(targets == 0)] = 0
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
             eval_ans += results
-            lossd = loss_func(logits, targets)/config.batch_size
+            lossd = (masks*loss_func(logits, targets)).sum()/config.batch_size
             loss = [lossp.mean().item(), losss.mean().item(), lossd.item()]
             total_loss.append(loss)
         modelp.train()

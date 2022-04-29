@@ -60,7 +60,7 @@ def build(config):
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
     optimizer_s = AdamW(models.parameters(), lr=config.lr)
     optimizer_decoder = None
-    loss_func = torch.nn.CrossEntropyLoss(reduction='sum')
+    loss_func = torch.nn.CrossEntropyLoss(reduction='none')
     return modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, None, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
 def check(query, infer_titles, pos_titles, secs=False):
@@ -172,7 +172,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
                     print(temp)
                     print('++++++++++++++++++++++++++++++++++++')
                 temp = ' [SEP] '.join(temp)
-                reference.append(temp[0:1000])
+                reference.append(temp[0:500])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
@@ -189,13 +189,15 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             _, predictions = torch.max(logits, dim=-1)
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.reshape(-1).to(config.device)
+            masks = torch.ones_like(targets)
+            masks[torch.where(targets == 0)] = 0
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
             eval_ans += results
             eval_gt += ground_truth
-            lossd = loss_func(logits, targets)/config.batch_size
+            lossd = (masks*loss_func(logits, targets)).sum()/config.batch_size
             loss = (lossp.mean() + losss.mean()+lossd)
             total_loss.append(loss.item())
         print('accuracy title: %f accuracy section: %f' %(tp/total, tp_s/total_s))
