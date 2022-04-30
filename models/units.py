@@ -248,7 +248,7 @@ def read_clean_data(path):
     titles = list(set(titles))
     sections = list(set(sections))
     for k in range(len(sections)-1, -1, -1):
-        if len(sections[k]) < 30:
+        if len(sections[k]) < 5:
             del sections[k]
     for tid, temp in enumerate(sections):
         sec2id[temp] = tid

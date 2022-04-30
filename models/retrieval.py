@@ -179,6 +179,19 @@ class PageRanker(nn.Module):
         dis_final = torch.cat(dis_final, 0)
         dis_final = (dis_final + 1)/2
         return dis_final
+    def infer_pipe(self, query, context, candidates):
+        # query:[B,D] candidates:[B,L,D]
+        query_embedding = self.query_encoder.query_forward(query)
+        context_embedding = self.context_encoder(context)
+        query_embedding = self.drop_layer(query_embedding*context_embedding)
+        condidate_embeddings = self.candidate_encoder(candidates)
+        dis_final = []
+        for k in range(len(query_embedding)):
+            temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])
+            dis_final.append(temp_dis)
+        dis_final = torch.cat(dis_final, 0)
+        dis_final = (dis_final + 1)/2
+        return dis_final, query_embedding
 
 class SectionRanker(nn.Module):
 
