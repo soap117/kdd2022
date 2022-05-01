@@ -17,7 +17,7 @@ titles, sections, title2sections, sec2id = read_clean_data(config.data_file)
 corpus = sections
 tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
 bm25_section = BM25Okapi(tokenized_corpus)
-tokenizer = config.tokenizer
+step2_tokenizer = config.tokenizer
 corpus = titles
 tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
 bm25_title = BM25Okapi(tokenized_corpus)
@@ -28,7 +28,7 @@ bert_model = 'hfl/chinese-bert-wwm-ext'
 model_step1 = BertForTokenClassification.from_pretrained(bert_model, num_labels=5)
 model_step1.load_state_dict(save_step1_data['para'])
 model_step1.eval()
-tokenizer_step1 = BertTokenizer.from_pretrained(bert_model)
+step1_tokenizer = BertTokenizer.from_pretrained(bert_model)
 
 title_encoder = TitleEncoder(config)
 modelp = PageRanker(config, title_encoder)
@@ -44,7 +44,7 @@ modeld.load_state_dict(save_data['model'])
 modeld.cuda()
 modeld.eval()
 def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
-    input_list = [[],[],[]]
+    input_list = [[],[],[], []]
     l = 0
     r = -1
     while src_ids[r] != 511:
@@ -72,6 +72,7 @@ def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
             input_list[0].append(key)
             input_list[1].append(context)
             input_list[2].append(infer_titles)
+            input_list[3].append((l_k, r_k))
     return input_list
 
 
@@ -87,11 +88,9 @@ def pipieline(path_from):
         srcs.append(dp[0])
         tars.append(dp[1])
     for src, tar in zip(srcs, tars):
-        src_ = tokenizer_step1([src])
+        src_ = step1_tokenizer([src], return_tensors="pt", padding=True)
         x_ids = src_['input_ids']
         x_mask = src_['attention_mask']
-        x_ids = torch.LongTensor(x_ids)
-        x_mask = torch.LongTensor(x_mask)
         x_indicator = torch.zeros_like(x_ids)
         outputs = model_step1(x_ids, attention_mask=x_mask, existing_indicates=x_indicator)
         logits = outputs.logits
@@ -101,10 +100,11 @@ def pipieline(path_from):
         outputs = model_step1(x_ids, attention_mask=x_mask, existing_indicates=x_indicator)
         logits = outputs.logits
         pre_label_f = np.argmax(logits.detach().cpu().numpy(), axis=2)
-        step2_input = obtain_step2_input(pre_label_f[0], src, x_ids[0], tokenizer_step1)
+        step2_input = obtain_step2_input(pre_label_f[0], src, x_ids[0], step1_tokenizer)
         querys = step2_input[0]
         contexts = step2_input[1]
         infer_titles = step2_input[2]
+        key_pos = step2_input[3]
         dis_scores, query_embeddings = modelp.infer_pipe(step2_input[0], step2_input[1], step2_input[2])
         rs_title = torch.topk(dis_scores, config.infer_title_select, dim=1)
         scores_title = rs_title[0]
@@ -147,26 +147,35 @@ def pipieline(path_from):
         scores = rs2[0]
         reference = []
         inds_sec = rs2[1].cpu().numpy()
-        for query, bid in zip(querys, range(len(inds))):
-            temp = []
+        for bid in range(len(inds_sec)):
+            temp = [querys[bid]]
             for indc in inds_sec[bid]:
                 temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
             temp = ' [SEP] '.join(temp)
             reference.append(temp[0:500])
-        inputs = tokenizer(reference, return_tensors="pt", padding=True)
+        inputs = step2_tokenizer(reference, return_tensors="pt", padding=True)
         ids = inputs['input_ids']
-        adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
+        adj_matrix = get_decoder_att_map(step2_tokenizer, '[SEP]', ids, scores)
         outputs = modeld(ids.cuda(), attention_adjust=adj_matrix)
         logits_ = outputs.logits
         logits = logits_
         _, predictions = torch.max(logits, dim=-1)
-        results = tokenizer.batch_decode(predictions)
-        results = [tokenizer.convert_tokens_to_string(x) for x in results]
+        results = step2_tokenizer.batch_decode(predictions)
+        results = [step2_tokenizer.convert_tokens_to_string(x) for x in results]
         results = [x.replace(' ', '') for x in results]
         results = [x.replace('[PAD]', '') for x in results]
         results = [x.replace('[UNK]', '') for x in results]
-        results = [x.replace('[SEP]', '') for x in results]
+        results = [x.split('[SEP]')[0] for x in results]
         results = [x.replace('[CLS]', '') for x in results]
+        new_src = ''
+        l = 0
+        for result, pos in zip(results, key_pos):
+            context = step1_tokenizer.convert_ids_to_tokens(x_ids[0][l:pos[0]])
+            context = step1_tokenizer.convert_tokens_to_string(context).replace('[CLS]', '').replace('[SEP]', '').replace(' ', '')
+            new_src += context
+            new_src += '<{}>'.format(result)
+            l = pos[1]
+        print(new_src)
 
 
 

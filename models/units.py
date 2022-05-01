@@ -6,7 +6,12 @@ from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 smooth = SmoothingFunction()
 from tqdm import tqdm
 from config import config
-
+def mask_ref(input_ids, tokenizer):
+    mask = np.random.choice([True, False], size=input_ids.shape, p=[0.15, 0.85])
+    replace = np.random.choice(np.arange(tokenizer.vocab_size), size=input_ids.shape)
+    input_ids = input_ids.numpy()
+    input_ids[mask] = replace[mask]
+    return torch.LongTensor(input_ids)
 def batch_pointer_decode(source, pointers):
     temp = []
     source = source.cpu().numpy()

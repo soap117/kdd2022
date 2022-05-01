@@ -2,7 +2,7 @@ from cuda2 import *
 import torch
 from config import Config
 config = Config(20)
-from models.units import MyData, get_decoder_att_map, batch_pointer_generation, batch_pointer_decode
+from models.units import MyData, get_decoder_att_map, mask_ref
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
 from tqdm import tqdm
@@ -14,7 +14,6 @@ from rank_bm25 import BM25Okapi
 from models.modeling_gpt2_att import GPT2LMHeadModel
 from models.modeling_bart_att import BartForConditionalGeneration
 import os
-
 def build(config):
     titles, sections, title2sections, sec2id = read_clean_data(config.data_file)
     corpus = sections
@@ -119,6 +118,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
                 reference.append(temp[0:500])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
+            ids = mask_ref(ids, tokenizer)
             targets_ = tokenizer(annotations, return_tensors="pt", padding=True)['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
             outputs = model(ids.cuda(), attention_adjust=adj_matrix)
