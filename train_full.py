@@ -16,6 +16,7 @@ from rank_bm25 import BM25Okapi
 from models.modeling_gpt2_att import GPT2LMHeadModel
 from models.modeling_bart_att import BartForConditionalGeneration
 import os
+from eval_full import check
 def build(config):
     titles, sections, title2sections, sec2id = read_clean_data(config.data_file)
     corpus = sections
