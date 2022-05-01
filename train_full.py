@@ -161,6 +161,30 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
         p_eval_loss = test_loss[0]
         s_eval_loss = test_loss[1]
         d_eval_loss = test_loss[2]
+        if p_eval_loss < min_loss_p:
+            print('update-p')
+            state['modelp'] = modelp.state_dict()
+            min_loss_p = p_eval_loss
+            count_p = min(0, epoch-3)
+        else:
+            if count_p == 2:
+                print('p froezen')
+                for g in optimizer_p.param_groups:
+                    g['lr'] = config.lr * 0.1
+            count_p += 1
+            modelp.load_state_dict(state['modelp'])
+        if s_eval_loss < min_loss_s:
+            print('update-s')
+            state['models'] = models.state_dict()
+            min_loss_s = s_eval_loss
+            count_s = min(0, epoch-3)
+        else:
+            if count_s == 2:
+                print('s froezen')
+                for g in optimizer_s.param_groups:
+                    g['lr'] = config.lr * 0.1
+            count_s += 1
+            models.load_state_dict(state['models'])
         if d_eval_loss < min_loss_d:
             print(count_p, count_s)
             print('update-all')
@@ -174,34 +198,9 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             print('+++++++++++++++++++++++++++++++')
         else:
             print(count_p, count_s)
-            print('New Test Loss D:%f' % (d_eval_loss))
+            print('New Larger Test Loss D:%f' % (d_eval_loss))
             for one in eval_ans[0:10]:
                 print(one)
-            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
-        if p_eval_loss < min_loss_p:
-            print('update-p')
-            state['modelp'] = modelp.state_dict()
-            min_loss_p = p_eval_loss
-            count_p = min(0, epoch-3)
-        elif count_p == 2:
-            print('p froezen')
-            for g in optimizer_p.param_groups:
-                g['lr'] = config.lr * 0.1
-            count_p += 1
-        else:
-            count_p += 1
-        if s_eval_loss < min_loss_s:
-            print('update-s')
-            state['models'] = models.state_dict()
-            min_loss_s = s_eval_loss
-            count_s = min(0, epoch-3)
-        elif count_s == 2:
-            print('s froezen')
-            for g in optimizer_s.param_groups:
-                g['lr'] = config.lr * 0.1
-            count_s += 1
-        else:
-            count_s += 1
     return state
 
 def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dataloader, loss_func):
@@ -298,13 +297,12 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             ground_truth = [x.replace('[PAD]', '') for x in ground_truth]
             eval_ans += results
             eval_gt += ground_truth
-            eval_ans += results
             lossd = (masks*loss_func(logits, targets)).sum()/config.batch_size
             loss = [lossp.mean().item(), losss.mean().item(), lossd.item()]
             total_loss.append(loss)
-        predictions = [jieba.lcut(doc) for doc in results]
-        reference = [[jieba.lcut(doc)] for doc in ground_truth]
-        bleu_scores = corpus_bleu(reference, predictions, smoothing_function=smooth)
+        predictions = [jieba.lcut(doc) for doc in eval_ans]
+        reference = [[jieba.lcut(doc)] for doc in eval_gt]
+        bleu_scores = corpus_bleu(reference, predictions,)
         print("Bleu Annotation:%f" % bleu_scores)
         modelp.train()
         models.train()
