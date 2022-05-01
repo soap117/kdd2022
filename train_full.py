@@ -8,6 +8,8 @@ from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
 from tqdm import tqdm
 from transformers import AdamW
 import numpy as np
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction, corpus_bleu
+smooth = SmoothingFunction()
 import jieba
 from models.units import read_clean_data
 from rank_bm25 import BM25Okapi
@@ -205,8 +207,14 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
     with torch.no_grad():
         modelp.eval()
         models.eval()
+        model.eval()
         total_loss = []
+        tp = 0
+        total = 0
+        tp_s = 0
+        total_s = 0
         eval_ans = []
+        eval_gt = []
         data_size = len(dataloader)
         for step, (querys, querys_context, titles, sections, infer_titles, annotations) in zip(
                 tqdm(range(data_size)), dataloader):
@@ -220,14 +228,19 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             infer_section_candidates_pured = []
             mapping_title = np.zeros([len(querys), config.infer_title_select, config.infer_section_range])
             for query, bid in zip(querys, range(len(inds))):
+                total += 1
                 temp = []
                 temp2 = []
                 temp3 = []
+                count = 0
                 for nid, cid in enumerate(inds[bid]):
                     temp.append(infer_titles[bid][cid])
                     temp2 += title2sections[infer_titles[bid][cid]]
                     temp3 += [nid for x in title2sections[infer_titles[bid][cid]]]
+                if check(query, temp, pos_titles[bid]):
+                    count += 1
                 temp2_id = []
+                tp += count
                 for t_sec in temp2:
                     if t_sec in sec2id:
                         temp2_id.append(sec2id[t_sec])
@@ -278,14 +291,26 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
             results = [x.split('[SEP]')[0] for x in results]
+            ground_truth = tokenizer.batch_decode(targets)
+            ground_truth = [tokenizer.convert_tokens_to_string(x) for x in ground_truth]
+            ground_truth = [x.replace(' ', '') for x in ground_truth]
+            ground_truth = [x.replace('[PAD]', '') for x in ground_truth]
+            eval_ans += results
+            eval_gt += ground_truth
             eval_ans += results
             lossd = (masks*loss_func(logits, targets)).sum()/config.batch_size
             loss = [lossp.mean().item(), losss.mean().item(), lossd.item()]
             total_loss.append(loss)
+        predictions = [jieba.lcut(doc) for doc in results]
+        reference = [[jieba.lcut(doc)] for doc in ground_truth]
+        bleu_scores = corpus_bleu(reference, predictions, smoothing_function=smooth)
+        print("Bleu Annotation:%f" % bleu_scores)
         modelp.train()
         models.train()
+        model.train()
         total_loss = np.array(total_loss).mean(axis=0)
-        return total_loss, eval_ans
+        print('accuracy title: %f accuracy section: %f' % (tp / total, tp_s / total_s))
+        return (-tp / total, -tp_s / total_s, -bleu_scores), eval_ans
 
 
 modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer = build(config)

@@ -195,6 +195,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
+            results = [x.split('[SEP]')[0] for x in results]
             eval_ans += results
             eval_gt += ground_truth
             lossd = (masks*loss_func(logits, targets)).sum()/config.batch_size
@@ -202,9 +203,9 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             total_loss.append(loss.item())
         print('accuracy title: %f accuracy section: %f' %(tp/total, tp_s/total_s))
         from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction, corpus_bleu
-        smooth = SmoothingFunction()
-        predictions = [jieba.lcut(doc) for doc in results]
-        reference = [[jieba.lcut(doc)] for doc in ground_truth]
+        smooth = SmoothingFunction
+        predictions = [jieba.lcut(doc) for doc in eval_ans]
+        reference = [[jieba.lcut(doc)] for doc in eval_gt]
         bleu_scores = corpus_bleu(reference, predictions, smoothing_function=smooth)
         print("Bleu Annotation:%f" %bleu_scores)
         with open('./results/annotation_test.txt', 'w') as f:
