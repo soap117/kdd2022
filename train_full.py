@@ -44,9 +44,9 @@ def build(config):
     train_dataloader = DataLoader(dataset=train_dataset, batch_size=config.batch_size
                                   , collate_fn=train_dataset.collate_fn)
     valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=config.batch_size
-                                  , collate_fn=train_dataset.collate_fn)
+                                  , collate_fn=train_dataset.collate_fn_test)
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=config.batch_size
-                                  , collate_fn=train_dataset.collate_fn)
+                                  , collate_fn=train_dataset.collate_fn_test)
 
     title_encoder = TitleEncoder(config)
     modelp = PageRanker(config, title_encoder)
@@ -217,7 +217,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
         eval_ans = []
         eval_gt = []
         data_size = len(dataloader)
-        for step, (querys, querys_context, titles, sections, infer_titles, annotations) in zip(
+        for step, (querys, querys_context, titles, sections, infer_titles, annotations, pos_titles, pos_sections) in zip(
                 tqdm(range(data_size)), dataloader):
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
