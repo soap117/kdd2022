@@ -18,6 +18,7 @@ corpus = sections
 tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
 bm25_section = BM25Okapi(tokenized_corpus)
 step2_tokenizer = config.tokenizer
+step2_tokenizer.model_max_length = 300
 corpus = titles
 tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
 bm25_title = BM25Okapi(tokenized_corpus)
@@ -29,6 +30,7 @@ model_step1 = BertForTokenClassification.from_pretrained(bert_model, num_labels=
 model_step1.load_state_dict(save_step1_data['para'])
 model_step1.eval()
 step1_tokenizer = BertTokenizer.from_pretrained(bert_model)
+step1_tokenizer.model_max_length = 512
 
 title_encoder = TitleEncoder(config)
 modelp = PageRanker(config, title_encoder)
@@ -87,8 +89,8 @@ def pipieline(path_from):
     for dp in dataset_aligned:
         srcs.append(dp[0])
         tars.append(dp[1])
-    for src, tar in zip(srcs, tars):
-        src_ = step1_tokenizer([src], return_tensors="pt", padding=True)
+    for src, tar in zip(srcs[0:50], tars[0:50]):
+        src_ = step1_tokenizer([src], return_tensors="pt", padding=True, truncation=True)
         x_ids = src_['input_ids']
         x_mask = src_['attention_mask']
         x_indicator = torch.zeros_like(x_ids)
@@ -153,7 +155,7 @@ def pipieline(path_from):
                 temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
             temp = ' [SEP] '.join(temp)
             reference.append(temp[0:500])
-        inputs = step2_tokenizer(reference, return_tensors="pt", padding=True)
+        inputs = step2_tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
         ids = inputs['input_ids']
         adj_matrix = get_decoder_att_map(step2_tokenizer, '[SEP]', ids, scores)
         outputs = modeld(ids.cuda(), attention_adjust=adj_matrix)
@@ -175,6 +177,10 @@ def pipieline(path_from):
             new_src += context
             new_src += '<{}>'.format(result)
             l = pos[1]
+        context = step1_tokenizer.convert_ids_to_tokens(x_ids[0][l:])
+        context = step1_tokenizer.convert_tokens_to_string(context).replace('[CLS]', '').replace('[SEP]', '').replace(
+            ' ', '')
+        new_src += context
         print(new_src)
 
 

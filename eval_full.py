@@ -1,7 +1,7 @@
 from cuda import *
 import torch
 from config import Config
-config = Config(5)
+config = Config(32)
 from models.units import MyData, get_decoder_att_map
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
 from models.bert_tokenizer import BertTokenizer
