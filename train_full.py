@@ -16,7 +16,33 @@ from rank_bm25 import BM25Okapi
 from models.modeling_gpt2_att import GPT2LMHeadModel
 from models.modeling_bart_att import BartForConditionalGeneration
 import os
-from eval_full import check
+def check(query, infer_titles, pos_titles, secs=False):
+    for pos_title in pos_titles:
+        for infer_title in infer_titles:
+            key_cut = list(pos_title)
+            candidata_title = list(infer_title)
+            if secs:
+                if min(len(key_cut), len(candidata_title)) == 1:
+                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(1.0, 0.0),
+                                             smoothing_function=smooth.method1)
+                elif min(len(key_cut), len(candidata_title)) == 2:
+                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(0.5, 0.5),
+                                             smoothing_function=smooth.method1)
+                else:
+                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(0.3333, 0.3333, 0.3333),
+                                             smoothing_function=smooth.method1)
+                if can_simi > 0.5 or pos_title in infer_title:
+                    return True
+            else:
+                if min(len(key_cut), len(candidata_title)) == 1:
+                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(1.0, 0.0),
+                                             smoothing_function=smooth.method1)
+                else:
+                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(0.5, 0.5),
+                                             smoothing_function=smooth.method1)
+                if can_simi > 0.5 or pos_title in infer_title or query in infer_title:
+                    return True
+    return False
 def build(config):
     titles, sections, title2sections, sec2id = read_clean_data(config.data_file)
     corpus = sections
