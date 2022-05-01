@@ -203,10 +203,9 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             total_loss.append(loss.item())
         print('accuracy title: %f accuracy section: %f' %(tp/total, tp_s/total_s))
         from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction, corpus_bleu
-        smooth = SmoothingFunction
         predictions = [jieba.lcut(doc) for doc in eval_ans]
         reference = [[jieba.lcut(doc)] for doc in eval_gt]
-        bleu_scores = corpus_bleu(reference, predictions, smoothing_function=smooth)
+        bleu_scores = corpus_bleu(reference, predictions)
         print("Bleu Annotation:%f" %bleu_scores)
         with open('./results/annotation_test.txt', 'w') as f:
             for result, gt in zip(results, ground_truth):
