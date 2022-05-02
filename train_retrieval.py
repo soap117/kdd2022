@@ -245,7 +245,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             inds_sec = rs2[1].cpu().numpy()
             for query, bid in zip(querys, range(len(inds))):
                 total_s += 1
-                temp = []
+                temp = [querys[bid]]
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
                 if check(query, temp, pos_sections[bid], secs=True):
