@@ -308,10 +308,6 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             logits = logits_[:, 0:len_anno]
             targets = targets_[:, 0:len_anno]
             _, predictions = torch.max(logits, dim=-1)
-            logits = logits.reshape(-1, logits.shape[2])
-            targets = targets.reshape(-1).to(config.device)
-            masks = torch.ones_like(targets)
-            masks[torch.where(targets == 0)] = 0
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
             results = [x.replace(' ', '') for x in results]
@@ -321,6 +317,10 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             ground_truth = [tokenizer.convert_tokens_to_string(x) for x in ground_truth]
             ground_truth = [x.replace(' ', '') for x in ground_truth]
             ground_truth = [x.replace('[PAD]', '') for x in ground_truth]
+            logits = logits.reshape(-1, logits.shape[2])
+            targets = targets.reshape(-1).to(config.device)
+            masks = torch.ones_like(targets)
+            masks[torch.where(targets == 0)] = 0
             eval_ans += results
             eval_gt += ground_truth
             lossd = (masks*loss_func(logits, targets)).sum()/config.batch_size
