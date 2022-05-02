@@ -93,6 +93,8 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
     count_s = -1
     count_p = -1
     data_size = len(train_dataloader)
+    test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader,
+                               loss_func)
     for epoch in range(config.train_epoch):
         for step, (querys, querys_context, titles, sections, infer_titles, annotations) in zip(
                 tqdm(range(data_size)), train_dataloader):
