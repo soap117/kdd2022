@@ -300,7 +300,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
                 if check(query, temp, pos_sections[bid], secs=True):
                     tp_s += 1
                 temp = ' [SEP] '.join(temp)
-                reference.append(temp[0:1000])
+                reference.append(temp[0:500])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
             targets_ = tokenizer(annotations, return_tensors="pt", padding=True)['input_ids']
