@@ -19,7 +19,7 @@ class Config(object):
         self.key_emb_dim = 128
         self.context_emb_dim = 256
         self.lr = 5e-4
-        self.train_epoch = 100
+        self.train_epoch = 20
         self.data_path = './data/mydata.pkl'
         self.neg_num = 9
         self.neg_strong_num = 3
