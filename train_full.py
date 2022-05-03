@@ -89,7 +89,7 @@ def build(config):
 
 def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
     min_loss_p = min_loss_s = min_loss_d = 1000
-    state = None
+    state = {}
     count_s = -1
     count_p = -1
     data_size = len(train_dataloader)
