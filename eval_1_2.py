@@ -71,10 +71,11 @@ def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
             context = step1_tokenizer.convert_tokens_to_string(context).replace('[CLS]', '').replace('[SEP]', '')
             key_cut = jieba.lcut(key)
             infer_titles = bm25_title.get_top_n(key_cut, titles, config.infer_title_range)
-            input_list[0].append(key)
-            input_list[1].append(context)
-            input_list[2].append(infer_titles)
-            input_list[3].append((l_k, r_k))
+            if len(key) > 0:
+                input_list[0].append(key)
+                input_list[1].append(context)
+                input_list[2].append(infer_titles)
+                input_list[3].append((l_k, r_k))
     return input_list
 
 
@@ -107,6 +108,8 @@ def pipieline(path_from):
         contexts = step2_input[1]
         infer_titles = step2_input[2]
         key_pos = step2_input[3]
+        if len(querys) == 0:
+            continue
         dis_scores, query_embeddings = modelp.infer_pipe(step2_input[0], step2_input[1], step2_input[2])
         rs_title = torch.topk(dis_scores, config.infer_title_select, dim=1)
         scores_title = rs_title[0]
@@ -182,6 +185,7 @@ def pipieline(path_from):
             ' ', '')
         new_src += context
         print(new_src)
+        print('-------------------------------------')
 
 
 
