@@ -1,8 +1,8 @@
 from cuda2 import *
 import torch
 from config import Config
-config = Config(20)
-from models.units import MyData, get_decoder_att_map, mask_ref
+config = Config(2)
+from models.units_sen import MyData, get_decoder_att_map, mask_ref
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
 from tqdm import tqdm
@@ -11,7 +11,7 @@ import numpy as np
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction, corpus_bleu
 smooth = SmoothingFunction()
 import jieba
-from models.units import read_clean_data
+from models.units_sen import read_clean_data, find_spot
 from rank_bm25 import BM25Okapi
 from models.modeling_gpt2_att import GPT2LMHeadModel
 from models.modeling_bart_att import BartForConditionalGeneration
@@ -52,7 +52,7 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    if os.path.exists(config.data_file.replace('.pkl', '_train_dataset.pkl')):
+    if False and os.path.exists(config.data_file.replace('.pkl', '_train_dataset.pkl')):
         train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset.pkl'))
         valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset.pkl'))
         test_dataset = torch.load(config.data_file.replace('.pkl', '_test_dataset.pkl'))
@@ -79,7 +79,7 @@ def build(config):
     modelp.cuda()
     models = SectionRanker(config, title_encoder)
     models.cuda()
-    modeld = config.modeld.from_pretrained(config.bert_model)
+    modeld = config.modeld_sen.from_pretrained(config.bert_model)
     modeld.cuda()
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
     optimizer_s = AdamW(models.parameters(), lr=config.lr)
@@ -93,10 +93,10 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
     count_s = -1
     count_p = -1
     data_size = len(train_dataloader)
-    test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader,
-                               loss_func)
+    #test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader,
+    #                           loss_func)
     for epoch in range(config.train_epoch):
-        for step, (querys, querys_context, titles, sections, infer_titles, annotations) in zip(
+        for step, (querys, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list) in zip(
                 tqdm(range(data_size)), train_dataloader):
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
@@ -147,16 +147,20 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
                 temp = ' [SEP] '.join(temp)
                 reference.append(temp[0:500])
-            inputs = tokenizer(reference, return_tensors="pt", padding=True)
-            ids = inputs['input_ids']
-            ids = mask_ref(ids, tokenizer)
-            targets_ = tokenizer(annotations, return_tensors="pt", padding=True)['input_ids']
-            adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
-            outputs = model(ids.cuda(), attention_adjust=adj_matrix)
+            inputs_ref = tokenizer(reference, return_tensors="pt", padding=True)
+            reference_ids = inputs_ref['input_ids']
+            reference_ids = mask_ref(reference_ids, tokenizer).to(config.device)
+            decoder_inputs = tokenizer(src_sens, return_tensors="pt", padding=True)
+            decoder_ids = decoder_inputs['input_ids']
+            decoder_anno_position = find_spot(decoder_ids)
+            decoder_ids = decoder_ids.to(config.device)
+            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True)['input_ids'].to(config.device)
+            adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
+            outputs = model(input_ids=reference_ids, decoder_input_ids=decoder_ids, cut_indicator=cut_list, attention_adjust=adj_matrix, anno_position=decoder_anno_position)
             logits_ = outputs.logits
-            len_anno = min(targets_.shape[1], logits_.shape[1])
+            len_anno = min(target_ids.shape[1], logits_.shape[1])
             logits = logits_[:, 0:len_anno]
-            targets = targets_[:, 0:len_anno]
+            targets = target_ids[:, 0:len_anno]
             _, predictions = torch.max(logits, dim=-1)
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
@@ -193,7 +197,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             print('update-p')
             state['modelp'] = modelp.state_dict()
             min_loss_p = p_eval_loss
-            count_p = min(0, epoch-3)
+            count_p = min(0, epoch-2)
         else:
             if count_p == 2:
                 print('p froezen')
@@ -205,7 +209,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             print('update-s')
             state['models'] = models.state_dict()
             min_loss_s = s_eval_loss
-            count_s = min(0, epoch-3)
+            count_s = min(0, epoch-2)
         else:
             if count_s == 2:
                 print('s froezen')
@@ -244,7 +248,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
         eval_ans = []
         eval_gt = []
         data_size = len(dataloader)
-        for step, (querys, querys_context, titles, sections, infer_titles, annotations, pos_titles, pos_sections) in zip(
+        for step, (querys, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list, pos_titles, pos_sections) in zip(
                 tqdm(range(data_size)), dataloader):
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)

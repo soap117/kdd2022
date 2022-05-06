@@ -12,22 +12,22 @@ def isChinese(word):
             return True
     return False
 for dp in my_data:
-    if len(dp['key']) == 0:
-        continue
-    if dp['file']['textid'] in path2file:
-        path2file[dp['file']['textid']].append(dp)
+    if dp['textid'] in path2file:
+        path2file[dp['textid']].append(dp)
     else:
-        path2file[dp['file']['textid']] = [dp]
+        path2file[dp['textid']] = [dp]
 names = ['train', 'valid', 'test']
 sets = {}
-for name in names:
+import json
+dataset = json.load(open('./data/dataset_new_2.json', 'r', encoding='utf-8'))
+total = len(dataset)
+train_data = dataset[:int(total/10*8)]
+test_data = dataset[int(total/10*8):int(total/10*9)]
+valid_data = dataset[int(total/10*9):]
+for name, d_set in zip(names, [train_data, valid_data, test_data]):
     sets[name] = []
-    with open('data/'+name+'/dataset.pkl', 'rb') as f:
-        data_list = pickle.load(f)
-        for dp_c in data_list:
-            r_name = dp_c[3]
-            ans = re.findall(r"\\(.*)\.pkl", r_name)[0]
-            sets[name].append(ans)
+    for dp_c in d_set:
+        sets[name].append(dp_c['textid'])
 for name in names:
     plist = sets[name]
     temp = []
