@@ -19,7 +19,7 @@ for dp in my_data:
 names = ['train', 'valid', 'test']
 sets = {}
 import json
-dataset = json.load(open('./data/dataset_new_2.json', 'r', encoding='utf-8'))
+dataset = json.load(open('./data/dataset_new_3.json', 'r', encoding='utf-8'))
 total = len(dataset)
 train_data = dataset[:int(total/10*8)]
 test_data = dataset[int(total/10*8):int(total/10*9)]
