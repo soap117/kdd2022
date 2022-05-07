@@ -1,7 +1,7 @@
 from cuda2 import *
 import torch
 from config import Config
-config = Config(16)
+config = Config(10)
 from models.units_sen import MyData, get_decoder_att_map, mask_ref
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -93,11 +93,12 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
     count_s = -1
     count_p = -1
     data_size = len(train_dataloader)
-    test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader,
-                               loss_func)
+    #test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader,
+    #                           loss_func)
     for epoch in range(config.train_epoch):
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list) in zip(
                 tqdm(range(data_size)), train_dataloader):
+            print(step)
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
             rs2 = modelp.infer(query_embedding, infer_titles)
@@ -184,7 +185,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             optimizer_p.step()
             optimizer_s.step()
             optimizer_decoder.step()
-            if step%1000 == 0:
+            if step%200 == 0:
                 print('loss P:%f loss S:%f loss D:%f' %(lossp.mean().item(), losss.mean().item(), lossd.item()))
                 print(results[0:5])
                 print('---------------------------')
