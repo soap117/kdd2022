@@ -98,8 +98,6 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
     for epoch in range(config.train_epoch):
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list) in zip(
                 tqdm(range(data_size)), train_dataloader):
-            if step < 551:
-                continue
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
             rs2 = modelp.infer(query_embedding, infer_titles)
