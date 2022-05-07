@@ -98,7 +98,8 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
     for epoch in range(config.train_epoch):
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list) in zip(
                 tqdm(range(data_size)), train_dataloader):
-            print(step)
+            if step < 551:
+                continue
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
             rs2 = modelp.infer(query_embedding, infer_titles)
@@ -148,10 +149,10 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
                 temp = ' [SEP] '.join(temp)
                 reference.append(temp[0:500])
-            inputs_ref = tokenizer(reference, return_tensors="pt", padding=True)
+            inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
             reference_ids = inputs_ref['input_ids']
             reference_ids = mask_ref(reference_ids, tokenizer).to(config.device)
-            decoder_inputs = tokenizer(src_sens, return_tensors="pt", padding=True)
+            decoder_inputs = tokenizer(src_sens, return_tensors="pt", padding=True, truncation=True)
             decoder_ids = decoder_inputs['input_ids']
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             decoder_ids = decoder_ids.to(config.device)

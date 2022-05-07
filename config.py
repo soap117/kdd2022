@@ -29,7 +29,7 @@ class Config(object):
         self.batch_size = batch_size
         self.infer_section_range = 10
         self.infer_section_select = 3
-        self.maxium_sec = 300
+        self.maxium_sec = 512
         self.hidden_anno_len = 5
         self.data_file = 'data/mydata_sen_clean_v4_sec_sub_trn.pkl'
 
