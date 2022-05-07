@@ -82,8 +82,7 @@ def _make_causal_mask(input_ids_shape: torch.Size, dtype: torch.dtype, past_key_
     bsz, tgt_len = input_ids_shape
     mask = torch.full((tgt_len, tgt_len), float("-inf"))
     mask_cond = torch.arange(mask.size(-1))
-    mask_cond += 1
-    mask.masked_fill_(mask_cond < (mask_cond + 1).view(mask.size(-1), 1), 0)
+    mask.masked_fill_(mask_cond < (mask_cond + 3).view(mask.size(-1), 1), 0)
     mask = mask.to(dtype)
 
     if past_key_values_length > 0:
@@ -933,6 +932,7 @@ class BartDecoder(BartPretrainedModel):
         cut_indicator=None,
         anno_position=None,
         encoder_hidden_states=None,
+        encoder_hidden_annotations=None,
         encoder_attention_mask=None,
         head_mask=None,
         cross_attn_head_mask=None,
@@ -1031,14 +1031,10 @@ class BartDecoder(BartPretrainedModel):
 
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
-        use_count = 0
-        pre = 0
-        for bid, end_num in enumerate(cut_indicator):
-            current_hidden_annotation = encoder_hidden_states[pre:end_num]
-            for one_hidden_annotation in current_hidden_annotation:
-                inputs_embeds[anno_position[use_count][0], anno_position[use_count][1]:anno_position[use_count][2]] += one_hidden_annotation
-                use_count += 1
-            pre = end_num
+        if encoder_hidden_annotations is not None:
+            for position_anno, one_hidden_annotation in zip(anno_position, encoder_hidden_annotations):
+                if position_anno[-1] != -1:
+                    inputs_embeds[position_anno[0], position_anno[1]:position_anno[2]] += one_hidden_annotation
         attention_mask = self._prepare_decoder_attention_mask(
             attention_mask, input_shape, inputs_embeds, past_key_values_length
         )
@@ -1260,7 +1256,8 @@ class BartModel(BartPretrainedModel):
             attention_mask=decoder_attention_mask,
             cut_indicator=cut_indicator,
             anno_position=anno_position,
-            encoder_hidden_states=hidden_annotations,
+            encoder_hidden_states=None,
+            encoder_hidden_annotations=hidden_annotations,
             encoder_attention_mask=attention_mask,
             head_mask=decoder_head_mask,
             cross_attn_head_mask=cross_attn_head_mask,

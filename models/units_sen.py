@@ -13,21 +13,27 @@ def mask_ref(input_ids, tokenizer):
     input_ids = input_ids.numpy()
     input_ids[mask] = replace[mask]
     return torch.LongTensor(input_ids)
-
-def find_spot(input_ids):
+def check_seq(a, b):
+    for x_a, x_b in zip(a, b):
+        if x_a != x_b:
+            return False
+    return True
+def find_spot(input_ids, querys_ori, tokenizer):
     positions = []
-    for bid in range(input_ids.shape[0]):
-        l = 0
-        while input_ids[bid, l] != config.SEP:
-            while input_ids[bid, l] != 0 and input_ids[bid, l] != config.SEP:
-                l += 1
-            if input_ids[bid, l] == config.SEP:
+    for ori_query in querys_ori:
+        flag = False
+        format = '<{}>'.format(ori_query)
+        format_id = tokenizer(format)['input_ids'][1:-1]
+        for bid in range(input_ids.shape[0]):
+            l = 0
+            while input_ids[bid, l] != config.SEP and not check_seq(input_ids[bid, l:l+len(format_id)], format_id):
+               l += 1
+            if input_ids[bid, l] != config.SEP:
+                positions.append((bid, l+len(format_id), l+len(format_id)+config.hidden_anno_len))
+                flag = True
                 break
-            r = l+1
-            while (r-l) < config.hidden_anno_len and input_ids[bid, r] == 0:
-                r += 1
-            positions.append((bid, l, r))
-            l = r
+        if not flag:
+            positions.append((-1,-1,-1))
     return positions
 
 def batch_pointer_decode(source, pointers):
@@ -211,16 +217,13 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
         src_sentence = sentence['src_st']
         key_list = []
         for key in sentence['data']:
-            if check_useless_anno(key['origin'], sentence['src_st'], sentence['tar_st']):
-                region = re.search(key['origin'], src_sentence)
-                if region is not None:
-                    region = region.regs[0]
-                else:
-                    region = (0, 0)
+            region = re.search(key['origin'], src_sentence)
+            if region is not None:
+                region = region.regs[0]
             else:
-                region = (0,  0)
+                region = (0, 0)
             if region[0] != 0 or region[1] != 0:
-                src_sentence = src_sentence[0:region[0]] + ''.join([' [PAD] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
+                src_sentence = src_sentence[0:region[0]] + ' <{}> '.format(key['origin']) + ''.join([' [PAD] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
             data_filed = {}
             data_filed['context'] = sentence['src_st']
             if len(key['anno']) == 0:
@@ -229,6 +232,7 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             if len(key['rpsecs'][0]) <= 1 or len(key['key']) < 1:
                 continue
             data_filed['key'] = key['key']
+            data_filed['ori_key'] = key['origin']
             data_filed['anno'] = key['anno']
             key_cut = jieba.lcut(key['key'])
             infer_titles = bm25_title.get_top_n(key_cut, titles, config.infer_title_range)
@@ -332,6 +336,7 @@ class MyData(Dataset):
 
     def collate_fn(self, train_data):
         querys = []
+        querys_ori = []
         querys_context = []
         titles = []
         sections = []
@@ -346,6 +351,7 @@ class MyData(Dataset):
             for key_data in sen_data['key_data']:
                 c += 1
                 querys.append(key_data['key'])
+                querys_ori.append(key_data['ori_key'])
                 querys_context.append(sen_data['src_sen'])
                 pos_title = key_data['pos_ans'][1][np.random.randint(len(key_data['pos_ans'][1]))][-1]
                 pos_section = key_data['pos_ans'][0][np.random.randint(len(key_data['pos_ans'][0]))]
@@ -355,12 +361,13 @@ class MyData(Dataset):
                 sections.append(sample_section_candidates)
                 infer_titles.append(key_data['title_candidates'])
             cut_list.append(c)
-        return querys, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list
+        return querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list
 
     def collate_fn_test(self, train_data):
         pos_titles = []
         pos_sections = []
         querys = []
+        querys_ori = []
         querys_context = []
         titles = []
         sections = []
@@ -376,8 +383,7 @@ class MyData(Dataset):
                 c += 1
                 querys.append(key_data['key'])
                 querys_context.append(sen_data['src_sen'])
-                pos_title = [x[-1] for x in key_data['pos_ans'][1]]
-                pos_section = key_data['pos_ans'][0]
+                querys_ori.append(key_data['ori_key'])
                 pos_title = key_data['pos_ans'][1][np.random.randint(len(key_data['pos_ans'][1]))][-1]
                 pos_section = key_data['pos_ans'][0][np.random.randint(len(key_data['pos_ans'][0]))]
                 sample_title_candidates = [pos_title] + key_data['neg_title_candidates']
@@ -386,10 +392,13 @@ class MyData(Dataset):
                 titles.append(sample_title_candidates)
                 sections.append(sample_section_candidates)
                 infer_titles.append(key_data['title_candidates'])
-                pos_titles.append(pos_title)
-                pos_sections.append(pos_section)
+
+                pos_title_all = [x[-1] for x in key_data['pos_ans'][1]]
+                pos_section_all = key_data['pos_ans'][0]
+                pos_titles.append(pos_title_all)
+                pos_sections.append(pos_section_all)
             cut_list.append(c)
-        return querys, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list, pos_titles, pos_sections
+        return querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list, pos_titles, pos_sections
 
 
 

@@ -42,45 +42,7 @@ def find_location(file):
                 file['origin_key'] = tooltip['origin']
                 count += 1
     return file
-def creat_sentence(data_new):
-    sentence_format = {}
-    for file in data_new:
-        anno = file['file']
-        src = anno['src']
-        src = re.sub('\*\*', '', src)
-        src = src.replace('\n', '').replace('。。', '。')
-        tar = anno['tar']
-        tar = re.sub('\*\*', '', tar)
-        tar = tar.replace('\n', '').replace('。。', '。')
-        if src[-1] == '。' and tar[-1] != '。':
-            tar += '。'
-        if tar[-1] == '。' and src[-1] != '。':
-            src += '。'
-        data_key = None
-        src_sts = src.split('。')
-        tar_sts = tar.split('。')
-        dt = len(tar_sts) - len(src_sts)
-        if dt == 0:
-            for src_st, tar_st in zip(src_sts, tar_sts):
-                if file['original_key'] in src_st and src_st != tar_st:
-                    file['src_st'] = src_st
-                    file['tar_st'] = tar_st
-                    pos = re.search(file['original_key'], src_st)
-                    file['position'] = pos.regs
-                    data_key = {'key': file['key'], 'origin':file['origin_key'], 'anno': file['anno'], 'urls': file['urls'], 'rsecs': file['rsecs'],
-                                'rpsecs': file['rpsecs'], 'pos': file['position']}
-                    break
-        if data_key is not None:
-            file_sen = file['file']['textid'] + file['src_st']
-            if file_sen in sentence_format:
-                sentence_format[file_sen]['data'].append(data_key)
-            else:
-                sentence_format[file_sen] = {}
-                sentence_format[file_sen]['data'] = [data_key]
-                sentence_format[file_sen]['src_st'] = file['src_st']
-                sentence_format[file_sen]['tar_st'] = file['tar_st']
-                sentence_format[file_sen]['textid'] = file['file']['textid']
-    return list(sentence_format.values())
+
 
 for fid, file in tqdm(enumerate(my_data)):
     sen_set = set()
@@ -109,7 +71,7 @@ for sen in tqdm(sen2id.keys()):
     tokenized_corpus = jieba.lcut(sen)
     complete_corpus.append(tokenized_corpus)
 bm25_sentences = BM25Okapi(complete_corpus)
-for fid, (file, index_list) in tqdm(enumerate(zip(my_data[0:1000], group_list[0:1000]))):
+for fid, (file, index_list) in tqdm(enumerate(zip(my_data, group_list))):
     if len(index_list) <= 0:
         continue
     # print(file)
@@ -162,9 +124,5 @@ for fid, (file, index_list) in tqdm(enumerate(zip(my_data[0:1000], group_list[0:
         print('here')
     data_new.append(file)
     #print(top_n_sentences)
-sentence_format = creat_sentence(data_new)
-with open('mydata_sen_clean_v4_sec_sub_trn.pkl', 'wb') as f:
-    pickle.dump(sentence_format, f)
-print(count_f)
-#with open('mydata_new_clean_v4_sec_sub_trn.pkl', 'wb') as f:
-#    pickle.dump(data_new, f)
+with open('mydata_new_clean_v4_sec_sub_trn.pkl', 'wb') as f:
+    pickle.dump(data_new, f)
