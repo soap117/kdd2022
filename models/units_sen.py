@@ -223,7 +223,7 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             else:
                 region = (0, 0)
             if region[0] != 0 or region[1] != 0:
-                src_sentence = src_sentence[0:region[0]] + ' <{}> '.format(key['origin']) + ''.join([' [PAD] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
+                src_sentence = src_sentence[0:region[0]] + ' <{}> '.format(key['origin']) + ''.join([' [MASK] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
             data_filed = {}
             data_filed['context'] = sentence['src_st']
             if len(key['anno']) == 0:
