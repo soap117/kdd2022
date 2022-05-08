@@ -148,7 +148,7 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
                 temp = ' [SEP] '.join(temp)
-                reference.append(temp[0:500])
+                reference.append(temp[0:100])
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
             reference_ids = inputs_ref['input_ids']
             reference_ids = mask_ref(reference_ids, tokenizer).to(config.device)
@@ -309,7 +309,7 @@ def test(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_dec
                 if check(query, temp, pos_sections[bid], secs=True):
                     tp_s += 1
                 temp = ' [SEP] '.join(temp)
-                reference.append(temp[0:500])
+                reference.append(temp[0:100])
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True)
             reference_ids = inputs_ref['input_ids']
             reference_ids = mask_ref(reference_ids, tokenizer).to(config.device)
