@@ -4,11 +4,13 @@ def creat_sentence(data_new):
     for file in data_new:
         anno = file['file']
         src = anno['src']
+        src = re.sub('（(.*。)）', '', src)
         src = re.sub('\*\*', '', src)
         src = src.replace('(', '（')
         src = src.replace(')', '）')
         src = src.replace('\n', '').replace('。。', '。')
         tar = anno['tar']
+        tar = re.sub('（(.*。)）', '', tar)
         tar = re.sub('\*\*', '', tar)
         tar = tar.replace('\n', '').replace('。。', '。')
         tar = tar.replace('(', '（')
@@ -24,6 +26,12 @@ def creat_sentence(data_new):
         data_key = None
         src_sts = src.split('。')
         tar_sts = tar.split('。')
+        for i in range(len(src_sts)-1, -1, -1):
+            if len(src_sts[i]) == 0:
+                del src_sts[i]
+        for i in range(len(tar_sts)-1, -1, -1):
+            if len(tar_sts[i]) == 0:
+                del tar_sts[i]
         dt = len(tar_sts) - len(src_sts)
         if dt == 0:
             for src_st, tar_st in zip(src_sts, tar_sts):
@@ -36,6 +44,8 @@ def creat_sentence(data_new):
                         data_key = {'key': file['key'], 'origin': file['origin_key'], 'anno': file['anno'], 'urls': file['urls'], 'rsecs': file['rsecs'],
                                     'rpsecs': file['rpsecs'], 'pos': file['position']}
                     break
+        else:
+            print('miss')
         if data_key is not None:
             file_sen = file['file']['textid'] + file['src_st']
             if file_sen in sentence_format:
