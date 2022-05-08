@@ -378,6 +378,8 @@ class BartDecoderLayer(nn.Module):
     def forward(
         self,
         hidden_states: torch.Tensor,
+        encoder_hidden_annotations: Optional[torch.Tensor] = None,
+        anno_position = None,
         attention_mask: Optional[torch.Tensor] = None,
         encoder_hidden_states: Optional[torch.Tensor] = None,
         encoder_attention_mask: Optional[torch.Tensor] = None,
@@ -420,6 +422,13 @@ class BartDecoderLayer(nn.Module):
         hidden_states = nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
         hidden_states = residual + hidden_states
         hidden_states = self.self_attn_layer_norm(hidden_states)
+
+        # Annotation Block
+        if encoder_hidden_annotations is not None:
+            for position_anno, one_hidden_annotation in zip(anno_position, encoder_hidden_annotations):
+                if position_anno[-1] != -1:
+                    hidden_states[position_anno[0], position_anno[1]:position_anno[2]] += one_hidden_annotation
+
 
         # Cross-Attention Block
         cross_attn_present_key_value = None
@@ -1102,20 +1111,36 @@ class BartDecoder(BartPretrainedModel):
                     None,
                 )
             else:
-
-                layer_outputs = decoder_layer(
-                    hidden_states,
-                    attention_mask=attention_mask,
-                    encoder_hidden_states=encoder_hidden_states,
-                    encoder_attention_mask=encoder_attention_mask,
-                    layer_head_mask=(head_mask[idx] if head_mask is not None else None),
-                    cross_attn_layer_head_mask=(
-                        cross_attn_head_mask[idx] if cross_attn_head_mask is not None else None
-                    ),
-                    past_key_value=past_key_value,
-                    output_attentions=output_attentions,
-                    use_cache=use_cache,
-                )
+                if idx == 0:
+                    layer_outputs = decoder_layer(
+                        hidden_states,
+                        anno_position=anno_position,
+                        encoder_hidden_annotations=encoder_hidden_annotations,
+                        attention_mask=attention_mask,
+                        encoder_hidden_states=encoder_hidden_states,
+                        encoder_attention_mask=encoder_attention_mask,
+                        layer_head_mask=(head_mask[idx] if head_mask is not None else None),
+                        cross_attn_layer_head_mask=(
+                            cross_attn_head_mask[idx] if cross_attn_head_mask is not None else None
+                        ),
+                        past_key_value=past_key_value,
+                        output_attentions=output_attentions,
+                        use_cache=use_cache,
+                    )
+                else:
+                    layer_outputs = decoder_layer(
+                        hidden_states,
+                        attention_mask=attention_mask,
+                        encoder_hidden_states=encoder_hidden_states,
+                        encoder_attention_mask=encoder_attention_mask,
+                        layer_head_mask=(head_mask[idx] if head_mask is not None else None),
+                        cross_attn_layer_head_mask=(
+                            cross_attn_head_mask[idx] if cross_attn_head_mask is not None else None
+                        ),
+                        past_key_value=past_key_value,
+                        output_attentions=output_attentions,
+                        use_cache=use_cache,
+                    )
             hidden_states = layer_outputs[0]
 
             if use_cache:
