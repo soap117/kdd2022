@@ -1040,10 +1040,7 @@ class BartDecoder(BartPretrainedModel):
 
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
-        if encoder_hidden_annotations is not None:
-            for position_anno, one_hidden_annotation in zip(anno_position, encoder_hidden_annotations):
-                if position_anno[-1] != -1:
-                    inputs_embeds[position_anno[0], position_anno[1]:position_anno[2]] += one_hidden_annotation
+
         attention_mask = self._prepare_decoder_attention_mask(
             attention_mask, input_shape, inputs_embeds, past_key_values_length
         )
