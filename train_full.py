@@ -170,6 +170,7 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
             results = [x.replace('[CLS]', '') for x in results]
+            results = [x.split('[SEP]')[0] for x in results]
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.reshape(-1).to(config.device)
             #masks = torch.ones_like(targets)
@@ -332,10 +333,12 @@ def test(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_dec
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
+            results = [x.split('[SEP]')[0] for x in results]
             ground_truth = tokenizer.batch_decode(targets)
             ground_truth = [tokenizer.convert_tokens_to_string(x) for x in ground_truth]
             ground_truth = [x.replace(' ', '') for x in ground_truth]
             ground_truth = [x.replace('[PAD]', '') for x in ground_truth]
+            ground_truth = [x.split('[SEP]')[0] for x in ground_truth]
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.reshape(-1).to(config.device)
             #masks = torch.ones_like(targets)
