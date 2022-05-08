@@ -1346,6 +1346,7 @@ class BartForConditionalGeneration(BartPretrainedModel):
     def forward(
         self,
         input_ids=None,
+        ref_ids=None,
         cut_indicator=None,
         anno_position=None,
         attention_mask=None,
@@ -1382,6 +1383,7 @@ class BartForConditionalGeneration(BartPretrainedModel):
 
         outputs = self.model(
             input_ids,
+            ref_ids=ref_ids,
             cut_indicator=cut_indicator,
             anno_position=anno_position,
             attention_mask=attention_mask,
