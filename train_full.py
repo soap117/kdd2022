@@ -80,6 +80,7 @@ def build(config):
     models = SectionRanker(config, title_encoder)
     models.cuda()
     modeld = config.modeld_sen.from_pretrained(config.bert_model)
+    modeld.model.encoder_ref.load_state_dict(modeld.model.encoder.state_dict())
     modeld.cuda()
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
     optimizer_s = AdamW(models.parameters(), lr=config.lr)
@@ -315,7 +316,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             decoder_ids = decoder_ids.to(config.device)
             target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True)['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
-            outputs = model(input_ids=reference_ids, decoder_input_ids=decoder_ids, cut_indicator=cut_list,
+            outputs = model(input_ids=decoder_ids, ref_ids=reference_ids, decoder_input_ids=decoder_ids, cut_indicator=cut_list,
                             attention_adjust=adj_matrix, anno_position=decoder_anno_position)
             logits_ = outputs.logits
             len_anno = min(target_ids.shape[1], logits_.shape[1])

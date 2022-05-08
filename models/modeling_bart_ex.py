@@ -1160,6 +1160,7 @@ class BartModel(BartPretrainedModel):
 
         self.encoder = BartEncoder(config, self.shared)
         self.decoder = BartDecoder(config, self.shared)
+        self.encoder_ref = BartEncoder(config, self.shared)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1188,6 +1189,7 @@ class BartModel(BartPretrainedModel):
     def forward(
         self,
         input_ids=None,
+        ref_ids=None,
         cut_indicator=None,
         anno_position=None,
         hidden_anno_len = 5,
@@ -1241,6 +1243,18 @@ class BartModel(BartPretrainedModel):
                 return_dict=return_dict,
             )
 
+        if ref_ids is not None:
+            ref_outputs = self.encoder_ref(
+                input_ids=ref_ids,
+                attention_mask=attention_mask,
+                attention_adjust=attention_adjust,
+                head_mask=head_mask,
+                inputs_embeds=inputs_embeds,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict,
+            )
+
         # If the user passed a tuple for encoder_outputs, we wrap it in a BaseModelOutput when return_dict=True
         elif return_dict and not isinstance(encoder_outputs, BaseModelOutput):
             encoder_outputs = BaseModelOutput(
@@ -1248,7 +1262,7 @@ class BartModel(BartPretrainedModel):
                 hidden_states=encoder_outputs[1] if len(encoder_outputs) > 1 else None,
                 attentions=encoder_outputs[2] if len(encoder_outputs) > 2 else None,
             )
-        hidden_annotations = encoder_outputs[0][:, 0:hidden_anno_len]
+        hidden_annotations = ref_outputs[0][:, 0:hidden_anno_len]
 
         # decoder outputs consists of (dec_features, past_key_value, dec_hidden, dec_attn)
         decoder_outputs = self.decoder(
@@ -1256,7 +1270,7 @@ class BartModel(BartPretrainedModel):
             attention_mask=decoder_attention_mask,
             cut_indicator=cut_indicator,
             anno_position=anno_position,
-            encoder_hidden_states=None,
+            encoder_hidden_states=encoder_outputs[0],
             encoder_hidden_annotations=hidden_annotations,
             encoder_attention_mask=attention_mask,
             head_mask=decoder_head_mask,
