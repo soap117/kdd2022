@@ -1,4 +1,4 @@
-from cuda2 import *
+from cuda import *
 import torch
 from config import Config
 config = Config(20)
