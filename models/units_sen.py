@@ -29,7 +29,7 @@ def find_spot(input_ids, querys_ori, tokenizer):
             while input_ids[bid, l] != config.SEP and not check_seq(input_ids[bid, l:l+len(format_id)], format_id):
                l += 1
             if input_ids[bid, l] != config.SEP:
-                positions.append((bid, l+len(format_id), l+len(format_id)+config.hidden_anno_len))
+                positions.append((bid, l+len(format_id), min(l+len(format_id)+config.hidden_anno_len), input_ids.shape[1]))
                 flag = True
                 break
         if not flag:
