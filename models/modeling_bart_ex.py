@@ -427,10 +427,8 @@ class BartDecoderLayer(nn.Module):
         if encoder_hidden_annotations is not None:
             for position_anno, one_hidden_annotation in zip(anno_position, encoder_hidden_annotations):
                 if position_anno[-1] != -1:
-                    exact_len = hidden_states[position_anno[0], position_anno[1]:position_anno[2]].shape[1]
-                    print(exact_len)
-                    print(one_hidden_annotation.shape)
-                    hidden_states[position_anno[0], position_anno[1]:position_anno[2]] += one_hidden_annotation[:, 0:exact_len]
+                    exact_len = hidden_states[position_anno[0], position_anno[1]:position_anno[2]].shape[0]
+                    hidden_states[position_anno[0], position_anno[1]:position_anno[2]] += one_hidden_annotation[0:exact_len]
 
 
         # Cross-Attention Block
