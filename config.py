@@ -34,5 +34,6 @@ class Config(object):
         self.maxium_sec = 512
         self.hidden_anno_len = 10
         self.data_file = 'data/mydata_sen_clean_v4_sec_sub_trn.pkl'
+        self.data_file_anno = 'data/mydata_new_clean_v4_sec_sub_trn.pkl'
 
 config = Config(16)
