@@ -277,7 +277,6 @@ def read_data(path):
 class MyData(Dataset):
     def __init__(self, config, tokenizer, data_path, titles, sections, title2sections, sec2id, bm25_title, bm25_section):
         self.config = config
-        self.data_path = config.data_path
         keys = read_data(data_path)
         self.title2sections = title2sections
         self.sec2id = sec2id
