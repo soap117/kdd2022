@@ -12,10 +12,16 @@ def isChinese(word):
             return True
     return False
 for dp in my_data:
-    if dp['textid'] in path2file:
-        path2file[dp['textid']].append(dp)
-    else:
-        path2file[dp['textid']] = [dp]
+    try:
+        if dp['textid'] in path2file:
+            path2file[dp['textid']].append(dp)
+        else:
+            path2file[dp['textid']] = [dp]
+    except:
+        if dp['file']['textid'] in path2file:
+            path2file[dp['file']['textid']].append(dp)
+        else:
+            path2file[dp['file']['textid']] = [dp]
 names = ['train', 'valid', 'test']
 sets = {}
 import json

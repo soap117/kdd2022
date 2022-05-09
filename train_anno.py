@@ -1,8 +1,8 @@
 from cuda2 import *
 import torch
 from config import Config
-config = Config(2)
-from models.units_sen import MyData, get_decoder_att_map, mask_ref
+config = Config(20)
+from models.units import MyData, get_decoder_att_map, mask_ref
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
 from tqdm import tqdm
@@ -11,7 +11,7 @@ import numpy as np
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction, corpus_bleu
 smooth = SmoothingFunction()
 import jieba
-from models.units_sen import read_clean_data, find_spot
+from models.units import read_clean_data
 from rank_bm25 import BM25Okapi
 from models.modeling_gpt2_att import GPT2LMHeadModel
 from models.modeling_bart_att import BartForConditionalGeneration
@@ -79,26 +79,24 @@ def build(config):
     modelp.cuda()
     models = SectionRanker(config, title_encoder)
     models.cuda()
-    modeld = config.modeld_sen.from_pretrained(config.bert_model)
+    modeld = config.modeld.from_pretrained(config.bert_model)
     modeld.cuda()
-    modela = config.modeld_ann.from_pretrained(config.bert_model)
-    modela.cuda()
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
     optimizer_s = AdamW(models.parameters(), lr=config.lr)
-    optimizer_decoder = AdamW(list(modeld.parameters())+list(modela.parameters()), lr=config.lr*0.1)
+    optimizer_decoder = AdamW(modeld.parameters(), lr=config.lr*0.1)
     loss_func = torch.nn.CrossEntropyLoss(reduction='none')
-    return modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
+    return modelp, models, modeld, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
-def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
+def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
     min_loss_p = min_loss_s = min_loss_d = 1000
     state = {}
     count_s = -1
     count_p = -1
     data_size = len(train_dataloader)
-    #test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader,
-    #                           loss_func)
+    test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader,
+                               loss_func)
     for epoch in range(config.train_epoch):
-        for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list) in zip(
+        for step, (querys, querys_context, titles, sections, infer_titles, annotations) in zip(
                 tqdm(range(data_size)), train_dataloader):
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
@@ -148,35 +146,29 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
                 for indc in inds_sec[bid]:
                     temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
                 temp = ' [SEP] '.join(temp)
-                reference.append(temp[0:100])
-            inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
-            reference_ids = inputs_ref['input_ids']
-            reference_ids = mask_ref(reference_ids, tokenizer).to(config.device)
-            decoder_inputs = tokenizer(src_sens, return_tensors="pt", padding=True, truncation=True)
-            decoder_ids = decoder_inputs['input_ids']
-            decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
-            decoder_ids = decoder_ids.to(config.device)
-            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True)['input_ids'].to(config.device)
-            adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
-            outputs_annotation = modela(input_ids=reference_ids, attention_adjust=adj_matrix)
-            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
-            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=decoder_ids, cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
+                reference.append(temp[0:500])
+            inputs = tokenizer(reference, return_tensors="pt", padding=True)
+            ids = inputs['input_ids']
+            ids = mask_ref(ids, tokenizer)
+            targets_ = tokenizer(annotations, return_tensors="pt", padding=True)['input_ids']
+            adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
+            outputs = model(ids.cuda(), attention_adjust=adj_matrix)
             logits_ = outputs.logits
-            len_anno = min(target_ids.shape[1], logits_.shape[1])
+            len_anno = min(targets_.shape[1], logits_.shape[1])
             logits = logits_[:, 0:len_anno]
-            targets = target_ids[:, 0:len_anno]
+            targets = targets_[:, 0:len_anno]
             _, predictions = torch.max(logits, dim=-1)
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
-            results = [x.replace('[CLS]', '') for x in results]
             results = [x.split('[SEP]')[0] for x in results]
+            results = [x.replace('[CLS]', '') for x in results]
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.reshape(-1).to(config.device)
-            #masks = torch.ones_like(targets)
-            #masks[torch.where(targets == 0)] = 0
-            lossd = (loss_func(logits, targets)).sum()/config.batch_size
+            masks = torch.ones_like(targets)
+            masks[torch.where(targets == 0)] = 0
+            lossd = (masks*loss_func(logits, targets)).sum()/config.batch_size
             loss = lossd
             if count_s <= 1:
                 loss += losss.mean()
@@ -189,11 +181,11 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
             optimizer_p.step()
             optimizer_s.step()
             optimizer_decoder.step()
-            if step%200 == 0:
+            if step%1000 == 0:
                 print('loss P:%f loss S:%f loss D:%f' %(lossp.mean().item(), losss.mean().item(), lossd.item()))
                 print(results[0:5])
                 print('---------------------------')
-        test_loss, eval_ans = test(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader, loss_func)
+        test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader, loss_func)
         p_eval_loss = test_loss[0]
         s_eval_loss = test_loss[1]
         d_eval_loss = test_loss[2]
@@ -225,7 +217,7 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
             print(count_p, count_s)
             print('update-all')
             print('New Test Loss D:%f' % (d_eval_loss))
-            state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(), 'modeld': modeld.state_dict(), 'modela': modela.state_dict(),
+            state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(), 'model': model.state_dict(),
                      'eval_rs': eval_ans}
             torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
             min_loss_d = d_eval_loss
@@ -239,12 +231,11 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
                 print(one)
     return state
 
-def test(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_decoder, dataloader, loss_func):
+def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dataloader, loss_func):
     with torch.no_grad():
         modelp.eval()
         models.eval()
-        modeld.eval()
-        modela.eval()
+        model.eval()
         total_loss = []
         tp = 0
         total = 0
@@ -253,7 +244,7 @@ def test(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_dec
         eval_ans = []
         eval_gt = []
         data_size = len(dataloader)
-        for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list, pos_titles, pos_sections) in zip(
+        for step, (querys, querys_context, titles, sections, infer_titles, annotations, pos_titles, pos_sections) in zip(
                 tqdm(range(data_size)), dataloader):
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
@@ -311,24 +302,16 @@ def test(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_dec
                 if check(query, temp, pos_sections[bid], secs=True):
                     tp_s += 1
                 temp = ' [SEP] '.join(temp)
-                reference.append(temp[0:100])
-            inputs_ref = tokenizer(reference, return_tensors="pt", padding=True)
-            reference_ids = inputs_ref['input_ids']
-            reference_ids = mask_ref(reference_ids, tokenizer).to(config.device)
-            decoder_inputs = tokenizer(src_sens, return_tensors="pt", padding=True)
-            decoder_ids = decoder_inputs['input_ids']
-            decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
-            decoder_ids = decoder_ids.to(config.device)
-            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True)['input_ids'].to(config.device)
-            adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
-            outputs_annotation = modela(input_ids=reference_ids, attention_adjust=adj_matrix)
-            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
-            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=decoder_ids, cut_indicator=cut_list,
-                             anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
+                reference.append(temp[0:500])
+            inputs = tokenizer(reference, return_tensors="pt", padding=True)
+            ids = inputs['input_ids']
+            targets_ = tokenizer(annotations, return_tensors="pt", padding=True)['input_ids']
+            adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
+            outputs = model(ids.cuda(), attention_adjust=adj_matrix)
             logits_ = outputs.logits
-            len_anno = min(target_ids.shape[1], logits_.shape[1])
+            len_anno = min(targets_.shape[1], logits_.shape[1])
             logits = logits_[:, 0:len_anno]
-            targets = target_ids[:, 0:len_anno]
+            targets = targets_[:, 0:len_anno]
             _, predictions = torch.max(logits, dim=-1)
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
@@ -339,14 +322,13 @@ def test(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_dec
             ground_truth = [tokenizer.convert_tokens_to_string(x) for x in ground_truth]
             ground_truth = [x.replace(' ', '') for x in ground_truth]
             ground_truth = [x.replace('[PAD]', '') for x in ground_truth]
-            ground_truth = [x.split('[SEP]')[0] for x in ground_truth]
             logits = logits.reshape(-1, logits.shape[2])
             targets = targets.reshape(-1).to(config.device)
-            #masks = torch.ones_like(targets)
-            #masks[torch.where(targets == 0)] = 0
+            masks = torch.ones_like(targets)
+            masks[torch.where(targets == 0)] = 0
             eval_ans += results
             eval_gt += ground_truth
-            lossd = (loss_func(logits, targets)).sum()/config.batch_size
+            lossd = (masks*loss_func(logits, targets)).sum()/config.batch_size
             loss = [lossp.mean().item(), losss.mean().item(), lossd.item()]
             total_loss.append(loss)
         predictions = [jieba.lcut(doc) for doc in eval_ans]
@@ -355,12 +337,11 @@ def test(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_dec
         print("Bleu Annotation:%f" % bleu_scores)
         modelp.train()
         models.train()
-        modeld.train()
-        models.train()
+        model.train()
         total_loss = np.array(total_loss).mean(axis=0)
         print('accuracy title: %f accuracy section: %f' % (tp / total, tp_s / total_s))
         return (-tp / total, -tp_s / total_s, -bleu_scores), eval_ans
 
 
-modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer = build(config)
-state = train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func)
+modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer = build(config)
+state = train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func)

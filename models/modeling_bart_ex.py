@@ -1318,7 +1318,7 @@ class BartForConditionalGeneration(BartPretrainedModel):
         self.model = BartModel(config)
         self.register_buffer("final_logits_bias", torch.zeros((1, self.model.shared.num_embeddings)))
         self.lm_head = nn.Linear(config.d_model, self.model.shared.num_embeddings, bias=False)
-
+        self.hidden_annotation_alignment = nn.Linear(config.d_model, config.d_model, bias=False)
         # Initialize weights and apply final processing
         self.post_init()
 
@@ -1382,7 +1382,8 @@ class BartForConditionalGeneration(BartPretrainedModel):
         Returns:
         """
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
+        if hidden_annotation is not None:
+            hidden_annotation = self.hidden_annotation_alignment(hidden_annotation)
         if labels is not None:
             if decoder_input_ids is None and decoder_inputs_embeds is None:
                 decoder_input_ids = shift_tokens_right(
@@ -1482,7 +1483,7 @@ class BartForAnnotation(BartPretrainedModel):
         super().__init__(config)
         self.model = BartModel(config)
         self.register_buffer("final_logits_bias", torch.zeros((1, self.model.shared.num_embeddings)))
-        self.hidden_alignment = nn.Linear(config.d_model, config.d_model, bias=False)
+        self.lm_head = nn.Linear(config.d_model, self.model.shared.num_embeddings, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1506,6 +1507,12 @@ class BartForAnnotation(BartPretrainedModel):
             extra_bias = torch.zeros((1, new_num_tokens - old_num_tokens), device=self.final_logits_bias.device)
             new_bias = torch.cat([self.final_logits_bias, extra_bias], dim=1)
         self.register_buffer("final_logits_bias", new_bias)
+
+    def get_output_embeddings(self):
+        return self.lm_head
+
+    def set_output_embeddings(self, new_embeddings):
+        self.lm_head = new_embeddings
 
     @add_start_docstrings_to_model_forward(BART_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=Seq2SeqLMOutput, config_class=_CONFIG_FOR_DOC)
@@ -1563,8 +1570,28 @@ class BartForAnnotation(BartPretrainedModel):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
-        hidden_annotations = self.hidden_alignment(outputs[0])
-        return hidden_annotations
+        lm_logits = self.lm_head(outputs[0]) + self.final_logits_bias
+
+        masked_lm_loss = None
+        if labels is not None:
+            loss_fct = CrossEntropyLoss()
+            masked_lm_loss = loss_fct(lm_logits.view(-1, self.config.vocab_size), labels.view(-1))
+
+        if not return_dict:
+            output = (lm_logits,) + outputs[1:]
+            return ((masked_lm_loss,) + output) if masked_lm_loss is not None else output
+
+        return Seq2SeqLMOutput(
+            loss=masked_lm_loss,
+            logits=lm_logits,
+            past_key_values=outputs.past_key_values,
+            decoder_hidden_states=outputs.last_hidden_state,
+            decoder_attentions=outputs.decoder_attentions,
+            cross_attentions=outputs.cross_attentions,
+            encoder_last_hidden_state=outputs.encoder_last_hidden_state,
+            encoder_hidden_states=outputs.encoder_hidden_states,
+            encoder_attentions=outputs.encoder_attentions,
+        )
 
     def prepare_inputs_for_generation(
         self,
