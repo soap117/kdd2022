@@ -97,7 +97,7 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
     data_size = len(train_dataloader)
     #test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader,
     #                           loss_func)
-    for epoch in range(config.train_epoch*2):
+    for epoch in range(config.train_epoch*4):
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list) in zip(
                 tqdm(range(data_size)), train_dataloader):
             if step < 11:
