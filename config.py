@@ -1,7 +1,6 @@
 import torch
 from transformers import BertTokenizer,BartTokenizer
 from models.modeling_gpt2_att import GPT2LMHeadModel
-from models.modeling_bart_att import BartForConditionalGeneration
 from models.modeling_bart_ex import BartForConditionalGeneration as BartEX
 from models.modeling_bart_ex import BartForAnnotation as BartAN
 class Config(object):
@@ -16,7 +15,7 @@ class Config(object):
         self.title_tokenizer = self.tokenizer
         self.title_tokenizer.model_max_length = 512
         self.key_tokenizer = self.title_tokenizer
-        self.modeld = BartForConditionalGeneration
+        self.modeld = BartEX
         self.modeld_sen = BartEX
         self.modeld_ann = BartAN
         self.title_emb_dim = 128

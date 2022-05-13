@@ -13,8 +13,6 @@ smooth = SmoothingFunction()
 import jieba
 from models.units import read_clean_data
 from rank_bm25 import BM25Okapi
-from models.modeling_gpt2_att import GPT2LMHeadModel
-from models.modeling_bart_att import BartForConditionalGeneration
 import os
 def check(query, infer_titles, pos_titles, secs=False):
     for pos_title in pos_titles:
