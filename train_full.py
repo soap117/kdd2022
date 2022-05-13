@@ -92,11 +92,12 @@ def build(config):
     modela.cuda()
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr*0.1)
     optimizer_s = AdamW(models.parameters(), lr=config.lr*0.1)
-    optimizer_decoder = AdamW(list(modeld.parameters())+list(modela.parameters()), lr=config.lr*0.1)
+    optimizer_encoder = AdamW(modeld.parameters(), lr=config.lr * 0.1)
+    optimizer_decoder = AdamW(modela.parameters(), lr=config.lr * 0.1)
     loss_func = torch.nn.CrossEntropyLoss(reduction='none')
-    return modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
+    return modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_decoder, optimizer_encoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
-def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
+def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
     min_loss_p = min_loss_s = min_loss_d = 1000
     state = {}
     count_s = -1
@@ -187,20 +188,29 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
             #masks[torch.where(targets == 0)] = 0
             lossd = (loss_func(logits, targets)).sum()/config.batch_size
             loss = lossd
-            loss += losss.mean()
-            loss += lossp.mean()
+            if count_p < 2:
+                loss += losss.mean()
+            else:
+                loss += 0.1*losss.mean()
+            if count_s < 2:
+                loss += lossp.mean()
+            else:
+                loss += 0.1*lossp.mean()
             optimizer_p.zero_grad()
             optimizer_s.zero_grad()
+            optimizer_encoder.zero_grad()
             optimizer_decoder.zero_grad()
             loss.backward()
-            optimizer_p.step()
-            optimizer_s.step()
+            if epoch >= 2:
+                optimizer_p.step()
+                optimizer_s.step()
+                optimizer_encoder.step()
             optimizer_decoder.step()
             if step%200 == 0:
                 print('loss P:%f loss S:%f loss D:%f' %(lossp.mean().item(), losss.mean().item(), lossd.item()))
                 print(results[0:5])
                 print('---------------------------')
-        test_loss, eval_ans = test(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader, loss_func)
+        test_loss, eval_ans = test(modelp, models, modeld, modela , valid_dataloader, loss_func)
         p_eval_loss = test_loss[0]
         s_eval_loss = test_loss[1]
         d_eval_loss = test_loss[2]
@@ -210,24 +220,14 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
             min_loss_p = p_eval_loss
             count_p = min(0, epoch-2)
         else:
-            if count_p == 2:
-                print('p froezen')
-                for g in optimizer_p.param_groups:
-                    g['lr'] = config.lr * 0.1
             count_p += 1
-            modelp.load_state_dict(state['modelp'])
         if s_eval_loss < min_loss_s:
             print('update-s')
             state['models'] = models.state_dict()
             min_loss_s = s_eval_loss
             count_s = min(0, epoch-2)
         else:
-            if count_s == 2:
-                print('s froezen')
-                for g in optimizer_s.param_groups:
-                    g['lr'] = config.lr * 0.1
             count_s += 1
-            models.load_state_dict(state['models'])
         if d_eval_loss < min_loss_d:
             print(count_p, count_s)
             print('update-all')
@@ -246,7 +246,7 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
                 print(one)
     return state
 
-def test(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_decoder, dataloader, loss_func):
+def test(modelp, models, modeld, modela, dataloader, loss_func):
     with torch.no_grad():
         modelp.eval()
         models.eval()
@@ -369,5 +369,5 @@ def test(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_dec
         return (-tp / total, -tp_s / total_s, -bleu_scores), eval_ans
 
 
-modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer = build(config)
-state = train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, loss_func)
+modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer = build(config)
+state = train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, loss_func)
