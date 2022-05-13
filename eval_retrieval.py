@@ -16,7 +16,7 @@ from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 smooth = SmoothingFunction()
 import os
 def build(config):
-    save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models.pkl').replace('data/', ''))
+    save_data = torch.load('./results/' + config.data_file_anno.replace('.pkl', '_models.pkl').replace('data/', ''))
     tokenizer = config.tokenizer
     titles, sections, title2sections, sec2id = read_clean_data(config.data_file)
     corpus = sections

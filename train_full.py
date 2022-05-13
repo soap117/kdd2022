@@ -75,16 +75,20 @@ def build(config):
                                   , collate_fn=train_dataset.collate_fn_test)
 
     title_encoder = TitleEncoder(config)
+    save_data = torch.load('./results/' + config.data_file_anno.replace('.pkl', '_models.pkl').replace('data/', ''))
     modelp = PageRanker(config, title_encoder)
+    modelp.load_state_dict(save_data['modelp'])
     modelp.cuda()
     models = SectionRanker(config, title_encoder)
+    models.load_state_dict(save_data['models'])
     models.cuda()
     modeld = config.modeld_sen.from_pretrained(config.bert_model)
+    modeld.load_state_dict(save_data['model'])
     modeld.cuda()
     modela = config.modeld_ann.from_pretrained(config.bert_model)
     modela.cuda()
-    optimizer_p = AdamW(modelp.parameters(), lr=config.lr)
-    optimizer_s = AdamW(models.parameters(), lr=config.lr)
+    optimizer_p = AdamW(modelp.parameters(), lr=config.lr*0.1)
+    optimizer_s = AdamW(models.parameters(), lr=config.lr*0.1)
     optimizer_decoder = AdamW(list(modeld.parameters())+list(modela.parameters()), lr=config.lr*0.1)
     loss_func = torch.nn.CrossEntropyLoss(reduction='none')
     return modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
@@ -180,10 +184,8 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
             #masks[torch.where(targets == 0)] = 0
             lossd = (loss_func(logits, targets)).sum()/config.batch_size
             loss = lossd
-            if count_s <= 1:
-                loss += losss.mean()
-            if count_p <= 1:
-                loss += lossp.mean()
+            loss += losss.mean()
+            loss += lossp.mean()
             optimizer_p.zero_grad()
             optimizer_s.zero_grad()
             optimizer_decoder.zero_grad()
