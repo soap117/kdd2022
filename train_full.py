@@ -214,21 +214,21 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
         p_eval_loss = test_loss[0]
         s_eval_loss = test_loss[1]
         d_eval_loss = test_loss[2]
-        if p_eval_loss < min_loss_p:
+        if p_eval_loss <= min_loss_p:
             print('update-p')
             state['modelp'] = modelp.state_dict()
             min_loss_p = p_eval_loss
             count_p = min(0, epoch-2)
         else:
             count_p += 1
-        if s_eval_loss < min_loss_s:
+        if s_eval_loss <= min_loss_s:
             print('update-s')
             state['models'] = models.state_dict()
             min_loss_s = s_eval_loss
             count_s = min(0, epoch-2)
         else:
             count_s += 1
-        if d_eval_loss < min_loss_d:
+        if d_eval_loss <= min_loss_d:
             print(count_p, count_s)
             print('update-all')
             print('New Test Loss D:%f' % (d_eval_loss))
