@@ -201,7 +201,7 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
             optimizer_encoder.zero_grad()
             optimizer_decoder.zero_grad()
             loss.backward()
-            if epoch >= 2:
+            if epoch > 4:
                 optimizer_p.step()
                 optimizer_s.step()
                 optimizer_encoder.step()
