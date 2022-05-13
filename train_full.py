@@ -75,7 +75,7 @@ def build(config):
                                   , collate_fn=train_dataset.collate_fn_test)
 
     title_encoder = TitleEncoder(config)
-    save_data = torch.load('./results/' + config.data_file_anno.replace('.pkl', '_models.pkl').replace('data/', ''))
+    save_data = torch.load('./results/' + config.data_file_anno.replace('.pkl', '_models_full.pkl').replace('data/', ''))
     modelp = PageRanker(config, title_encoder)
     print('Load pretrained P')
     modelp.load_state_dict(save_data['modelp'])
