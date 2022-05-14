@@ -103,8 +103,7 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
     count_s = -1
     count_p = -1
     data_size = len(train_dataloader)
-    #test_loss, eval_ans = test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, valid_dataloader,
-    #                           loss_func)
+    #test_loss, eval_ans = test(modelp, models, modeld, modela , valid_dataloader, loss_func)
     for epoch in range(config.train_epoch*4):
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list) in zip(
                 tqdm(range(data_size)), train_dataloader):
@@ -262,6 +261,8 @@ def test(modelp, models, modeld, modela, dataloader, loss_func):
         data_size = len(dataloader)
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list, pos_titles, pos_sections) in zip(
                 tqdm(range(data_size)), dataloader):
+            if step < 114:
+                continue
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
             rs2 = modelp.infer(query_embedding, infer_titles)
@@ -319,10 +320,10 @@ def test(modelp, models, modeld, modela, dataloader, loss_func):
                     tp_s += 1
                 temp = ' [SEP] '.join(temp)
                 reference.append(temp[0:100])
-            inputs_ref = tokenizer(reference, return_tensors="pt", padding=True)
+            inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
             reference_ids = inputs_ref['input_ids']
             reference_ids = mask_ref(reference_ids, tokenizer).to(config.device)
-            decoder_inputs = tokenizer(src_sens, return_tensors="pt", padding=True)
+            decoder_inputs = tokenizer(src_sens, return_tensors="pt", padding=True, truncation=True)
             decoder_ids = decoder_inputs['input_ids']
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             decoder_ids = decoder_ids.to(config.device)
