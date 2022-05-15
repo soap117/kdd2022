@@ -19,7 +19,7 @@ import os
 def build(config):
     save_data = torch.load('./results/' + config.data_file_anno.replace('.pkl', '_models_full.pkl').replace('data/', ''))
     tokenizer = config.tokenizer
-    titles, sections, title2sections, sec2id = read_clean_data(config.data_file)
+    titles, sections, title2sections, sec2id = read_clean_data(config.data_file_anno)
     corpus = sections
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_section = BM25Okapi(tokenized_corpus)
