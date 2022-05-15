@@ -31,7 +31,7 @@ class Config(object):
         self.infer_section_range = 10
         self.infer_section_select = 3
         self.maxium_sec = 512
-        self.hidden_anno_len = 10
+        self.hidden_anno_len = 20
         self.data_file = 'data/mydata_sen_clean_v4_sec_sub_trn.pkl'
         self.data_file_anno = 'data/mydata_new_clean_v4_sec_sub_trn.pkl'
 
