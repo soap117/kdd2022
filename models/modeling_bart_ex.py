@@ -302,6 +302,8 @@ class BartEncoderLayer(nn.Module):
         attention_adjust: torch.Tensor,
         layer_head_mask: torch.Tensor,
         output_attentions: bool = False,
+        anno_position = None,
+        hidden_annotations = None,
     ):
         """
         Args:
@@ -315,6 +317,12 @@ class BartEncoderLayer(nn.Module):
                 returned tensors for more detail.
         """
         residual = hidden_states
+        if hidden_annotations is not None:
+            for position_anno, one_hidden_annotation in zip(anno_position, hidden_annotations):
+                if position_anno[-1] != -1:
+                    exact_len = hidden_states[position_anno[0], position_anno[1]:position_anno[2]].shape[0]
+                    hidden_states[position_anno[0], position_anno[1]:position_anno[2]] += one_hidden_annotation[0:exact_len]
+
         hidden_states, attn_weights, _ = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
@@ -737,6 +745,8 @@ class BartEncoder(BartPretrainedModel):
         output_attentions=None,
         output_hidden_states=None,
         return_dict=None,
+        anno_position=None,
+        hidden_annotations=None,
     ):
         r"""
         Args:
@@ -839,13 +849,24 @@ class BartEncoder(BartPretrainedModel):
                         (head_mask[idx] if head_mask is not None else None),
                     )
                 else:
-                    layer_outputs = encoder_layer(
-                        hidden_states,
-                        attention_mask,
-                        layer_head_mask=(head_mask[idx] if head_mask is not None else None),
-                        output_attentions=output_attentions,
-                        attention_adjust=attention_adjust,
-                    )
+                    if idx == 0:
+                        layer_outputs = encoder_layer(
+                            hidden_states,
+                            attention_mask,
+                            layer_head_mask=(head_mask[idx] if head_mask is not None else None),
+                            output_attentions=output_attentions,
+                            attention_adjust=attention_adjust,
+                            anno_position=anno_position,
+                            hidden_annotations=hidden_annotations,
+                        )
+                    else:
+                        layer_outputs = encoder_layer(
+                            hidden_states,
+                            attention_mask,
+                            layer_head_mask=(head_mask[idx] if head_mask is not None else None),
+                            output_attentions=output_attentions,
+                            attention_adjust=attention_adjust,
+                        )
 
                 hidden_states = layer_outputs[0]
 
@@ -1214,7 +1235,7 @@ class BartModel(BartPretrainedModel):
         hidden_annotation=None,
         cut_indicator=None,
         anno_position=None,
-        hidden_anno_len = 5,
+        hidden_anno_len=5,
         attention_mask=None,
         attention_adjust=None,
         decoder_input_ids=None,
@@ -1256,6 +1277,8 @@ class BartModel(BartPretrainedModel):
         if encoder_outputs is None:
             encoder_outputs = self.encoder(
                 input_ids=input_ids,
+                anno_position=anno_position,
+                hidden_annotations=hidden_annotation,
                 attention_mask=attention_mask,
                 attention_adjust=attention_adjust,
                 head_mask=head_mask,
@@ -1277,10 +1300,7 @@ class BartModel(BartPretrainedModel):
         decoder_outputs = self.decoder(
             input_ids=decoder_input_ids,
             attention_mask=decoder_attention_mask,
-            cut_indicator=cut_indicator,
-            anno_position=anno_position,
             encoder_hidden_states=encoder_outputs[0],
-            encoder_hidden_annotations=hidden_annotation,
             encoder_attention_mask=attention_mask,
             head_mask=decoder_head_mask,
             cross_attn_head_mask=cross_attn_head_mask,

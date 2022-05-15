@@ -1,7 +1,7 @@
 from cuda2 import *
 import torch
 from config import Config
-config = Config(10)
+config = Config(2)
 from models.units_sen import MyData, get_decoder_att_map, mask_ref
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -169,7 +169,7 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
             outputs_annotation = modela(input_ids=reference_ids, attention_adjust=adj_matrix)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
-            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=decoder_ids, cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
+            outputs = modeld(input_ids=decoder_ids, cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             logits_ = outputs.logits
             len_anno = min(target_ids.shape[1], logits_.shape[1])
             logits = logits_[:, 0:len_anno]
@@ -261,8 +261,6 @@ def test(modelp, models, modeld, modela, dataloader, loss_func):
         data_size = len(dataloader)
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list, pos_titles, pos_sections) in zip(
                 tqdm(range(data_size)), dataloader):
-            if step < 114:
-                continue
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
             rs2 = modelp.infer(query_embedding, infer_titles)
@@ -331,7 +329,7 @@ def test(modelp, models, modeld, modela, dataloader, loss_func):
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
             outputs_annotation = modela(input_ids=reference_ids, attention_adjust=adj_matrix)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
-            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=decoder_ids, cut_indicator=cut_list,
+            outputs = modeld(input_ids=decoder_ids, cut_indicator=cut_list,
                              anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             logits_ = outputs.logits
             len_anno = min(target_ids.shape[1], logits_.shape[1])
