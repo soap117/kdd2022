@@ -84,20 +84,20 @@ def build(config):
     models.load_state_dict(save_data['models'])
     print('Load pretrained S')
     models.cuda()
+    modele = config.modeld_ann.from_pretrained(config.bert_model)
+    modele.load_state_dict(save_data['model'])
+    print('Load pretrained E')
+    modele.cuda()
     modeld = config.modeld_sen.from_pretrained(config.bert_model)
-    modeld.load_state_dict(save_data['model'])
-    print('Load pretrained D')
     modeld.cuda()
-    modela = config.modeld_ann.from_pretrained(config.bert_model)
-    modela.cuda()
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr*0.1)
     optimizer_s = AdamW(models.parameters(), lr=config.lr*0.1)
-    optimizer_encoder = AdamW(modeld.parameters(), lr=config.lr * 0.1)
-    optimizer_decoder = AdamW(modela.parameters(), lr=config.lr * 0.1)
+    optimizer_encoder = AdamW(modele.parameters(), lr=config.lr * 0.1)
+    optimizer_decoder = AdamW(modeld.parameters(), lr=config.lr * 0.1)
     loss_func = torch.nn.CrossEntropyLoss(reduction='none')
-    return modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_decoder, optimizer_encoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
+    return modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_decoder, optimizer_encoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
-def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
+def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
     min_loss_p = min_loss_s = min_loss_d = 1000
     state = {}
     count_s = -1
@@ -167,7 +167,7 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
             decoder_ids = decoder_ids.to(config.device)
             target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True)['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
-            outputs_annotation = modela(input_ids=reference_ids, attention_adjust=adj_matrix)
+            outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 1:config.hidden_anno_len+1]
             outputs = modeld(input_ids=decoder_ids, cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             logits_ = outputs.logits
@@ -209,7 +209,7 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
                 print('loss P:%f loss S:%f loss D:%f' %(lossp.mean().item(), losss.mean().item(), lossd.item()))
                 print(results[0:5])
                 print('---------------------------')
-        test_loss, eval_ans = test(modelp, models, modeld, modela , valid_dataloader, loss_func)
+        test_loss, eval_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
         p_eval_loss = test_loss[0]
         s_eval_loss = test_loss[1]
         d_eval_loss = test_loss[2]
@@ -231,7 +231,7 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
             print(count_p, count_s)
             print('update-all')
             print('New Test Loss D:%f' % (d_eval_loss))
-            state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(), 'modeld': modeld.state_dict(), 'modela': modela.state_dict(),
+            state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(), 'modele': modele.state_dict(), 'modeld': modeld.state_dict(),
                      'eval_rs': eval_ans}
             torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
             min_loss_d = d_eval_loss
@@ -245,12 +245,12 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
                 print(one)
     return state
 
-def test(modelp, models, modeld, modela, dataloader, loss_func):
+def test(modelp, models, modele, modeld, dataloader, loss_func):
     with torch.no_grad():
         modelp.eval()
         models.eval()
+        modele.eval()
         modeld.eval()
-        modela.eval()
         total_loss = []
         tp = 0
         total = 0
@@ -327,7 +327,7 @@ def test(modelp, models, modeld, modela, dataloader, loss_func):
             decoder_ids = decoder_ids.to(config.device)
             target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True)['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
-            outputs_annotation = modela(input_ids=reference_ids, attention_adjust=adj_matrix)
+            outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 1:config.hidden_anno_len+1]
             outputs = modeld(input_ids=decoder_ids, cut_indicator=cut_list,
                              anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
@@ -361,12 +361,12 @@ def test(modelp, models, modeld, modela, dataloader, loss_func):
         print("Bleu Annotation:%f" % bleu_scores)
         modelp.train()
         models.train()
+        modele.train()
         modeld.train()
-        models.train()
         total_loss = np.array(total_loss).mean(axis=0)
         print('accuracy title: %f accuracy section: %f' % (tp / total, tp_s / total_s))
         return (-tp / total, -tp_s / total_s, -bleu_scores), eval_ans
 
 
-modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer = build(config)
-state = train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, loss_func)
+modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer = build(config)
+state = train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, loss_func)
