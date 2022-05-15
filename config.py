@@ -15,7 +15,7 @@ class Config(object):
         self.title_tokenizer = self.tokenizer
         self.title_tokenizer.model_max_length = 512
         self.key_tokenizer = self.title_tokenizer
-        self.modeld = BartEX
+        self.modeld = BartAN
         self.modeld_sen = BartEX
         self.modeld_ann = BartAN
         self.title_emb_dim = 128
