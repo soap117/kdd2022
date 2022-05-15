@@ -367,6 +367,5 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
         print('accuracy title: %f accuracy section: %f' % (tp / total, tp_s / total_s))
         return (-tp / total, -tp_s / total_s, -bleu_scores), eval_ans
 
-
 modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer = build(config)
 state = train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, loss_func)
