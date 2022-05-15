@@ -172,7 +172,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
                     print(temp)
                     print('++++++++++++++++++++++++++++++++++++')
                 temp = ' [SEP] '.join(temp)
-                reference.append(temp[0:500])
+                reference.append(temp[0:100])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             targets_ = tokenizer(annotations, return_tensors="pt", padding=True)['input_ids']
             ids = inputs['input_ids']
