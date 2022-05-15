@@ -168,7 +168,7 @@ def train_eval(modelp, models, modeld, modela, optimizer_p, optimizer_s, optimiz
             target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True)['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
             outputs_annotation = modela(input_ids=reference_ids, attention_adjust=adj_matrix)
-            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
+            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 1:config.hidden_anno_len+1]
             outputs = modeld(input_ids=decoder_ids, cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             logits_ = outputs.logits
             len_anno = min(target_ids.shape[1], logits_.shape[1])
@@ -328,7 +328,7 @@ def test(modelp, models, modeld, modela, dataloader, loss_func):
             target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True)['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
             outputs_annotation = modela(input_ids=reference_ids, attention_adjust=adj_matrix)
-            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
+            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 1:config.hidden_anno_len+1]
             outputs = modeld(input_ids=decoder_ids, cut_indicator=cut_list,
                              anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             logits_ = outputs.logits

@@ -317,12 +317,6 @@ class BartEncoderLayer(nn.Module):
                 returned tensors for more detail.
         """
         residual = hidden_states
-        if hidden_annotations is not None:
-            for position_anno, one_hidden_annotation in zip(anno_position, hidden_annotations):
-                if position_anno[-1] != -1:
-                    exact_len = hidden_states[position_anno[0], position_anno[1]:position_anno[2]].shape[0]
-                    hidden_states[position_anno[0], position_anno[1]:position_anno[2]] += one_hidden_annotation[0:exact_len]
-
         hidden_states, attn_weights, _ = self.self_attn(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
@@ -805,6 +799,13 @@ class BartEncoder(BartPretrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
 
+        if hidden_annotations is not None:
+            for position_anno, one_hidden_annotation in zip(anno_position, hidden_annotations):
+                if position_anno[-1] != -1:
+                    exact_len = inputs_embeds[position_anno[0], position_anno[1]:position_anno[2]].shape[0]
+                    inputs_embeds[position_anno[0], position_anno[1]:position_anno[2]] += one_hidden_annotation[
+                                                                                          0:exact_len]
+
         embed_pos = self.embed_positions(input_shape)
 
         hidden_states = inputs_embeds + embed_pos
@@ -849,24 +850,13 @@ class BartEncoder(BartPretrainedModel):
                         (head_mask[idx] if head_mask is not None else None),
                     )
                 else:
-                    if idx == 0:
-                        layer_outputs = encoder_layer(
-                            hidden_states,
-                            attention_mask,
-                            layer_head_mask=(head_mask[idx] if head_mask is not None else None),
-                            output_attentions=output_attentions,
-                            attention_adjust=attention_adjust,
-                            anno_position=anno_position,
-                            hidden_annotations=hidden_annotations,
-                        )
-                    else:
-                        layer_outputs = encoder_layer(
-                            hidden_states,
-                            attention_mask,
-                            layer_head_mask=(head_mask[idx] if head_mask is not None else None),
-                            output_attentions=output_attentions,
-                            attention_adjust=attention_adjust,
-                        )
+                    layer_outputs = encoder_layer(
+                        hidden_states,
+                        attention_mask,
+                        layer_head_mask=(head_mask[idx] if head_mask is not None else None),
+                        output_attentions=output_attentions,
+                        attention_adjust=attention_adjust,
+                    )
 
                 hidden_states = layer_outputs[0]
 
@@ -1130,36 +1120,19 @@ class BartDecoder(BartPretrainedModel):
                     None,
                 )
             else:
-                if idx == 0:
-                    layer_outputs = decoder_layer(
-                        hidden_states,
-                        anno_position=anno_position,
-                        encoder_hidden_annotations=encoder_hidden_annotations,
-                        attention_mask=attention_mask,
-                        encoder_hidden_states=encoder_hidden_states,
-                        encoder_attention_mask=encoder_attention_mask,
-                        layer_head_mask=(head_mask[idx] if head_mask is not None else None),
-                        cross_attn_layer_head_mask=(
-                            cross_attn_head_mask[idx] if cross_attn_head_mask is not None else None
-                        ),
-                        past_key_value=past_key_value,
-                        output_attentions=output_attentions,
-                        use_cache=use_cache,
-                    )
-                else:
-                    layer_outputs = decoder_layer(
-                        hidden_states,
-                        attention_mask=attention_mask,
-                        encoder_hidden_states=encoder_hidden_states,
-                        encoder_attention_mask=encoder_attention_mask,
-                        layer_head_mask=(head_mask[idx] if head_mask is not None else None),
-                        cross_attn_layer_head_mask=(
-                            cross_attn_head_mask[idx] if cross_attn_head_mask is not None else None
-                        ),
-                        past_key_value=past_key_value,
-                        output_attentions=output_attentions,
-                        use_cache=use_cache,
-                    )
+                layer_outputs = decoder_layer(
+                    hidden_states,
+                    attention_mask=attention_mask,
+                    encoder_hidden_states=encoder_hidden_states,
+                    encoder_attention_mask=encoder_attention_mask,
+                    layer_head_mask=(head_mask[idx] if head_mask is not None else None),
+                    cross_attn_layer_head_mask=(
+                        cross_attn_head_mask[idx] if cross_attn_head_mask is not None else None
+                    ),
+                    past_key_value=past_key_value,
+                    output_attentions=output_attentions,
+                    use_cache=use_cache,
+                )
             hidden_states = layer_outputs[0]
 
             if use_cache:
