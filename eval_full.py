@@ -17,7 +17,7 @@ from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 smooth = SmoothingFunction()
 import os
 def build(config):
-    save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
+    save_data = torch.load('./results/' + config.data_file_anno.replace('.pkl', '_models_full.pkl').replace('data/', ''))
     tokenizer = config.tokenizer
     titles, sections, title2sections, sec2id = read_clean_data(config.data_file)
     corpus = sections
@@ -28,20 +28,20 @@ def build(config):
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
     train_dataset = None
-    if os.path.exists(config.data_file.replace('.pkl', '_train_dataset.pkl')):
-        valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset.pkl'))
-        test_dataset = torch.load(config.data_file.replace('.pkl', '_test_dataset.pkl'))
+    if os.path.exists(config.data_file_anno.replace('.pkl', '_train_dataset.pkl')):
+        valid_dataset = torch.load(config.data_file_anno.replace('.pkl', '_valid_dataset.pkl'))
+        test_dataset = torch.load(config.data_file_anno.replace('.pkl', '_test_dataset.pkl'))
     else:
-        valid_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_valid_dataset_raw.pkl'), titles,
+        valid_dataset = MyData(config, tokenizer, config.data_file_anno.replace('.pkl', '_valid_dataset_raw.pkl'), titles,
                                sections, title2sections, sec2id,
                                bm25_title,
                                bm25_section)
-        test_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_test_dataset_raw.pkl'), titles,
+        test_dataset = MyData(config, tokenizer, config.data_file_anno.replace('.pkl', '_test_dataset_raw.pkl'), titles,
                               sections, title2sections, sec2id, bm25_title,
                               bm25_section)
-        torch.save(train_dataset, config.data_file.replace('.pkl', '_train_dataset.pkl'))
-        torch.save(valid_dataset, config.data_file.replace('.pkl', '_valid_dataset.pkl'))
-        torch.save(test_dataset, config.data_file.replace('.pkl', '_test_dataset.pkl'))
+        torch.save(train_dataset, config.data_file_anno.replace('.pkl', '_train_dataset.pkl'))
+        torch.save(valid_dataset, config.data_file_anno.replace('.pkl', '_valid_dataset.pkl'))
+        torch.save(test_dataset, config.data_file_anno.replace('.pkl', '_test_dataset.pkl'))
     valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=config.batch_size
                                   , collate_fn=valid_dataset.collate_fn_test)
     test_dataloader = DataLoader(dataset=test_dataset, batch_size=config.batch_size
