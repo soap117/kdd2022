@@ -95,7 +95,7 @@ def build(config):
     optimizer_encoder = AdamW(modele.parameters(), lr=config.lr * 0.1)
     optimizer_decoder = AdamW(modeld.parameters(), lr=config.lr * 0.1)
     loss_func = torch.nn.CrossEntropyLoss(reduction='none')
-    return modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_decoder, optimizer_encoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
+    return modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
 def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
     min_loss_p = min_loss_s = min_loss_d = 1000
