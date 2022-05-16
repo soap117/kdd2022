@@ -325,7 +325,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             decoder_ids = decoder_inputs['input_ids']
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             decoder_ids = decoder_ids.to(config.device)
-            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True)['input_ids'].to(config.device)
+            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 1:config.hidden_anno_len+1]
