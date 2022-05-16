@@ -799,12 +799,6 @@ class BartEncoder(BartPretrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
 
-        if hidden_annotations is not None:
-            for position_anno, one_hidden_annotation in zip(anno_position, hidden_annotations):
-                if position_anno[-1] != -1:
-                    exact_len = inputs_embeds[position_anno[0], position_anno[1]:position_anno[2]].shape[0]
-                    inputs_embeds[position_anno[0], position_anno[1]:position_anno[2]] += one_hidden_annotation[
-                                                                                          0:exact_len]
 
         embed_pos = self.embed_positions(input_shape)
 
@@ -862,7 +856,13 @@ class BartEncoder(BartPretrainedModel):
 
             if output_attentions:
                 all_attentions = all_attentions + (layer_outputs[1],)
-
+        if hidden_annotations is not None:
+            hidden_annotations = self.layernorm_embedding(hidden_annotations)
+            for position_anno, one_hidden_annotation in zip(anno_position, hidden_annotations):
+                if position_anno[-1] != -1:
+                    exact_len = hidden_states[position_anno[0], position_anno[1]:position_anno[2]].shape[0]
+                    hidden_states[position_anno[0], position_anno[1]:position_anno[2]] += one_hidden_annotation[
+                                                                                          0:exact_len]
         if output_hidden_states:
             encoder_states = encoder_states + (hidden_states,)
 
