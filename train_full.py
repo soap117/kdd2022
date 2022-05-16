@@ -1,7 +1,7 @@
 from cuda2 import *
 import torch
 from config import Config
-config = Config(10)
+config = Config(2)
 from models.units_sen import MyData, get_decoder_att_map, mask_ref
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -155,9 +155,9 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             for bid in range(len(inds_sec)):
                 temp = [querys[bid]]
                 for indc in inds_sec[bid]:
-                    temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
+                    temp.append(infer_section_candidates_pured[bid][indc][0:100])
                 temp = ' [SEP] '.join(temp)
-                reference.append(temp[0:100])
+                reference.append(temp[0:config.maxium_sec])
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
             reference_ids = inputs_ref['input_ids']
             reference_ids = mask_ref(reference_ids, tokenizer).to(config.device)
@@ -313,11 +313,11 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
                 total_s += 1
                 temp = [querys[bid]]
                 for indc in inds_sec[bid]:
-                    temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
+                    temp.append(infer_section_candidates_pured[bid][indc][0:100])
                 if check(query, temp, pos_sections[bid], secs=True):
                     tp_s += 1
                 temp = ' [SEP] '.join(temp)
-                reference.append(temp[0:100])
+                reference.append(temp[0:config.maxium_sec])
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
             reference_ids = inputs_ref['input_ids']
             reference_ids = mask_ref(reference_ids, tokenizer).to(config.device)
