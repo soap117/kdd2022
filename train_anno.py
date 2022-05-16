@@ -142,9 +142,9 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             for bid in range(len(inds_sec)):
                 temp = [querys[bid]]
                 for indc in inds_sec[bid]:
-                    temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
+                    temp.append(infer_section_candidates_pured[bid][indc][0:100])
                 temp = ' [SEP] '.join(temp)
-                reference.append(temp[0:100])
+                reference.append(temp[0:config.maxium_sec])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
             ids = mask_ref(ids, tokenizer)
@@ -296,11 +296,11 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
                 total_s += 1
                 temp = [querys[bid]]
                 for indc in inds_sec[bid]:
-                    temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
+                    temp.append(infer_section_candidates_pured[bid][indc][0:100])
                 if check(query, temp, pos_sections[bid], secs=True):
                     tp_s += 1
                 temp = ' [SEP] '.join(temp)
-                reference.append(temp[0:100])
+                reference.append(temp[0:config.maxium_sec])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
             targets_ = tokenizer(annotations, return_tensors="pt", padding=True)['input_ids']
