@@ -165,15 +165,15 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             decoder_ids = decoder_inputs['input_ids']
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             decoder_ids = decoder_ids.to(config.device)
-            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True)['input_ids'].to(config.device)
+            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 1:config.hidden_anno_len+1]
-            outputs = modeld(input_ids=decoder_ids, cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
+            outputs = modeld(input_ids=decoder_ids, decoder_inputs=target_ids, cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             logits_ = outputs.logits
             len_anno = min(target_ids.shape[1], logits_.shape[1])
-            logits = logits_[:, 0:len_anno]
-            targets = target_ids[:, 0:len_anno]
+            logits = logits_[:, 0:len_anno-1]
+            targets = target_ids[:, 1:len_anno]
             _, predictions = torch.max(logits, dim=-1)
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
@@ -329,12 +329,12 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 1:config.hidden_anno_len+1]
-            outputs = modeld(input_ids=decoder_ids, cut_indicator=cut_list,
+            outputs = modeld(input_ids=decoder_ids, decoder_inputs=target_ids, cut_indicator=cut_list,
                              anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             logits_ = outputs.logits
             len_anno = min(target_ids.shape[1], logits_.shape[1])
-            logits = logits_[:, 0:len_anno]
-            targets = target_ids[:, 0:len_anno]
+            logits = logits_[:, 0:len_anno - 1]
+            targets = target_ids[:, 1:len_anno]
             _, predictions = torch.max(logits, dim=-1)
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
