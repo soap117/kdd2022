@@ -162,7 +162,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
                 total_s += 1
                 temp = [querys[bid]]
                 for indc in inds_sec[bid]:
-                    temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
+                    temp.append(infer_section_candidates_pured[bid][indc][0:100])
                 if check(query, temp, pos_sections[bid], secs=True):
                     tp_s += 1
                 else:
@@ -172,7 +172,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
                     print(temp)
                     print('++++++++++++++++++++++++++++++++++++')
                 temp = ' [SEP] '.join(temp)
-                reference.append(temp[0:100])
+                reference.append(temp[0:config.maxium_sec])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             targets_ = tokenizer(annotations, return_tensors="pt", padding=True)['input_ids']
             ids = inputs['input_ids']
