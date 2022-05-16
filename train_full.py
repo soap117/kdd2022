@@ -1,7 +1,7 @@
 from cuda2 import *
 import torch
 from config import Config
-config = Config(2)
+config = Config(12)
 from models.units_sen import MyData, get_decoder_att_map, mask_ref
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
