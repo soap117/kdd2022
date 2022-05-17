@@ -11,7 +11,7 @@ import numpy as np
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction, corpus_bleu
 smooth = SmoothingFunction()
 import jieba
-from models.units_sen import read_clean_data, find_spot
+from models.units_sen import read_clean_data, find_spot, restricted_decoding
 from rank_bm25 import BM25Okapi
 from models.modeling_gpt2_att import GPT2LMHeadModel
 from models.modeling_bart_att import BartForConditionalGeneration
@@ -103,12 +103,10 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
     count_s = -1
     count_p = -1
     data_size = len(train_dataloader)
-    #test_loss, eval_ans = test(modelp, models, modeld, modela , valid_dataloader, loss_func)
+    test_loss, eval_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
     for epoch in range(config.train_epoch*4):
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list) in zip(
                 tqdm(range(data_size)), train_dataloader):
-            if step < 11:
-                continue
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
             rs2 = modelp.infer(query_embedding, infer_titles)
@@ -165,11 +163,12 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             decoder_ids = decoder_inputs['input_ids']
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             decoder_ids = decoder_ids.to(config.device)
-            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(config.device)
+            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids']
+            target_ids_for_train = mask_ref(target_ids, tokenizer).to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 1:config.hidden_anno_len+1]
-            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids, cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
+            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train, cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             logits_ = outputs.logits
             len_anno = min(target_ids.shape[1], logits_.shape[1])
             logits = logits_[:, 0:len_anno-1]
@@ -245,6 +244,8 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 print(one)
     return state
 
+
+
 def test(modelp, models, modele, modeld, dataloader, loss_func):
     with torch.no_grad():
         modelp.eval()
@@ -319,42 +320,21 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
                 temp = ' [SEP] '.join(temp)
                 reference.append(temp[0:config.maxium_sec])
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
-            reference_ids = inputs_ref['input_ids']
-            reference_ids = mask_ref(reference_ids, tokenizer).to(config.device)
-            decoder_inputs = tokenizer(src_sens, return_tensors="pt", padding=True, truncation=True)
-            decoder_ids = decoder_inputs['input_ids']
-            decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
-            decoder_ids = decoder_ids.to(config.device)
-            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(config.device)
+            reference_ids = inputs_ref['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 1:config.hidden_anno_len+1]
-            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids, cut_indicator=cut_list,
-                             anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
-            logits_ = outputs.logits
-            len_anno = min(target_ids.shape[1], logits_.shape[1])
-            logits = logits_[:, 0:len_anno - 1]
-            targets = target_ids[:, 1:len_anno]
-            _, predictions = torch.max(logits, dim=-1)
-            results = tokenizer.batch_decode(predictions)
-            results = [tokenizer.convert_tokens_to_string(x) for x in results]
-            results = [x.replace(' ', '') for x in results]
-            results = [x.replace('[PAD]', '') for x in results]
-            results = [x.split('[SEP]')[0] for x in results]
+            results, target_ids = restricted_decoding(querys_ori, src_sens, tar_sens, hidden_annotation, tokenizer, modeld)
+            targets = target_ids[:, 1:]
             ground_truth = tokenizer.batch_decode(targets)
             ground_truth = [tokenizer.convert_tokens_to_string(x) for x in ground_truth]
             ground_truth = [x.replace(' ', '') for x in ground_truth]
             ground_truth = [x.replace('[PAD]', '') for x in ground_truth]
-            ground_truth = [x.split('[SEP]')[0] for x in ground_truth]
-            logits = logits.reshape(-1, logits.shape[2])
-            targets = targets.reshape(-1).to(config.device)
+            ground_truth = [x.replace('[CLS]', '') for x in ground_truth]
             #masks = torch.ones_like(targets)
             #masks[torch.where(targets == 0)] = 0
             eval_ans += results
             eval_gt += ground_truth
-            lossd = (loss_func(logits, targets)).sum()/config.batch_size
-            loss = [lossp.mean().item(), losss.mean().item(), lossd.item()]
-            total_loss.append(loss)
         predictions = [jieba.lcut(doc) for doc in eval_ans]
         reference = [[jieba.lcut(doc)] for doc in eval_gt]
         bleu_scores = corpus_bleu(reference, predictions,)
@@ -363,7 +343,6 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
         models.train()
         modele.train()
         modeld.train()
-        total_loss = np.array(total_loss).mean(axis=0)
         print('accuracy title: %f accuracy section: %f' % (tp / total, tp_s / total_s))
         return (-tp / total, -tp_s / total_s, -bleu_scores), eval_ans
 

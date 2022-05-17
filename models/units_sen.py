@@ -215,6 +215,7 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
     sentences_data = []
     for sentence in tqdm(sentences):
         src_sentence = sentence['src_st']
+        tar_sentence = sentence['tar_st']
         key_list = []
         for key in sentence['data']:
             region = re.search(key['origin'], src_sentence)
@@ -224,6 +225,13 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
                 region = (0, 0)
             if region[0] != 0 or region[1] != 0:
                 src_sentence = src_sentence[0:region[0]] + ' <{}> '.format(key['origin']) + ''.join([' [MASK] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
+            region = re.search(key['origin'], tar_sentence)
+            if region is not None:
+                region = region.regs[0]
+            else:
+                region = (0, 0)
+            if region[0] != 0 or region[1] != 0:
+                tar_sentence = tar_sentence[0:region[0]] + ' <{}> '.format(key['origin']) + tar_sentence[region[1]:]
             data_filed = {}
             data_filed['context'] = sentence['src_st']
             if len(key['anno']) == 0:
@@ -258,8 +266,64 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             if e-s > 5:
                 print(key['key'])
             key_list.append(data_filed)
-        sentences_data.append({'src_sen': src_sentence, 'tar_sen': sentence['tar_st'], 'textid': sentence['textid'], 'key_data':key_list})
+        sentences_data.append({'src_sen': src_sentence, 'tar_sen': tar_sentence, 'textid': sentence['textid'], 'key_data':key_list})
     return sentences_data
+
+
+def restricted_decoding(querys_ori, srcs, tars, hidden_annotations, tokenizer, modeld):
+    decoder_inputs = tokenizer(srcs, return_tensors="pt", padding=True, truncation=True)
+    decoder_ids = decoder_inputs['input_ids']
+    decoder_anno_positions = find_spot(decoder_ids, querys_ori, tokenizer)
+    decoder_ids = decoder_ids.to(config.device)
+    target_ids = tokenizer(tars, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(
+        config.device)
+    results = []
+    for bid, (src, target_id, decoder_id) in enumerate(zip(srcs, target_ids, decoder_ids)):
+        decoder_anno_position = []
+        h_s = 0
+        h_e = 0
+        for oid, one in enumerate(decoder_anno_positions):
+            if one[0] == bid:
+                decoder_anno_position.append((0, one[1], one[2]))
+                if h_s == 0:
+                    h_s = oid
+                    h_e = oid + 1
+                else:
+                    h_e += 1
+        hidden_annotation = hidden_annotations[h_s:h_e]
+        final_ans = target_id[0:1]
+        pointer = 1
+        free_flag = False
+        last_token = final_ans[-1]
+        while True:
+            if last_token == tokenizer.vocab['<'] or free_flag:
+                outputs = modeld(input_ids=decoder_id.unsqueeze(0), decoder_input_ids=final_ans.unsqueeze(0), cut_indicator=None,
+                                 anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
+                logits_ = outputs.logits
+                _, predictions = torch.max(logits_, dim=-1)
+                next_token = predictions[0, -1]
+                if not free_flag:
+                    free_flag = True
+                    c_count = 1
+                else:
+                    c_count += 1
+            else:
+                next_token = target_id[pointer]
+                pointer += 1
+            final_ans = torch.cat([final_ans, torch.LongTensor([next_token]).to(final_ans.device)], dim=0)
+            if free_flag and (next_token == tokenizer.vocab['）'] or c_count > 20):
+                free_flag = False
+            last_token = final_ans[-1]
+            if last_token == tokenizer.vocab['[SEP]'] or len(final_ans) >= config.maxium_sec or pointer >= len(target_id):
+                break
+        result = tokenizer.decode(final_ans)
+        result = result.replace(' ', '')
+        result = result.replace('[PAD]', '')
+        result = result.replace('[CLS]', '')
+        result = result.split('[SEP]')[0]
+        results.append(result)
+    return results, target_ids
+
 
 from torch.utils.data import Dataset
 import pickle, re
