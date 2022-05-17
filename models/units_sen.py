@@ -22,7 +22,7 @@ def find_spot(input_ids, querys_ori, tokenizer):
     positions = []
     for ori_query in querys_ori:
         flag = False
-        format = '<{}>'.format(ori_query)
+        format = '《{}》'.format(ori_query)
         format_id = tokenizer(format)['input_ids'][1:-1]
         for bid in range(input_ids.shape[0]):
             l = 0
@@ -224,14 +224,14 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             else:
                 region = (0, 0)
             if region[0] != 0 or region[1] != 0:
-                src_sentence = src_sentence[0:region[0]] + ' <{}> '.format(key['origin']) + ''.join([' [MASK] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
+                src_sentence = src_sentence[0:region[0]] + ' 《{}》 '.format(key['origin']) + ''.join([' [MASK] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
             region = re.search(key['origin'], tar_sentence)
             if region is not None:
                 region = region.regs[0]
             else:
                 region = (0, 0)
             if region[0] != 0 or region[1] != 0:
-                tar_sentence = tar_sentence[0:region[0]] + ' <{}> '.format(key['origin']) + tar_sentence[region[1]:]
+                tar_sentence = tar_sentence[0:region[0]] + ' 《{}》 '.format(key['origin']) + tar_sentence[region[1]:]
             data_filed = {}
             data_filed['context'] = sentence['src_st']
             if len(key['anno']) == 0:
@@ -290,7 +290,7 @@ def restricted_decoding(querys_ori, srcs, tars, hidden_annotations, tokenizer, m
         free_flag = False
         last_token = final_ans[-1]
         while True:
-            if last_token == tokenizer.vocab['<'] or free_flag:
+            if last_token == tokenizer.vocab['《'] or free_flag:
                 decoder_outputs = modeld.model.decoder(
                     input_ids=final_ans.unsqueeze(0),
                     encoder_hidden_states=encoder_outputs[0][bid].unsqueeze(0),
@@ -306,7 +306,7 @@ def restricted_decoding(querys_ori, srcs, tars, hidden_annotations, tokenizer, m
                 if not free_flag:
                     free_flag = True
                     c_count = 1
-                    while target_id[pointer] != tokenizer.vocab['>']:
+                    while target_id[pointer] != tokenizer.vocab['》']:
                         pointer += 1
                     pointer += 1
                 else:
