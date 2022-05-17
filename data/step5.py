@@ -40,6 +40,7 @@ def creat_sentence(data_new):
         src = anno['src']
         src = re.sub('\*\*', '', src)
         src = src.replace('(', '（')
+        src = src.replace('$', '')
         src = src.replace(')', '）')
         src = src.replace('\n', '').replace('。。', '。')
         src = fix_stop(src)
@@ -48,6 +49,7 @@ def creat_sentence(data_new):
         tar = tar.replace('\n', '').replace('。。', '。')
         tar = tar.replace('(', '（')
         tar = tar.replace(')', '）')
+        tar = tar.replace('$', '')
         tar = fix_stop(tar)
         file['origin_key'] = file['origin_key'].replace('(', '（')
         file['origin_key'] = file['origin_key'].replace(')', '）')
