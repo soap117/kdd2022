@@ -275,6 +275,7 @@ def restricted_decoding(querys_ori, srcs, tars, hidden_annotations, tokenizer, m
     decoder_ids = decoder_inputs['input_ids']
     decoder_anno_positions = find_spot(decoder_ids, querys_ori, tokenizer)
     decoder_ids = decoder_ids.to(config.device)
+    tars = ['这项研究旨在评估法属圭亚那非法金矿工人中乙型，丁型和 $丙型肝炎病毒$ 和 $梅毒$ （一种慢性性传播皮肤病）的患病率' for x in range(len(tars))]
     target_ids = tokenizer(tars, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(
         config.device)
     results = []
@@ -316,7 +317,7 @@ def restricted_decoding(querys_ori, srcs, tars, hidden_annotations, tokenizer, m
                     next_token = target_id[pointer]
                     pointer += 1
                 final_ans = torch.cat([final_ans, torch.LongTensor([next_token]).to(final_ans.device)], dim=0)
-                if free_flag and (next_token == tokenizer.vocab['）'] or c_count > 20):
+                if free_flag and (next_token == tokenizer.vocab['$'] or c_count > 20):
                     free_flag = False
                 last_token = final_ans[-1]
                 if last_token == tokenizer.vocab['[SEP]'] or len(final_ans) >= config.maxium_sec or pointer >= len(target_id):
