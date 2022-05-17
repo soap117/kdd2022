@@ -278,28 +278,29 @@ def restricted_decoding(querys_ori, srcs, tars, hidden_annotations, tokenizer, m
     target_ids = tokenizer(tars, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(
         config.device)
     results = []
+    hidden_annotations_en = modeld.hidden_annotation_alignment(hidden_annotations)
+    encoder_outputs = modeld.model.encoder(
+        input_ids=decoder_ids,
+        anno_position=decoder_anno_positions,
+        hidden_annotations=hidden_annotations_en,
+    )
     for bid, (src, target_id, decoder_id) in enumerate(zip(srcs, target_ids, decoder_ids)):
-        decoder_anno_position = []
-        h_s = 0
-        h_e = 0
-        for oid, one in enumerate(decoder_anno_positions):
-            if one[0] == bid:
-                decoder_anno_position.append((0, one[1], one[2]))
-                if h_s == 0:
-                    h_s = oid
-                    h_e = oid + 1
-                else:
-                    h_e += 1
-        hidden_annotation = hidden_annotations[h_s:h_e]
         final_ans = target_id[0:1]
         pointer = 1
         free_flag = False
         last_token = final_ans[-1]
         while True:
             if last_token == tokenizer.vocab['<'] or free_flag:
-                outputs = modeld(input_ids=decoder_id.unsqueeze(0), decoder_input_ids=final_ans.unsqueeze(0), cut_indicator=None,
-                                 anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
-                logits_ = outputs.logits
+                decoder_outputs = modeld.model.decoder(
+                    input_ids=final_ans.unsqueeze(0),
+                    encoder_hidden_states=encoder_outputs[0][bid].unsqueeze(0),
+                    output_attentions=False,
+                    output_hidden_states=False,
+                    return_dict=True,
+                    use_cache=True
+                )
+                lm_logits = modeld.lm_head(decoder_outputs.last_hidden_state) + modeld.final_logits_bias
+                logits_ = lm_logits
                 _, predictions = torch.max(logits_, dim=-1)
                 next_token = predictions[0, -1]
                 if not free_flag:
