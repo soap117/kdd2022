@@ -263,7 +263,6 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list, pos_titles, pos_sections) in zip(
                 tqdm(range(data_size)), dataloader):
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
-            dis_final, losss = models(query_embedding, sections)
             rs2 = modelp.infer(query_embedding, infer_titles)
             rs2 = torch.topk(rs2, config.infer_title_select, dim=1)
             scores_title = rs2[0]
