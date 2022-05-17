@@ -285,47 +285,53 @@ def restricted_decoding(querys_ori, srcs, tars, hidden_annotations, tokenizer, m
         hidden_annotations=hidden_annotations_en,
     )
     for bid, (src, target_id, decoder_id) in enumerate(zip(srcs, target_ids, decoder_ids)):
-        final_ans = target_id[0:1]
-        pointer = 1
-        free_flag = False
-        last_token = final_ans[-1]
-        while True:
-            if last_token == tokenizer.vocab['$'] or free_flag:
-                decoder_outputs = modeld.model.decoder(
-                    input_ids=final_ans.unsqueeze(0),
-                    encoder_hidden_states=encoder_outputs[0][bid].unsqueeze(0),
-                    output_attentions=False,
-                    output_hidden_states=False,
-                    return_dict=True,
-                    use_cache=True
-                )
-                lm_logits = modeld.lm_head(decoder_outputs.last_hidden_state) + modeld.final_logits_bias
-                logits_ = lm_logits
-                _, predictions = torch.max(logits_, dim=-1)
-                next_token = predictions[0, -1]
-                if not free_flag:
-                    free_flag = True
-                    c_count = 1
-                    while target_id[pointer] != tokenizer.vocab['$']:
-                        pointer += 1
-                    pointer += 1
-                else:
-                    c_count += 1
-            else:
-                next_token = target_id[pointer]
-                pointer += 1
-            final_ans = torch.cat([final_ans, torch.LongTensor([next_token]).to(final_ans.device)], dim=0)
-            if free_flag and (next_token == tokenizer.vocab['）'] or c_count > 20):
-                free_flag = False
+        try:
+            final_ans = target_id[0:1]
+            pointer = 1
+            free_flag = False
             last_token = final_ans[-1]
-            if last_token == tokenizer.vocab['[SEP]'] or len(final_ans) >= config.maxium_sec or pointer >= len(target_id):
-                break
-        result = tokenizer.decode(final_ans)
-        result = result.replace(' ', '')
-        result = result.replace('[PAD]', '')
-        result = result.replace('[CLS]', '')
-        result = result.split('[SEP]')[0]
-        results.append(result)
+            while True:
+                if last_token == tokenizer.vocab['$'] or free_flag:
+                    decoder_outputs = modeld.model.decoder(
+                        input_ids=final_ans.unsqueeze(0),
+                        encoder_hidden_states=encoder_outputs[0][bid].unsqueeze(0),
+                        output_attentions=False,
+                        output_hidden_states=False,
+                        return_dict=True,
+                        use_cache=True
+                    )
+                    lm_logits = modeld.lm_head(decoder_outputs.last_hidden_state) + modeld.final_logits_bias
+                    logits_ = lm_logits
+                    _, predictions = torch.max(logits_, dim=-1)
+                    next_token = predictions[0, -1]
+                    if not free_flag:
+                        free_flag = True
+                        c_count = 1
+                        while target_id[pointer] != tokenizer.vocab['$']:
+                            pointer += 1
+                        pointer += 1
+                    else:
+                        c_count += 1
+                else:
+                    next_token = target_id[pointer]
+                    pointer += 1
+                final_ans = torch.cat([final_ans, torch.LongTensor([next_token]).to(final_ans.device)], dim=0)
+                if free_flag and (next_token == tokenizer.vocab['）'] or c_count > 20):
+                    free_flag = False
+                last_token = final_ans[-1]
+                if last_token == tokenizer.vocab['[SEP]'] or len(final_ans) >= config.maxium_sec or pointer >= len(target_id):
+                    break
+            result = tokenizer.decode(final_ans)
+            result = result.replace(' ', '')
+            result = result.replace('[PAD]', '')
+            result = result.replace('[CLS]', '')
+            result = result.split('[SEP]')[0]
+            results.append(result)
+        except:
+            print(bid)
+            print(tars[bid])
+            print(srcs[bid])
+            exit(-1)
     return results, target_ids
 
 
