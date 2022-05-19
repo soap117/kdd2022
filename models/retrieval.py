@@ -29,7 +29,7 @@ class TitleEncoder(nn.Module):
             self.conv.add_module('baseconv_%d' % l, tmp)
             tmp = nn.ReLU()
             self.conv.add_module('ReLU_%d' % l, tmp)
-    def forward(self, title):
+    def forward(self, key):
         es = self.tokenizer(key, return_tensors='pt', padding=True, truncation=True).to(self.device)
         x = es['input_ids']
         x = self.embed(x)
