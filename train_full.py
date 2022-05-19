@@ -88,9 +88,12 @@ def build(config):
     modeld = config.modeld_sen.from_pretrained(config.bert_model)
     modeld.cuda()
     if config.multi_gpu:
-        modelp = nn.DataParallel(modelp, device_ids=[1, 2, 3], output_device=0)
-        models = nn.DataParallel(models, device_ids=[1, 2, 3], output_device=0)
-        modele = nn.DataParallel(modele, device_ids=[1, 2, 3], output_device=0)
+        modelp.cuda()
+        models.cuda()
+        modele.cuda()
+        modelp = nn.DataParallel(modelp, device_ids=[0, 1, 2, 3], output_device=0)
+        models = nn.DataParallel(models, device_ids=[0, 1, 2, 3], output_device=0)
+        modele = nn.DataParallel(modele, device_ids=[0, 1, 2, 3], output_device=0)
     else:
         modelp.cuda()
         models.cuda()
