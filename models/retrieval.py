@@ -29,19 +29,39 @@ class TitleEncoder(nn.Module):
             self.conv.add_module('baseconv_%d' % l, tmp)
             tmp = nn.ReLU()
             self.conv.add_module('ReLU_%d' % l, tmp)
-    def forward(self, key):
-        es = self.tokenizer(key, return_tensors='pt', padding=True, truncation=True).to(self.device)
-        x = es['input_ids']
-        x = self.embed(x)
-        x = x.transpose(1, 2)
-        tmp = x
-        for idx, md in enumerate(self.conv):
-            tmp = md(tmp)
-        x = tmp
-        x, _ = torch.max(x, dim=2)
-        x = self.trans_layer(x)
-        x = self.final_activation(x)
-        return x
+    def forward(self, key, is_query=False):
+        if is_query:
+            es = self.tokenizer(key, return_tensors='pt', padding=True, truncation=True).to(self.device)
+            x = es['input_ids']
+            x = self.embed(x)
+            x = x.transpose(1, 2)
+            tmp = x
+            for idx, md in enumerate(self.conv):
+                tmp = md(tmp)
+            x = tmp
+            x, _ = torch.max(x, dim=2)
+            x = self.trans_layer(x)
+            x = self.final_activation(x)
+            return x
+        else:
+            B = len(key)
+            L = len(key[0])
+            title_new = []
+            for one in key:
+                title_new += one
+            es = self.tokenizer(title_new, return_tensors='pt', padding=True, truncation=True).to(self.device)
+            x = es['input_ids']
+            x = self.embed(x)
+            x = x.transpose(1, 2)
+            tmp = x
+            for idx, md in enumerate(self.conv):
+                tmp = md(tmp)
+            x = tmp
+            x, _ = torch.max(x, dim=2)
+            x = self.trans_layer(x)
+            x = self.final_activation(x)
+            x = x.view(B, L, -1)
+            return x
 
     def query_forward(self, key):
         es = self.tokenizer(key, return_tensors='pt', padding=True, truncation=True).to(self.device)
@@ -149,7 +169,7 @@ class PageRanker(nn.Module):
     def forward(self, query=None, context=None, candidates=None, is_infer=False, query_embedding=None):
         if not is_infer:
             # query:[B,D] candidates:[B,L,D]
-            query_embedding = self.query_encoder(query)
+            query_embedding = self.query_encoder(query, is_query=True)
             context_embedding = self.context_encoder(context)
             query_embedding = self.drop_layer(query_embedding*context_embedding)
             condidate_embeddings = self.drop_layer(self.candidate_encoder(candidates))
