@@ -1,7 +1,7 @@
-from cuda2 import *
 import torch
+import torch.nn as nn
 from config import Config
-config = Config(8)
+config = Config(16)
 from models.units_sen import MyData, get_decoder_att_map, mask_ref
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -90,6 +90,10 @@ def build(config):
     modele.cuda()
     modeld = config.modeld_sen.from_pretrained(config.bert_model)
     modeld.cuda()
+    if config.multi_gpu:
+        modelp = nn.DataParallel(modelp, device_ids=[1, 2, 3], output_device=0)
+        models = nn.DataParallel(models, device_ids=[1, 2, 3], output_device=0)
+        modele = nn.DataParallel(modele, device_ids=[1, 2, 3], output_device=0)
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr*0.1)
     optimizer_s = AdamW(models.parameters(), lr=config.lr*0.1)
     optimizer_encoder = AdamW(modele.parameters(), lr=config.lr * 0.1)
