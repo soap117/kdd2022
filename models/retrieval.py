@@ -30,12 +30,7 @@ class TitleEncoder(nn.Module):
             tmp = nn.ReLU()
             self.conv.add_module('ReLU_%d' % l, tmp)
     def forward(self, title):
-        B = len(title)
-        L = len(title[0])
-        title_new = []
-        for one in title:
-            title_new += one
-        es = self.tokenizer(title_new, return_tensors='pt', padding=True, truncation=True).to(self.device)
+        es = self.tokenizer(key, return_tensors='pt', padding=True, truncation=True).to(self.device)
         x = es['input_ids']
         x = self.embed(x)
         x = x.transpose(1, 2)
@@ -46,7 +41,6 @@ class TitleEncoder(nn.Module):
         x, _ = torch.max(x, dim=2)
         x = self.trans_layer(x)
         x = self.final_activation(x)
-        x = x.view(B, L, -1)
         return x
 
     def query_forward(self, key):
@@ -152,21 +146,33 @@ class PageRanker(nn.Module):
         self.dis_func = distances.CosineSimilarity()
         self.drop_layer = torch.nn.Dropout(0.25)
 
-    def forward(self, query, context, candidates):
-        # query:[B,D] candidates:[B,L,D]
-        query_embedding = self.query_encoder.query_forward(query)
-        context_embedding = self.context_encoder(context)
-        query_embedding = self.drop_layer(query_embedding*context_embedding)
-        condidate_embeddings = self.drop_layer(self.candidate_encoder(candidates))
-        dis_final = []
-        for k in range(len(query_embedding)):
-            temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])
-            dis_final.append(temp_dis)
-        dis_final = torch.cat(dis_final, 0)
-        p_dis = dis_final[:, 0].unsqueeze(1)
-        n_dis = dis_final[:, 1:]
-        loss = self.loss_func(p_dis, n_dis)
-        return dis_final, loss, query_embedding
+    def forward(self, query=None, context=None, candidates=None, is_infer=False, query_embedding=None):
+        if not is_infer:
+            # query:[B,D] candidates:[B,L,D]
+            query_embedding = self.query_encoder(query)
+            context_embedding = self.context_encoder(context)
+            query_embedding = self.drop_layer(query_embedding*context_embedding)
+            condidate_embeddings = self.drop_layer(self.candidate_encoder(candidates))
+            dis_final = []
+            for k in range(len(query_embedding)):
+                temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])
+                dis_final.append(temp_dis)
+            dis_final = torch.cat(dis_final, 0)
+            p_dis = dis_final[:, 0].unsqueeze(1)
+            n_dis = dis_final[:, 1:]
+            loss = self.loss_func(p_dis, n_dis)
+            return dis_final, loss, query_embedding
+        else:
+            # query:[B,D] candidates:[B,L,D]
+            # query_embedding = self.query_encoder.query_forward(query)
+            condidate_embeddings = self.candidate_encoder(candidates)
+            dis_final = []
+            for k in range(len(query_embedding)):
+                temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])
+                dis_final.append(temp_dis)
+            dis_final = torch.cat(dis_final, 0)
+            dis_final = (dis_final + 1) / 2
+            return dis_final
 
     def infer(self, query_embedding, candidates):
         # query:[B,D] candidates:[B,L,D]
@@ -181,7 +187,7 @@ class PageRanker(nn.Module):
         return dis_final
     def infer_pipe(self, query, context, candidates):
         # query:[B,D] candidates:[B,L,D]
-        query_embedding = self.query_encoder.query_forward(query)
+        query_embedding = self.query_encoder(query)
         context_embedding = self.context_encoder(context)
         query_embedding = self.drop_layer(query_embedding*context_embedding)
         condidate_embeddings = self.candidate_encoder(candidates)
@@ -203,20 +209,32 @@ class SectionRanker(nn.Module):
         self.dis_func = distances.CosineSimilarity()
         self.drop_layer = torch.nn.Dropout(0.25)
 
-    def forward(self, query_embedding, candidates):
-        # query:[B,D] candidates:[B,L,D]
-        #query_embedding = self.drop_layer(self.query_encoder.query_forward(query))
-        condidate_embeddings, candidate_scores = self.candidate_encoder(candidates)
-        condidate_embeddings = self.drop_layer(condidate_embeddings)
-        dis_final = []
-        for k in range(len(query_embedding)):
-            temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])
-            dis_final.append(temp_dis)
-        dis_final = 1 * torch.cat(dis_final, 0) + 1 * candidate_scores
-        p_dis = dis_final[:, 0].unsqueeze(1)
-        n_dis = dis_final[:, 1:]
-        loss = self.loss_func(p_dis, n_dis)
-        return dis_final, loss
+    def forward(self, query_embedding, candidates, is_infer=False):
+        if not is_infer:
+            # query:[B,D] candidates:[B,L,D]
+            #query_embedding = self.drop_layer(self.query_encoder.query_forward(query))
+            condidate_embeddings, candidate_scores = self.candidate_encoder(candidates)
+            condidate_embeddings = self.drop_layer(condidate_embeddings)
+            dis_final = []
+            for k in range(len(query_embedding)):
+                temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), condidate_embeddings[k])
+                dis_final.append(temp_dis)
+            dis_final = 1 * torch.cat(dis_final, 0) + 1 * candidate_scores
+            p_dis = dis_final[:, 0].unsqueeze(1)
+            n_dis = dis_final[:, 1:]
+            loss = self.loss_func(p_dis, n_dis)
+            return dis_final, loss
+        else:
+            # query:[B,D] candidates:[B,L,D]
+            # query_embedding = self.drop_layer(self.query_encoder.query_forward(query))
+            candidate_embeddings, candidate_scores = self.candidate_encoder(candidates)
+            dis_final = []
+            for k in range(len(query_embedding)):
+                temp_dis = self.dis_func(query_embedding[k].unsqueeze(0), candidate_embeddings[k])
+                dis_final.append(temp_dis)
+            dis_final = 0.5 * torch.cat(dis_final, 0) + 0.5 * candidate_scores
+            dis_final = (dis_final + 1) / 2
+            return dis_final
 
     def infer(self, query_embedding, candidates):
         # query:[B,D] candidates:[B,L,D]

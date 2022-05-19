@@ -94,9 +94,9 @@ def build(config):
         modelp.cuda()
         models.cuda()
         modele.cuda()
-        modelp = MyDataParallel(modelp, device_ids=[0, 1, 2, 3], output_device=0)
-        models = MyDataParallel(models, device_ids=[0, 1, 2, 3], output_device=0)
-        modele = MyDataParallel(modele, device_ids=[0, 1, 2, 3], output_device=0)
+        modelp = nn.DataParallel(modelp, device_ids=[0, 1, 2, 3], output_device=0)
+        models = nn.DataParallel(models, device_ids=[0, 1, 2, 3], output_device=0)
+        modele = nn.DataParallel(modele, device_ids=[0, 1, 2, 3], output_device=0)
     else:
         modelp.cuda()
         models.cuda()
@@ -120,7 +120,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 tqdm(range(data_size)), train_dataloader):
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
-            rs2 = modelp.infer(query_embedding, infer_titles)
+            rs2 = modelp(query_embedding=query_embedding, candidates=infer_titles, is_infer=True)
             rs2 = torch.topk(rs2, config.infer_title_select, dim=1)
             scores_title = rs2[0]
             inds = rs2[1].cpu().numpy()
@@ -155,7 +155,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             mapping = torch.FloatTensor(mapping_title).to(config.device)
             scores_title = scores_title.unsqueeze(1)
             scores_title = scores_title.matmul(mapping).squeeze(1)
-            rs_scores = models.infer(query_embedding, infer_section_candidates_pured)
+            rs_scores = models(query_embedding, infer_section_candidates_pured, is_infer=True)
             scores = scores_title * rs_scores
             rs2 = torch.topk(scores, config.infer_section_select, dim=1)
             scores = rs2[0]
@@ -274,7 +274,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list, pos_titles, pos_sections) in zip(
                 tqdm(range(data_size)), dataloader):
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
-            rs2 = modelp.infer(query_embedding, infer_titles)
+            rs2 = modelp(query_embedding=query_embedding, candidates=infer_titles, is_infer=True)
             rs2 = torch.topk(rs2, config.infer_title_select, dim=1)
             scores_title = rs2[0]
             inds = rs2[1].cpu().numpy()
@@ -314,7 +314,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             mapping = torch.FloatTensor(mapping_title).to(config.device)
             scores_title = scores_title.unsqueeze(1)
             scores_title = scores_title.matmul(mapping).squeeze(1)
-            rs_scores = models.infer(query_embedding, infer_section_candidates_pured)
+            rs_scores = models(query_embedding, infer_section_candidates_pured, is_infer=True)
             scores = scores_title * rs_scores
             rs2 = torch.topk(scores, config.infer_section_select, dim=1)
             scores = rs2[0]
