@@ -116,6 +116,12 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
     count_p = -1
     data_size = len(train_dataloader)
     test_loss, eval_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
+    if config.multi_gpu:
+        modele_p = nn.DataParallel(modele, device_ids=[0, 1, 2, 3], output_device=0)
+        modeld_p = nn.DataParallel(modeld, device_ids=[0, 1, 2, 3], output_device=0)
+    else:
+        modelp_p = None
+        modeld_p = None
     for epoch in range(config.train_epoch*4):
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list) in zip(
                 tqdm(range(data_size)), train_dataloader):
@@ -178,9 +184,16 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids']
             target_ids_for_train = mask_ref(target_ids, tokenizer).to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
-            outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
+            if modele_p is not None:
+                outputs_annotation = modele_p(input_ids=reference_ids, attention_adjust=adj_matrix)
+            else:
+                outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 1:config.hidden_anno_len+1]
-            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train, cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
+            if modeld_p is not None:
+                outputs = modeld_p(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train, cut_indicator=cut_list,
+                                 anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
+            else:
+                outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train, cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             logits_ = outputs.logits
             len_anno = min(target_ids.shape[1], logits_.shape[1])
             logits = logits_[:, 0:len_anno-1]
