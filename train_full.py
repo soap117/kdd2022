@@ -111,7 +111,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
         modele_p = nn.DataParallel(modele, device_ids=[0, 1, 2, 3], output_device=0)
         modeld_p = nn.DataParallel(modeld, device_ids=[0, 1, 2, 3], output_device=0)
     else:
-        modelp_p = None
+        modele_p = None
         modeld_p = None
     for epoch in range(config.train_epoch*4):
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list) in zip(
