@@ -252,12 +252,14 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             min_loss_d = d_eval_loss
             for one, one_g in zip(eval_ans[0:10], grand_ans):
                 print(one)
+                print(one_g)
             print('+++++++++++++++++++++++++++++++')
         else:
             print(count_p, count_s)
             print('New Larger Test Loss D:%f' % (d_eval_loss))
             for one, one_g in zip(eval_ans[0:10], grand_ans):
                 print(one)
+                print(one_g)
             print('+++++++++++++++++++++++++++++++')
     return state
 
