@@ -106,7 +106,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
     count_s = -1
     count_p = -1
     data_size = len(train_dataloader)
-    test_loss, eval_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
+    #test_loss, eval_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
     if config.multi_gpu:
         modele_p = nn.DataParallel(modele, device_ids=[0, 1, 2, 3], output_device=0)
         modeld_p = nn.DataParallel(modeld, device_ids=[0, 1, 2, 3], output_device=0)
