@@ -16,6 +16,9 @@ from rank_bm25 import BM25Okapi
 from models.modeling_gpt2_att import GPT2LMHeadModel
 from models.modeling_bart_att import BartForConditionalGeneration
 import os
+class MyDataParallel(nn.DataParallel):
+    def __getattr__(self, name):
+        return getattr(self.module, name)
 def check(query, infer_titles, pos_titles, secs=False):
     for pos_title in pos_titles:
         for infer_title in infer_titles:
@@ -91,9 +94,9 @@ def build(config):
         modelp.cuda()
         models.cuda()
         modele.cuda()
-        modelp = nn.DataParallel(modelp, device_ids=[0, 1, 2, 3], output_device=0)
-        models = nn.DataParallel(models, device_ids=[0, 1, 2, 3], output_device=0)
-        modele = nn.DataParallel(modele, device_ids=[0, 1, 2, 3], output_device=0)
+        modelp = MyDataParallel(modelp, device_ids=[0, 1, 2, 3], output_device=0)
+        models = MyDataParallel(models, device_ids=[0, 1, 2, 3], output_device=0)
+        modele = MyDataParallel(modele, device_ids=[0, 1, 2, 3], output_device=0)
     else:
         modelp.cuda()
         models.cuda()
