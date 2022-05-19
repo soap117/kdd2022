@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from config import Config
-config = Config(16)
+config = Config(8)
 from models.units_sen import MyData, get_decoder_att_map, mask_ref
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -224,7 +224,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 print('loss P:%f loss S:%f loss D:%f' %(lossp.mean().item(), losss.mean().item(), lossd.item()))
                 print(results[0:5])
                 print('---------------------------')
-        test_loss, eval_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
+        test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
         p_eval_loss = test_loss[0]
         s_eval_loss = test_loss[1]
         d_eval_loss = test_loss[2]
@@ -250,14 +250,15 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                      'eval_rs': eval_ans}
             torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
             min_loss_d = d_eval_loss
-            for one in eval_ans[0:10]:
+            for one, one_g in zip(eval_ans[0:10], grand_ans):
                 print(one)
             print('+++++++++++++++++++++++++++++++')
         else:
             print(count_p, count_s)
             print('New Larger Test Loss D:%f' % (d_eval_loss))
-            for one in eval_ans[0:10]:
+            for one, one_g in zip(eval_ans[0:10], grand_ans):
                 print(one)
+            print('+++++++++++++++++++++++++++++++')
     return state
 
 
@@ -346,6 +347,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             ground_truth = [x.replace(' ', '') for x in ground_truth]
             ground_truth = [x.replace('[PAD]', '') for x in ground_truth]
             ground_truth = [x.replace('[CLS]', '') for x in ground_truth]
+            ground_truth = [x.split('[SEP]')[0] for x in ground_truth]
             #masks = torch.ones_like(targets)
             #masks[torch.where(targets == 0)] = 0
             eval_ans += results
@@ -359,7 +361,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
         modele.train()
         modeld.train()
         print('accuracy title: %f accuracy section: %f' % (tp / total, tp_s / total_s))
-        return (-tp / total, -tp_s / total_s, -bleu_scores), eval_ans
+        return (-tp / total, -tp_s / total_s, -bleu_scores), eval_ans, ground_truth
 
 modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer = build(config)
 state = train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, loss_func)

@@ -21,7 +21,7 @@ class Config(object):
         self.title_emb_dim = 128
         self.key_emb_dim = 128
         self.context_emb_dim = 256
-        self.lr = 5e-4
+        self.lr = 8e-4
         self.train_epoch = 20
         self.neg_num = 9
         self.neg_strong_num = 3
@@ -32,7 +32,7 @@ class Config(object):
         self.infer_section_select = 3
         self.maxium_sec = 512
         self.hidden_anno_len = 10
-        self.multi_gpu = True
+        self.multi_gpu = False
         self.full_gpu_id = 0
         self.data_file = 'data/mydata_sen_clean_v4_sec_sub_trn.pkl'
         self.data_file_anno = 'data/mydata_new_clean_v4_sec_sub_trn.pkl'
