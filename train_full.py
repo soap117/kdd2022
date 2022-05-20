@@ -250,14 +250,14 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                      'eval_rs': eval_ans}
             torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
             min_loss_d = d_eval_loss
-            for one, one_g in zip(eval_ans[0:10], grand_ans):
+            for one, one_g in zip(eval_ans[0:10], grand_ans[0:10]):
                 print(one)
                 print(one_g)
             print('+++++++++++++++++++++++++++++++')
         else:
             print(count_p, count_s)
             print('New Larger Test Loss D:%f' % (d_eval_loss))
-            for one, one_g in zip(eval_ans[0:10], grand_ans):
+            for one, one_g in zip(eval_ans[0:10], grand_ans[0:10]):
                 print(one)
                 print(one_g)
             print('+++++++++++++++++++++++++++++++')
@@ -363,7 +363,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
         modele.train()
         modeld.train()
         print('accuracy title: %f accuracy section: %f' % (tp / total, tp_s / total_s))
-        return (-tp / total, -tp_s / total_s, -bleu_scores), eval_ans, ground_truth
+        return (-tp / total, -tp_s / total_s, -bleu_scores), eval_ans, eval_gt
 
 modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer = build(config)
 state = train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, loss_func)
