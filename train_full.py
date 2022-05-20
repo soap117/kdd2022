@@ -184,7 +184,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 outputs = modeld_p(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train[:, 0:-1], cut_indicator=cut_list,
                                  anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             else:
-                outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train[0:-1], cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
+                outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train[:, 0:-1], cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             logits_ = outputs.logits
             #len_anno = min(target_ids.shape[1], logits_.shape[1])
             logits = logits_
