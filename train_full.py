@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from config import Config
-config = Config(8)
+config = Config(2)
 from models.units_sen import MyData, get_decoder_att_map, mask_ref
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -181,10 +181,10 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 outputs_annotation = modele.model.encoder(input_ids=reference_ids, attention_adjust=adj_matrix)
             hidden_annotation = outputs_annotation[0][:, 1:config.hidden_anno_len+1]
             if modeld_p is not None:
-                outputs = modeld_p(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train, cut_indicator=cut_list,
+                outputs = modeld_p(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train[:, 0:-1], cut_indicator=cut_list,
                                  anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             else:
-                outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train, cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
+                outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train[0:-1], cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             logits_ = outputs.logits
             #len_anno = min(target_ids.shape[1], logits_.shape[1])
             logits = logits_
