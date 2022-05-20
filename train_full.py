@@ -354,8 +354,8 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             #masks[torch.where(targets == 0)] = 0
             eval_ans += results
             eval_gt += ground_truth
-        predictions = [jieba.lcut(doc) for doc in eval_ans]
-        reference = [[jieba.lcut(doc)] for doc in eval_gt]
+        predictions = [tokenizer.tokenize(doc) for doc in eval_ans]
+        reference = [[tokenizer.tokenize(doc)] for doc in eval_gt]
         bleu_scores = corpus_bleu(reference, predictions,)
         print("Bleu Annotation:%f" % bleu_scores)
         modelp.train()
