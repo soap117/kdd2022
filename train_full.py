@@ -172,23 +172,23 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             decoder_ids = decoder_inputs['input_ids']
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             decoder_ids = decoder_ids.to(config.device)
-            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(config.device)
-            #target_ids_for_train = mask_ref(target_ids, tokenizer).to(config.device)
+            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'][:, 0:-1]
+            target_ids_for_train = mask_ref(target_ids, tokenizer).to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
             if modele_p is not None:
-                outputs_annotation = modele_p(input_ids=reference_ids, attention_adjust=adj_matrix)
+                outputs_annotation = modele.model.encoder(input_ids=reference_ids, attention_adjust=adj_matrix)
             else:
-                outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
-            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 1:config.hidden_anno_len+1]
+                outputs_annotation = modele.model.encoder(input_ids=reference_ids, attention_adjust=adj_matrix)
+            hidden_annotation = outputs_annotation[0][:, 1:config.hidden_anno_len+1]
             if modeld_p is not None:
-                outputs = modeld_p(input_ids=decoder_ids, decoder_input_ids=target_ids, cut_indicator=cut_list,
+                outputs = modeld_p(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train, cut_indicator=cut_list,
                                  anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             else:
-                outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids, cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
+                outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train, cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             logits_ = outputs.logits
-            len_anno = min(target_ids.shape[1], logits_.shape[1])
-            logits = logits_[:, 0:len_anno-1]
-            targets = target_ids[:, 1:len_anno]
+            #len_anno = min(target_ids.shape[1], logits_.shape[1])
+            logits = logits_
+            targets = target_ids[:, 1:]
             _, predictions = torch.max(logits, dim=-1)
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
@@ -340,8 +340,8 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
             reference_ids = inputs_ref['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
-            outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
-            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 1:config.hidden_anno_len+1]
+            outputs_annotation = modele.model.encoder(input_ids=reference_ids, attention_adjust=adj_matrix)
+            hidden_annotation = outputs_annotation[0][:, 1:config.hidden_anno_len+1]
             results, target_ids = restricted_decoding(querys_ori, src_sens, tar_sens, hidden_annotation, tokenizer, modeld)
             targets = target_ids[:, 1:]
             ground_truth = tokenizer.batch_decode(targets)
