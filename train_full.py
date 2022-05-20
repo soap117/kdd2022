@@ -179,7 +179,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 outputs_annotation = modele.model.encoder(input_ids=reference_ids, attention_adjust=adj_matrix)
             else:
                 outputs_annotation = modele.model.encoder(input_ids=reference_ids, attention_adjust=adj_matrix)
-            hidden_annotation = outputs_annotation[0][:, 1:config.hidden_anno_len+1]
+            hidden_annotation = outputs_annotation[0][:, 0:config.hidden_anno_len]
             if modeld_p is not None:
                 outputs = modeld_p(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train[:, 0:-1], cut_indicator=cut_list,
                                  anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
@@ -341,7 +341,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             reference_ids = inputs_ref['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
             outputs_annotation = modele.model.encoder(input_ids=reference_ids, attention_adjust=adj_matrix)
-            hidden_annotation = outputs_annotation[0][:, 1:config.hidden_anno_len+1]
+            hidden_annotation = outputs_annotation[0][:, 0:config.hidden_anno_len]
             results, target_ids = restricted_decoding(querys_ori, src_sens, tar_sens, hidden_annotation, tokenizer, modeld)
             targets = target_ids[:, 1:]
             ground_truth = tokenizer.batch_decode(targets)
