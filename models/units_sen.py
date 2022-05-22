@@ -320,7 +320,7 @@ def restricted_decoding(querys_ori, srcs, tars, hidden_annotations, tokenizer, m
                     next_token = target_id[pointer]
                     pointer += 1
                 final_ans = torch.cat([final_ans, torch.LongTensor([next_token]).to(final_ans.device)], dim=0)
-                if free_flag and (next_token == tokenizer.vocab[')'] or c_count > 20):
+                if free_flag and (next_token == tokenizer.vocab['）'] or c_count > 20):
                     next_token = target_id[pointer]
                     pointer += 1
                     final_ans = torch.cat([final_ans, torch.LongTensor([next_token]).to(final_ans.device)], dim=0)
