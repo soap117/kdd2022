@@ -324,6 +324,7 @@ def restricted_decoding(querys_ori, srcs, tars, hidden_annotations, tokenizer, m
                     next_token = target_id[pointer]
                     pointer += 1
                     final_ans = torch.cat([final_ans, torch.LongTensor([next_token]).to(final_ans.device)], dim=0)
+                    free_flag = False
                 last_token = final_ans[-1]
                 if last_token == tokenizer.vocab['[SEP]'] or len(final_ans) >= config.maxium_sec or pointer >= len(target_id):
                     break

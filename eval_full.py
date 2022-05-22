@@ -187,7 +187,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             reference_ids = inputs_ref['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
-            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 1:config.hidden_anno_len+1]
+            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
             results, target_ids = restricted_decoding(querys_ori, src_sens, tar_sens, hidden_annotation, tokenizer, modeld)
             targets = target_ids[:, 1:]
             ground_truth = tokenizer.batch_decode(targets)
@@ -200,8 +200,8 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             #masks[torch.where(targets == 0)] = 0
             eval_ans += results
             eval_gt += ground_truth
-        predictions = [jieba.lcut(doc) for doc in eval_ans]
-        reference = [[jieba.lcut(doc)] for doc in eval_gt]
+        predictions = [tokenizer.tokenize(doc) for doc in eval_ans]
+        reference = [[tokenizer.tokenize(doc)] for doc in eval_gt]
         bleu_scores = corpus_bleu(reference, predictions,)
         print("Bleu Annotation:%f" % bleu_scores)
         modelp.train()
