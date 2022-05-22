@@ -311,7 +311,7 @@ def restricted_decoding(querys_ori, srcs, tars, hidden_annotations, tokenizer, m
                     if not free_flag:
                         free_flag = True
                         c_count = 1
-                        while target_id[pointer] != tokenizer.vocab['$']:
+                        while target_id[pointer] != tokenizer.vocab['）']:
                             pointer += 1
                         pointer += 1
                     else:
