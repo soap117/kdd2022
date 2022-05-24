@@ -50,6 +50,7 @@ def aligneddata(dataset,path):
                     dataset_new.append((u, v))
         tars_sec = '。'.join(tars)
         srcs_sec = '。'.join(srcs)
+        dataset_new_para.append((srcs_sec, tars_sec))
 
     print(len(dataset))
     with open(os.path.join(path, 'dataset.pkl'), 'wb') as f:
