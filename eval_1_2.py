@@ -210,7 +210,7 @@ def pipieline(path_from):
             srcs += src_sts
             tars += tar_sts
 
-    for src, tar in zip(srcs[0:50], tars[0:50]):
+    for src, tar in zip(srcs, tars):
         src_ = step1_tokenizer([src], return_tensors="pt", padding=True, truncation=True)
         x_ids = src_['input_ids']
         x_mask = src_['attention_mask']
