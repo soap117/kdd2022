@@ -2,7 +2,7 @@ import os
 import pickle
 
 import torch
-
+from models.units_sen import restricted_decoding
 from step1.modeling_cbert import BertForTokenClassification
 from transformers import BertTokenizer
 from  step1.utils.dataset import obtain_indicator
@@ -13,7 +13,7 @@ from models.units import read_clean_data, get_decoder_att_map
 from config import config
 from rank_bm25 import BM25Okapi
 from models.retrieval import TitleEncoder, PageRanker, SectionRanker
-titles, sections, title2sections, sec2id = read_clean_data(config.data_file)
+titles, sections, title2sections, sec2id = read_clean_data(config.data_file_anno)
 corpus = sections
 tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
 bm25_section = BM25Okapi(tokenized_corpus)
@@ -23,7 +23,7 @@ corpus = titles
 tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
 bm25_title = BM25Okapi(tokenized_corpus)
 save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
-save_step1_data = torch.load('./results/' + 'best_save.data')
+save_step1_data = torch.load('./results/' + 'best_save(2).data')
 
 bert_model = 'hfl/chinese-bert-wwm-ext'
 model_step1 = BertForTokenClassification.from_pretrained(bert_model, num_labels=5)
@@ -41,21 +41,48 @@ models = SectionRanker(config, title_encoder)
 models.load_state_dict(save_data['models'])
 models.cuda()
 models.eval()
-modeld = config.modeld.from_pretrained(config.bert_model)
-modeld.load_state_dict(save_data['model'])
+modele = config.modeld_ann.from_pretrained(config.bert_model)
+modele.load_state_dict(save_data['modele'])
+modele.cuda()
+modele.eval()
+modeld = config.modeld_sen.from_pretrained(config.bert_model)
+modeld.load_state_dict(save_data['modeld'])
 modeld.cuda()
 modeld.eval()
+from nltk.translate.bleu_score import sentence_bleu
+import nltk
+bert_model_eval = 'hfl/chinese-bert-wwm-ext'
+tokenzier_eval = BertTokenizer.from_pretrained(bert_model_eval)
+def get_sentence_bleu(candidate, reference):
+    score = sentence_bleu(reference, candidate)
+    return score
+
+
+def count_score(candidate, reference):
+    avg_score = 0
+    for k in range(len(candidate)):
+        reference_ = reference[k]
+        for m in range(len(reference_)):
+            reference_[m] = tokenzier_eval.tokenize(reference_[m])
+        candidate[k] = tokenzier_eval.tokenize(candidate[k])
+        try:
+            avg_score += get_sentence_bleu(candidate[k], reference_)/len(candidate)
+        except:
+            print(candidate[k])
+            print(reference[k])
+    return avg_score
+
 def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
     input_list = [[],[],[], []]
     l = 0
     r = -1
-    while src_ids[r] != 511:
+    while src_ids[r] != 102:
         r += 1
     for c_id in range(len(src_ids)):
-        if src_ids[c_id] == 511:
+        if src_ids[c_id] == 102:
             l = r + 1
             r = l+1
-            while r<len(src_ids) and src_ids[r] != 511:
+            while r<len(src_ids) and src_ids[r] != 102:
                 r += 1
         if pre_labels[c_id] == 1:
             l_k = c_id
@@ -67,8 +94,7 @@ def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
             templete = src_ids[l_k:r_k]
             tokens = step1_tokenizer.convert_ids_to_tokens(templete)
             key = step1_tokenizer.convert_tokens_to_string(tokens).replace(' ', '')
-            context = step1_tokenizer.convert_ids_to_tokens(src_ids[l:r+1])
-            context = step1_tokenizer.convert_tokens_to_string(context).replace('[CLS]', '').replace('[SEP]', '')
+            context = src
             key_cut = jieba.lcut(key)
             infer_titles = bm25_title.get_top_n(key_cut, titles, config.infer_title_range)
             if len(key) > 0:
@@ -77,19 +103,113 @@ def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
                 input_list[2].append(infer_titles)
                 input_list[3].append((l_k, r_k))
     return input_list
+import re
+def is_in_annotation(src, pos):
+    s = 0
+    count_left = 0
+    while s < pos:
+        if src[s] == '（':
+            count_left += 1
+        elif src[s] == '）':
+            count_left -= 1
+        s += 1
+    if count_left > 0:
+        return True
+    else:
+        return False
 
-
-
-
-
+def fix_stop(tar):
+    while re.search(r'（.*(。).*）', tar) is not None:
+        tar_stop_list = re.finditer(r'（.*(。).*）', tar)
+        for stop in tar_stop_list:
+            if is_in_annotation(tar, stop.regs[1][0]):
+                temp = list(tar)
+                temp[stop.regs[1][0]] = '\\'
+                tar = ''.join(temp)
+            else:
+                temp = list(tar)
+                temp[stop.regs[1][0]] = '\n'
+                tar = ''.join(temp)
+    tar = tar.replace('\\', '')
+    tar = tar.replace('\n', '。')
+    return tar
+import copy
+def pre_process_sentence(src, tar, keys):
+    src = re.sub('\*\*', '', src)
+    src = src.replace('(', '（')
+    src = src.replace('$', '')
+    src = src.replace(')', '）')
+    src = src.replace('\n', '').replace('。。', '。')
+    src = fix_stop(src)
+    tar = re.sub('\*\*', '', tar)
+    tar = tar.replace('\n', '').replace('。。', '。')
+    tar = tar.replace('(', '（')
+    tar = tar.replace(')', '）')
+    tar = tar.replace('$', '')
+    tar = fix_stop(tar)
+    src_sentence = copy.copy(src)
+    tar_sentence = copy.copy(src)
+    for key in keys:
+        region = re.search(key, src)
+        if region is not None:
+            region = region.regs[0]
+        else:
+            region = (0, 0)
+        if region[0] != 0 or region[1] != 0:
+            src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key) + ''.join(
+                [' [MASK] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
+        region = re.search(key, tar_sentence)
+        if region is not None:
+            region = region.regs[0]
+        else:
+            region = (0, 0)
+        if region[0] != 0 or region[1] != 0:
+            if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（' and region[1] + 1 < len(
+                    tar_sentence) and tar_sentence[region[1] + 1] != '（' and region[1] + 2 < len(tar_sentence) and \
+                    tar_sentence[region[1] + 2] != '（':
+                tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key) + tar_sentence[region[1]:]
+            else:
+                tar_sentence = tar_sentence[0:region[0]] + ' ${}$ '.format(key) + tar_sentence[region[1]:]
+    src = src_sentence
+    return src, tar_sentence, tar
+import json
 def pipieline(path_from):
-    with open(os.path.join(path_from,'dataset-aligned.pkl'), 'rb') as f:
-        dataset_aligned = pickle.load(f)
+    eval_ans = []
+    eval_gt = []
+    tokenizer = config.tokenizer
+    dataset = json.load(open('./data/dataset_new_3.json', 'r', encoding='utf-8'))
+    total = len(dataset)
+    train_data = dataset[:int(total / 10 * 8)]
+    test_data = dataset[int(total / 10 * 8):int(total / 10 * 9)]
+    valid_data = dataset[int(total / 10 * 9):]
+
     srcs = []
     tars = []
-    for dp in dataset_aligned:
-        srcs.append(dp[0])
-        tars.append(dp[1])
+    for dp in test_data:
+        src = dp['src']
+        tar = dp['tar']
+        src = re.sub('\*\*', '', src)
+        src = src.replace('(', '（')
+        src = src.replace('$', '')
+        src = src.replace(')', '）')
+        src = src.replace('\n', '').replace('。。', '。')
+        src = fix_stop(src)
+        tar = re.sub('\*\*', '', tar)
+        tar = tar.replace('\n', '').replace('。。', '。')
+        tar = tar.replace('(', '（')
+        tar = tar.replace(')', '）')
+        tar = tar.replace('$', '')
+        tar = fix_stop(tar)
+        if src[-1] == '。' and tar[-1] != '。':
+            tar += '。'
+        if tar[-1] == '。' and src[-1] != '。':
+            src += '。'
+        src_sts = src.split('。')
+        tar_sts = tar.split('。')
+        if len(src_sts) == len(tar_sts):
+            srcs += src_sts
+            tars += tar_sts
+
     for src, tar in zip(srcs[0:50], tars[0:50]):
         src_ = step1_tokenizer([src], return_tensors="pt", padding=True, truncation=True)
         x_ids = src_['input_ids']
@@ -110,13 +230,16 @@ def pipieline(path_from):
         key_pos = step2_input[3]
         if len(querys) == 0:
             continue
-        dis_scores, query_embeddings = modelp.infer_pipe(step2_input[0], step2_input[1], step2_input[2])
+        query_embedding = modelp.query_embeddings(querys, contexts)
+        dis_scores = modelp(query_embedding=query_embedding, candidates=infer_titles, is_infer=True)
         rs_title = torch.topk(dis_scores, config.infer_title_select, dim=1)
         scores_title = rs_title[0]
         inds = rs_title[1].cpu().numpy()
         infer_title_candidates_pured = []
         infer_section_candidates_pured = []
         mapping_title = np.zeros([len(querys), config.infer_title_select, config.infer_section_range])
+        querys_ori = querys
+        src, src_tar, tar = pre_process_sentence(src, tar, querys_ori)
         for query, bid in zip(querys, range(len(inds))):
             temp = []
             temp2 = []
@@ -146,7 +269,7 @@ def pipieline(path_from):
         mapping = torch.FloatTensor(mapping_title).to(config.device)
         scores_title = scores_title.unsqueeze(1)
         scores_title = scores_title.matmul(mapping).squeeze(1)
-        rs_scores = models.infer(query_embeddings, infer_section_candidates_pured)
+        rs_scores = models.infer(query_embedding, infer_section_candidates_pured)
         scores = scores_title * rs_scores
         rs2 = torch.topk(scores, config.infer_section_select, dim=1)
         scores = rs2[0]
@@ -158,34 +281,30 @@ def pipieline(path_from):
                 temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
             temp = ' [SEP] '.join(temp)
             reference.append(temp[0:500])
-        inputs = step2_tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
-        ids = inputs['input_ids']
-        adj_matrix = get_decoder_att_map(step2_tokenizer, '[SEP]', ids, scores)
-        outputs = modeld(ids.cuda(), attention_adjust=adj_matrix)
-        logits_ = outputs.logits
-        logits = logits_
-        _, predictions = torch.max(logits, dim=-1)
-        results = step2_tokenizer.batch_decode(predictions)
-        results = [step2_tokenizer.convert_tokens_to_string(x) for x in results]
-        results = [x.replace(' ', '') for x in results]
-        results = [x.replace('[PAD]', '') for x in results]
-        results = [x.replace('[UNK]', '') for x in results]
-        results = [x.split('[SEP]')[0] for x in results]
-        results = [x.replace('[CLS]', '') for x in results]
-        new_src = ''
-        l = 0
-        for result, pos in zip(results, key_pos):
-            context = step1_tokenizer.convert_ids_to_tokens(x_ids[0][l:pos[0]])
-            context = step1_tokenizer.convert_tokens_to_string(context).replace('[CLS]', '').replace('[SEP]', '').replace(' ', '')
-            new_src += context
-            new_src += '<{}>'.format(result)
-            l = pos[1]
-        context = step1_tokenizer.convert_ids_to_tokens(x_ids[0][l:])
-        context = step1_tokenizer.convert_tokens_to_string(context).replace('[CLS]', '').replace('[SEP]', '').replace(
-            ' ', '')
-        new_src += context
-        print(new_src)
-        print('-------------------------------------')
+        inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
+        reference_ids = inputs_ref['input_ids'].to(config.device)
+        adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
+        outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
+        hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
+        results, target_ids = restricted_decoding(querys_ori, [src], [src_tar], hidden_annotation, tokenizer, modeld)
+        results = [x.replace('$', '') for x in results]
+        results = [x.replace('()', '') for x in results]
+        print(results[0])
+        # masks = torch.ones_like(targets)
+        # masks[torch.where(targets == 0)] = 0
+        eval_ans += results
+        eval_gt += [tar]
+
+    refs = [[u] for u in eval_gt]
+    bleu = count_score(eval_ans, refs, config)
+    print(bleu)
+    outs = [' '.join(u) for u in eval_ans]
+    refs = [' '.join(u) for u in eval_gt]
+    from rouge import Rouge
+    rouge = Rouge()
+    scores = rouge.get_scores(outs, refs, avg=True)
+    from pprint import pprint
+    pprint(scores)
 
 
 

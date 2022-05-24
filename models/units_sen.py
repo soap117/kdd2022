@@ -314,17 +314,27 @@ def restricted_decoding(querys_ori, srcs, tars, hidden_annotations, tokenizer, m
                         while target_id[pointer] != tokenizer.vocab['）']:
                             pointer += 1
                         pointer += 1
+                        cons_pointer = pointer
+                        cons_count = 0
                     else:
                         c_count += 1
                 else:
                     next_token = target_id[pointer]
                     pointer += 1
                 final_ans = torch.cat([final_ans, torch.LongTensor([next_token]).to(final_ans.device)], dim=0)
-                if free_flag and (next_token == tokenizer.vocab['）'] or c_count > 20):
+                if free_flag and (next_token == tokenizer.vocab['）'] or c_count > 30):
                     next_token = target_id[pointer]
                     pointer += 1
                     final_ans = torch.cat([final_ans, torch.LongTensor([next_token]).to(final_ans.device)], dim=0)
+                    if c_count > 30:
+                        final_ans = torch.cat([final_ans, torch.LongTensor([tokenizer.vocab['）']]).to(final_ans.device)], dim=0)
                     free_flag = False
+                if free_flag and next_token == target_id[cons_pointer]:
+                    cons_count += 1
+                    cons_pointer += 1
+                    if cons_count == 3:
+                        pointer = cons_pointer
+                        free_flag = False
                 last_token = final_ans[-1]
                 if last_token == tokenizer.vocab['[SEP]'] or len(final_ans) >= config.maxium_sec or pointer >= len(target_id):
                     break
@@ -365,7 +375,7 @@ def restricted_decoding(querys_ori, srcs, tars, hidden_annotations, tokenizer, m
                     next_token = target_id[pointer]
                     pointer += 1
                 final_ans = torch.cat([final_ans, torch.LongTensor([next_token]).to(final_ans.device)], dim=0)
-                if free_flag and (next_token == tokenizer.vocab[')'] or c_count > 20):
+                if free_flag and (next_token == tokenizer.vocab[')'] or c_count > 30):
                     free_flag = False
                     next_token = target_id[pointer]
                     pointer += 1

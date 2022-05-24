@@ -193,7 +193,11 @@ class PageRanker(nn.Module):
             dis_final = torch.cat(dis_final, 0)
             dis_final = (dis_final + 1) / 2
             return dis_final
-
+    def query_embeddings(self, query, context):
+        query_embedding = self.query_encoder(query, is_query=True)
+        context_embedding = self.context_encoder(context)
+        query_embedding = self.drop_layer(query_embedding * context_embedding)
+        return query_embedding
     def infer(self, query_embedding, candidates):
         # query:[B,D] candidates:[B,L,D]
         #query_embedding = self.query_encoder.query_forward(query)
