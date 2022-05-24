@@ -214,11 +214,6 @@ def pipieline(path_from):
 
     for src, tar in zip(srcs, tars):
         src_ = step1_tokenizer([src], return_tensors="pt", padding=True, truncation=True)
-        tar_ = step1_tokenizer([tar], return_tensors="pt", padding=True, truncation=True)
-        if len(src_['input_ids']) < max_len and len(tar) < max_len and len(src) > 2 and len(tar) > 2:
-            src_ids_smaller.append(src)
-            tar_ids_smaller.append(tar)
-            tar_txts.append(txt)
         x_ids = src_['input_ids']
         x_mask = src_['attention_mask']
         x_indicator = torch.zeros_like(x_ids)
