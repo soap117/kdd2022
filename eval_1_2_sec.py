@@ -404,7 +404,7 @@ def pipieline(path_from):
         eval_gt += [tar]
         eval_ans += [section_rs]
 
-    result_final = {'srcs': srcs, 'tars': tars, 'prds': eval_ans, 'tars': eval_gt, 'scores': record_scores,
+    result_final = {'srcs': srcs, 'prds': eval_ans, 'tars': eval_gt, 'scores': record_scores,
                     'reference': record_references}
     with open('./data/test/my_results_sec.pkl', 'wb') as f:
         pickle.dump(result_final, f)
