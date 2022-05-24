@@ -398,6 +398,7 @@ def pipieline(path_from):
                 eval_ans += [batch_rs[context]]
             else:
                 eval_ans += [context]
+        eval_gt += tar.split('。')[0:-1]
         if len(order_context) != len(tar.split('。')[0:-1]):
             print(order_context)
             print(tar)
