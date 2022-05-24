@@ -181,6 +181,8 @@ import json
 def pipieline(path_from):
     eval_ans = []
     eval_gt = []
+    record_scores = []
+    record_references = []
     tokenizer = config.tokenizer
     with open('./data/test/src_txts.pkl', 'rb') as f:
         srcs_ = pickle.load(f)
@@ -212,7 +214,7 @@ def pipieline(path_from):
             srcs += src_sts
             tars += tar_sts
 
-    for src, tar in zip(srcs, tars):
+    for src, tar in zip(srcs[0:10], tars[0:10]):
         src_ = step1_tokenizer([src], return_tensors="pt", padding=True, truncation=True)
         x_ids = src_['input_ids']
         x_mask = src_['attention_mask']
@@ -317,6 +319,8 @@ def pipieline(path_from):
                 temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
             temp = ' [SEP] '.join(temp)
             reference.append(temp[0:500])
+        record_scores.append(scores.detach().cpu().numpy())
+        record_references.append(reference)
         inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
         reference_ids = inputs_ref['input_ids'].to(config.device)
         adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
@@ -341,6 +345,9 @@ def pipieline(path_from):
     scores = rouge.get_scores(outs, refs, avg=True)
     from pprint import pprint
     pprint(scores)
+    result_final= {'srcs': srcs, 'tars': tars, 'prds':eval_gt, 'scores': record_scores, 'reference':record_references}
+    with open('./data/test/my_results.pkl', 'wb') as f:
+        pickle.dump(result_final, f)
 
 
 
