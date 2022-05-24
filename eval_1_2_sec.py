@@ -1,3 +1,4 @@
+import cuda2
 import os
 import pickle
 
@@ -87,6 +88,8 @@ def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
         r += 1
     for c_id in range(len(src_ids)):
         if src_ids[c_id] == step1_tokenizer.vocab['。']:
+            context = step1_tokenizer.decode(src_ids[l:r]).replace(' ', '').replace('[CLS]', '').replace('[SEP]', '')
+            input_list[4].append((False, context))
             l = r + 1
             r = l+1
             while r<len(src_ids) and src_ids[r] != step1_tokenizer.vocab['。']:
@@ -109,15 +112,11 @@ def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
                 input_list[1].append(context)
                 input_list[2].append(infer_titles)
                 input_list[3].append((l_k, r_k))
-                input_list[4].append((True, context))
-
-            else:
-                input_list[4].append((False, context))
     return input_list
 
-def mark_sentence(keys, contexts):
+def mark_sentence(input_list):
     context_dic = {}
-    for key, context in zip(keys, contexts):
+    for key, context, infer_titles in zip(input_list[0], input_list[1], input_list[2]):
         if context not in context_dic:
             src = context
             src = re.sub('\*\*', '', src)
@@ -126,33 +125,42 @@ def mark_sentence(keys, contexts):
             src = src.replace(')', '）')
             src = src.replace('\n', '').replace('。。', '。')
             src = fix_stop(src)
-            context_dic[context] = (src, src)
+            context_dic[context] = [src, src, [], []]
             src_sentence = context_dic[context][0]
             tar_sentence = context_dic[context][1]
 
-            region = re.search(key, src)
-            if region is not None:
-                region = region.regs[0]
-            else:
-                region = (0, 0)
-            if region[0] != 0 or region[1] != 0:
-                src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key) + ''.join(
-                    [' [MASK] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
-            region = re.search(key, tar_sentence)
-            if region is not None:
-                region = region.regs[0]
-            else:
-                region = (0, 0)
-            if region[0] != 0 or region[1] != 0:
-                if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（' and region[1] + 1 < len(
-                        tar_sentence) and tar_sentence[region[1] + 1] != '（' and region[1] + 2 < len(tar_sentence) and \
-                        tar_sentence[region[1] + 2] != '（':
-                    tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key) + tar_sentence[region[1]:]
-                else:
-                    tar_sentence = tar_sentence[0:region[0]] + ' ${}$ '.format(key) + tar_sentence[region[1]:]
-
         else:
-
+            src_sentence = context_dic[context][0]
+            tar_sentence = context_dic[context][1]
+        context_dic[context][2].append(key)
+        context_dic[context][3].append(infer_titles)
+        region = re.search(key, src_sentence)
+        if region is not None:
+            region = region.regs[0]
+        else:
+            region = (0, 0)
+        if region[0] != 0 or region[1] != 0:
+            src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key) + ''.join(
+                [' [MASK] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
+        region = re.search(key, tar_sentence)
+        if region is not None:
+            region = region.regs[0]
+        else:
+            region = (0, 0)
+        if region[0] != 0 or region[1] != 0:
+            if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（' and region[1] + 1 < len(
+                    tar_sentence) and tar_sentence[region[1] + 1] != '（' and region[1] + 2 < len(tar_sentence) and \
+                    tar_sentence[region[1] + 2] != '（':
+                tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key) + tar_sentence[region[1]:]
+            else:
+                tar_sentence = tar_sentence[0:region[0]] + ' ${}$ '.format(key) + tar_sentence[region[1]:]
+        context_dic[context][0] = src_sentence
+        context_dic[context][1] = tar_sentence
+    order_context = []
+    for context in input_list[4]:
+        if context[1] not in order_context:
+            order_context.append(context[1])
+    return context_dic, order_context
 
 import re
 def is_in_annotation(src, pos):
@@ -231,7 +239,10 @@ def pipieline(path_from):
     record_scores = []
     record_references = []
     tokenizer = config.tokenizer
-    srcs_, tars_ = preprocess_sec('./data/test')
+    with open('./data/test/src_txts_s.pkl', 'rb') as f:
+        srcs_ = pickle.load(f)
+    with open('./data/test/tar_txts_s.pkl', 'rb') as f:
+        tars_ = pickle.load(f)
 
     srcs = []
     tars = []
@@ -269,113 +280,127 @@ def pipieline(path_from):
         logits = outputs.logits
         pre_label_f = np.argmax(logits.detach().cpu().numpy(), axis=2)
         step2_input = obtain_step2_input(pre_label_f[0], src, x_ids[0], step1_tokenizer)
-        querys = step2_input[0]
-        querys_ori = copy.copy(querys)
-        temp = []
-        for query in querys:
-            if query in mark_key_equal:
-                temp.append(mark_key_equal[query])
-            else:
-                url = 'https://api.ownthink.com/kg/ambiguous?mention=%s' % query
-                headers = {
-                    'User-Agent': 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
-                }
-                try_count = 0
-                while try_count < 3:
-                    try:
-                        r = requests.get(url, headers=headers, timeout=5)
-                        break
-                    except Exception as e:
-                        try_count += 1
-                        print("trying %d time" % try_count)
-                        wait_gap = 3
-                        time.sleep((try_count + np.random.rand()) * wait_gap)
-                rs = json.loads(r.text)
-                rs = rs['data']
-                name_set = set()
-                name_set.add(query)
-                for one in rs:
-                    name_set.add(re.sub(r'\[.*\]', '', one[0]))
-                name_list = list(name_set)
-                new_query = ' '.join(name_list)
-                if len(new_query) == 0:
-                    new_query = query
-                if query != new_query:
-                    print("%s->%s" % (query, new_query))
-                mark_key_equal[query] = new_query
-                temp.append(new_query)
-        querys = temp
-        contexts = step2_input[1]
-        infer_titles = step2_input[2]
-        key_pos = step2_input[3]
-        if len(querys) == 0:
-            continue
-        query_embedding = modelp.query_embeddings(querys, contexts)
-        dis_scores = modelp(query_embedding=query_embedding, candidates=infer_titles, is_infer=True)
-        rs_title = torch.topk(dis_scores, config.infer_title_select, dim=1)
-        scores_title = rs_title[0]
-        inds = rs_title[1].cpu().numpy()
-        infer_title_candidates_pured = []
-        infer_section_candidates_pured = []
-        mapping_title = np.zeros([len(querys), config.infer_title_select, config.infer_section_range])
-        src, src_tar, tar = pre_process_sentence(contexts, tar, querys_ori)
-        for query, bid in zip(querys, range(len(inds))):
+        context_dic, order_context = mark_sentence(step2_input)
+        batch_rs = {}
+        for context in context_dic.keys():
+            querys = context_dic[context][2]
+            querys_ori = copy.copy(querys)
+            src = context_dic[context][0]
+            src_tar = context_dic[context][1]
+            infer_titles = context_dic[context][3]
             temp = []
-            temp2 = []
-            temp3 = []
-            count = 0
-            for nid, cid in enumerate(inds[bid]):
-                temp.append(infer_titles[bid][cid])
-                temp2 += title2sections[infer_titles[bid][cid]]
-                temp3 += [nid for x in title2sections[infer_titles[bid][cid]]]
-            temp2_id = []
-            for t_sec in temp2:
-                if t_sec in sec2id:
-                    temp2_id.append(sec2id[t_sec])
-            key_cut = jieba.lcut(query)
-            ls_scores = bm25_section.get_batch_scores(key_cut, temp2_id)
-            cindex = np.argsort(ls_scores)[::-1][0:config.infer_section_range]
-            temp2_pured = []
-            for oid, one in enumerate(cindex):
-                temp2_pured.append(temp2[one])
-                mapping_title[bid, temp3[one], oid] = 1
-            while len(temp2_pured) < config.infer_section_range:
-                temp2_pured.append('')
+            for query in querys:
+                if query in mark_key_equal:
+                    temp.append(mark_key_equal[query])
+                else:
+                    url = 'https://api.ownthink.com/kg/ambiguous?mention=%s' % query
+                    headers = {
+                        'User-Agent': 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
+                    }
+                    try_count = 0
+                    while try_count < 3:
+                        try:
+                            r = requests.get(url, headers=headers, timeout=5)
+                            break
+                        except Exception as e:
+                            try_count += 1
+                            print("trying %d time" % try_count)
+                            wait_gap = 3
+                            time.sleep((try_count + np.random.rand()) * wait_gap)
+                    rs = json.loads(r.text)
+                    rs = rs['data']
+                    name_set = set()
+                    name_set.add(query)
+                    for one in rs:
+                        name_set.add(re.sub(r'\[.*\]', '', one[0]))
+                    name_list = list(name_set)
+                    new_query = ' '.join(name_list)
+                    if len(new_query) == 0:
+                        new_query = query
+                    if query != new_query:
+                        print("%s->%s" % (query, new_query))
+                    mark_key_equal[query] = new_query
+                    temp.append(new_query)
+            querys = temp
+            if len(querys) == 0:
+                continue
+            contexts = []
+            for query in querys:
+                contexts.append(context)
+            query_embedding = modelp.query_embeddings(querys, contexts)
+            dis_scores = modelp(query_embedding=query_embedding, candidates=infer_titles, is_infer=True)
+            rs_title = torch.topk(dis_scores, config.infer_title_select, dim=1)
+            scores_title = rs_title[0]
+            inds = rs_title[1].cpu().numpy()
+            infer_title_candidates_pured = []
+            infer_section_candidates_pured = []
+            mapping_title = np.zeros([len(querys), config.infer_title_select, config.infer_section_range])
+            for query, bid in zip(querys, range(len(inds))):
+                temp = []
+                temp2 = []
+                temp3 = []
+                count = 0
+                for nid, cid in enumerate(inds[bid]):
+                    temp.append(infer_titles[bid][cid])
+                    temp2 += title2sections[infer_titles[bid][cid]]
+                    temp3 += [nid for x in title2sections[infer_titles[bid][cid]]]
+                temp2_id = []
+                for t_sec in temp2:
+                    if t_sec in sec2id:
+                        temp2_id.append(sec2id[t_sec])
+                key_cut = jieba.lcut(query)
+                ls_scores = bm25_section.get_batch_scores(key_cut, temp2_id)
+                cindex = np.argsort(ls_scores)[::-1][0:config.infer_section_range]
+                temp2_pured = []
+                for oid, one in enumerate(cindex):
+                    temp2_pured.append(temp2[one])
+                    mapping_title[bid, temp3[one], oid] = 1
+                while len(temp2_pured) < config.infer_section_range:
+                    temp2_pured.append('')
 
-            infer_title_candidates_pured.append(temp)
-            infer_section_candidates_pured.append(temp2_pured)
+                infer_title_candidates_pured.append(temp)
+                infer_section_candidates_pured.append(temp2_pured)
 
-        mapping = torch.FloatTensor(mapping_title).to(config.device)
-        scores_title = scores_title.unsqueeze(1)
-        scores_title = scores_title.matmul(mapping).squeeze(1)
-        rs_scores = models.infer(query_embedding, infer_section_candidates_pured)
-        scores = scores_title * rs_scores
-        rs2 = torch.topk(scores, config.infer_section_select, dim=1)
-        scores = rs2[0]
-        reference = []
-        inds_sec = rs2[1].cpu().numpy()
-        for bid in range(len(inds_sec)):
-            temp = [querys[bid]]
-            for indc in inds_sec[bid]:
-                temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
-            temp = ' [SEP] '.join(temp)
-            reference.append(temp[0:500])
-        record_scores.append(scores.detach().cpu().numpy())
-        record_references.append(reference)
-        inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
-        reference_ids = inputs_ref['input_ids'].to(config.device)
-        adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
-        outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
-        hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
-        results, target_ids = restricted_decoding(querys_ori, [src], [src_tar], hidden_annotation, tokenizer, modeld)
-        results = [x.replace('（）', '') for x in results]
-        print(results[0])
-        results = [x.replace('$', '') for x in results]
-        # masks = torch.ones_like(targets)
-        # masks[torch.where(targets == 0)] = 0
-        eval_ans += results
-        eval_gt += [tar]
-
+            mapping = torch.FloatTensor(mapping_title).to(config.device)
+            scores_title = scores_title.unsqueeze(1)
+            scores_title = scores_title.matmul(mapping).squeeze(1)
+            rs_scores = models.infer(query_embedding, infer_section_candidates_pured)
+            scores = scores_title * rs_scores
+            rs2 = torch.topk(scores, config.infer_section_select, dim=1)
+            scores = rs2[0]
+            reference = []
+            inds_sec = rs2[1].cpu().numpy()
+            for bid in range(len(inds_sec)):
+                temp = [querys[bid]]
+                for indc in inds_sec[bid]:
+                    temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
+                temp = ' [SEP] '.join(temp)
+                reference.append(temp[0:500])
+            record_scores.append(scores.detach().cpu().numpy())
+            record_references.append(reference)
+            inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
+            reference_ids = inputs_ref['input_ids'].to(config.device)
+            adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
+            outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
+            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
+            results, target_ids = restricted_decoding(querys_ori, [src], [src_tar], hidden_annotation, tokenizer, modeld)
+            results = [x.replace('（）', '') for x in results]
+            print(results[0])
+            results = [x.replace('$', '') for x in results]
+            # masks = torch.ones_like(targets)
+            # masks[torch.where(targets == 0)] = 0
+            batch_rs[context] = results[0]
+        eval_gt += tar.split('。')[0:-1]
+        for context in order_context:
+            if context in batch_rs:
+                eval_ans += [batch_rs[context]]
+            else:
+                eval_ans += [context]
+        if len(order_context) != len(tar.split('。')[0:-1]):
+            print(order_context)
+            print(tar)
+            print('Error')
+            exit(-1)
     refs = [[u] for u in eval_gt]
     bleu = count_score(eval_ans, refs)
     print(bleu)
@@ -387,7 +412,7 @@ def pipieline(path_from):
     from pprint import pprint
     pprint(scores)
     result_final= {'srcs': srcs, 'tars': tars, 'prds':eval_gt, 'scores': record_scores, 'reference':record_references}
-    with open('./data/test/my_results.pkl', 'wb') as f:
+    with open('./data/test/my_results_sec.pkl', 'wb') as f:
         pickle.dump(result_final, f)
 
 
