@@ -15,6 +15,14 @@ from models.units import read_clean_data, get_decoder_att_map
 from config import config
 from rank_bm25 import BM25Okapi
 from models.retrieval import TitleEncoder, PageRanker, SectionRanker
+
+with open('./data/test/dataset-aligned.pkl', 'rb') as f:
+    data_test = pickle.load(f)
+srcs_ = []
+tars_ = []
+for point in data_test:
+    srcs_.append(point[0])
+    tars_.append(point[1])
 titles, sections, title2sections, sec2id = read_clean_data(config.data_file_anno)
 corpus = sections
 tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
@@ -184,10 +192,6 @@ def pipieline(path_from):
     record_scores = []
     record_references = []
     tokenizer = config.tokenizer
-    with open('./data/test/src_txts.pkl', 'rb') as f:
-        srcs_ = pickle.load(f)
-    with open('./data/test/tar_txts.pkl', 'rb') as f:
-        tars_ = pickle.load(f)
 
     srcs = []
     tars = []

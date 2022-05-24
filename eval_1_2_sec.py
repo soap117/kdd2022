@@ -18,6 +18,13 @@ from config import config
 from rank_bm25 import BM25Okapi
 from section_inference import preprocess_sec
 from models.retrieval import TitleEncoder, PageRanker, SectionRanker
+with open('./data/test/dataset-aligned-para.pkl', 'rb') as f:
+    data_test = pickle.load(f)
+srcs_ = []
+tars_ = []
+for point in data_test:
+    srcs_.append(point[0])
+    tars_.append(point[1])
 titles, sections, title2sections, sec2id = read_clean_data(config.data_file_anno)
 corpus = sections
 tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
@@ -239,10 +246,6 @@ def pipieline(path_from):
     record_scores = []
     record_references = []
     tokenizer = config.tokenizer
-    with open('./data/test/src_txts_s.pkl', 'rb') as f:
-        srcs_ = pickle.load(f)
-    with open('./data/test/tar_txts_s.pkl', 'rb') as f:
-        tars_ = pickle.load(f)
 
     srcs = []
     tars = []
@@ -263,11 +266,8 @@ def pipieline(path_from):
             tar += '。'
         if tar[-1] == '。' and src[-1] != '。':
             src += '。'
-        src_sts = src.split('。')
-        tar_sts = tar.split('。')
-        if len(src_sts) == len(tar_sts):
-            srcs.append(src)
-            tars.append(tar)
+        srcs.append(src)
+        tars.append(tar)
 
     for src, tar in zip(srcs, tars):
         src_ = step1_tokenizer([src], return_tensors="pt", padding=True, truncation=True)
@@ -393,17 +393,17 @@ def pipieline(path_from):
             # masks = torch.ones_like(targets)
             # masks[torch.where(targets == 0)] = 0
             batch_rs[context] = results[0]
+        section_rs = []
         for context in order_context:
             if context in batch_rs:
-                eval_ans += [batch_rs[context]]
+                section_rs += [batch_rs[context]]
             else:
-                eval_ans += [context]
-        eval_gt += tar.split('。')[0:-1]
-        if len(order_context) != len(tar.split('。')[0:-1]):
-            print(order_context)
-            print(tar)
-            print('Error')
-            exit(-1)
+                section_rs += [context]
+        section_rs = '。'.join(section_rs)
+        section_rs += '。'
+        eval_gt += [tar]
+        eval_ans += [section_rs]
+
     result_final = {'srcs': srcs, 'tars': tars, 'prds': eval_ans, 'tars': eval_gt, 'scores': record_scores,
                     'reference': record_references}
     with open('./data/test/my_results_sec.pkl', 'wb') as f:
