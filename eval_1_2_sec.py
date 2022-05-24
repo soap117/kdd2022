@@ -5,6 +5,7 @@ import torch
 from models.units_sen import restricted_decoding
 from step1.modeling_cbert import BertForTokenClassification
 from transformers import BertTokenizer
+from section_inference import preprocess_sec
 from  step1.utils.dataset import obtain_indicator
 import numpy as np
 batch_size = 4
@@ -14,6 +15,7 @@ import time
 from models.units import read_clean_data, get_decoder_att_map
 from config import config
 from rank_bm25 import BM25Okapi
+from section_inference import preprocess_sec
 from models.retrieval import TitleEncoder, PageRanker, SectionRanker
 titles, sections, title2sections, sec2id = read_clean_data(config.data_file_anno)
 corpus = sections
@@ -78,16 +80,16 @@ def count_score(candidate, reference):
     return avg_score
 
 def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
-    input_list = [[],[],[], []]
+    input_list = [[],[],[], [],[]]
     l = 0
-    r = -1
-    while src_ids[r] != 102:
+    r = 0
+    while src_ids[r] != step1_tokenizer.vocab['。']:
         r += 1
     for c_id in range(len(src_ids)):
-        if src_ids[c_id] == 102:
+        if src_ids[c_id] == step1_tokenizer.vocab['。']:
             l = r + 1
             r = l+1
-            while r<len(src_ids) and src_ids[r] != 102:
+            while r<len(src_ids) and src_ids[r] != step1_tokenizer.vocab['。']:
                 r += 1
         if pre_labels[c_id] == 1:
             l_k = c_id
@@ -99,7 +101,7 @@ def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
             templete = src_ids[l_k:r_k]
             tokens = step1_tokenizer.convert_ids_to_tokens(templete)
             key = step1_tokenizer.convert_tokens_to_string(tokens).replace(' ', '')
-            context = src
+            context = step1_tokenizer.decode(src_ids[l:r]).replace(' ', '').replace('[CLS]', '').replace('[SEP]', '')
             key_cut = jieba.lcut(key)
             infer_titles = bm25_title.get_top_n(key_cut, titles, config.infer_title_range)
             if len(key) > 0:
@@ -107,7 +109,51 @@ def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
                 input_list[1].append(context)
                 input_list[2].append(infer_titles)
                 input_list[3].append((l_k, r_k))
+                input_list[4].append((True, context))
+
+            else:
+                input_list[4].append((False, context))
     return input_list
+
+def mark_sentence(keys, contexts):
+    context_dic = {}
+    for key, context in zip(keys, contexts):
+        if context not in context_dic:
+            src = context
+            src = re.sub('\*\*', '', src)
+            src = src.replace('(', '（')
+            src = src.replace('$', '')
+            src = src.replace(')', '）')
+            src = src.replace('\n', '').replace('。。', '。')
+            src = fix_stop(src)
+            context_dic[context] = (src, src)
+            src_sentence = context_dic[context][0]
+            tar_sentence = context_dic[context][1]
+
+            region = re.search(key, src)
+            if region is not None:
+                region = region.regs[0]
+            else:
+                region = (0, 0)
+            if region[0] != 0 or region[1] != 0:
+                src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key) + ''.join(
+                    [' [MASK] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
+            region = re.search(key, tar_sentence)
+            if region is not None:
+                region = region.regs[0]
+            else:
+                region = (0, 0)
+            if region[0] != 0 or region[1] != 0:
+                if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（' and region[1] + 1 < len(
+                        tar_sentence) and tar_sentence[region[1] + 1] != '（' and region[1] + 2 < len(tar_sentence) and \
+                        tar_sentence[region[1] + 2] != '（':
+                    tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key) + tar_sentence[region[1]:]
+                else:
+                    tar_sentence = tar_sentence[0:region[0]] + ' ${}$ '.format(key) + tar_sentence[region[1]:]
+
+        else:
+
+
 import re
 def is_in_annotation(src, pos):
     s = 0
@@ -140,6 +186,7 @@ def fix_stop(tar):
     return tar
 import copy
 def pre_process_sentence(src, tar, keys):
+    src = '。'.join(src)
     src = re.sub('\*\*', '', src)
     src = src.replace('(', '（')
     src = src.replace('$', '')
@@ -152,10 +199,10 @@ def pre_process_sentence(src, tar, keys):
     tar = tar.replace(')', '）')
     tar = tar.replace('$', '')
     tar = fix_stop(tar)
-    src_sentence = copy.copy(src)
-    tar_sentence = copy.copy(src)
+    src_sentence = src.split('。')
+    tar_sentence = tar.split('。')
     for key in keys:
-        region = re.search(key, src_sentence)
+        region = re.search(key, src)
         if region is not None:
             region = region.regs[0]
         else:
@@ -184,10 +231,7 @@ def pipieline(path_from):
     record_scores = []
     record_references = []
     tokenizer = config.tokenizer
-    with open('./data/test/src_txts.pkl', 'rb') as f:
-        srcs_ = pickle.load(f)
-    with open('./data/test/tar_txts.pkl', 'rb') as f:
-        tars_ = pickle.load(f)
+    srcs_, tars_ = preprocess_sec('./data/test')
 
     srcs = []
     tars = []
@@ -208,11 +252,8 @@ def pipieline(path_from):
             tar += '。'
         if tar[-1] == '。' and src[-1] != '。':
             src += '。'
-        src_sts = src.split('。')
-        tar_sts = tar.split('。')
-        if len(src_sts) == len(tar_sts):
-            srcs += src_sts
-            tars += tar_sts
+        srcs.append(src)
+        tars.append(tar)
 
     for src, tar in zip(srcs, tars):
         src_ = step1_tokenizer([src], return_tensors="pt", padding=True, truncation=True)
@@ -277,7 +318,7 @@ def pipieline(path_from):
         infer_title_candidates_pured = []
         infer_section_candidates_pured = []
         mapping_title = np.zeros([len(querys), config.infer_title_select, config.infer_section_range])
-        src, src_tar, tar = pre_process_sentence(src, tar, querys_ori)
+        src, src_tar, tar = pre_process_sentence(contexts, tar, querys_ori)
         for query, bid in zip(querys, range(len(inds))):
             temp = []
             temp2 = []
