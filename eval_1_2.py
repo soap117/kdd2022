@@ -288,7 +288,7 @@ def pipieline(path_from):
         hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
         results, target_ids = restricted_decoding(querys_ori, [src], [src_tar], hidden_annotation, tokenizer, modeld)
         results = [x.replace('$', '') for x in results]
-        results = [x.replace('()', '') for x in results]
+        results = [x.replace('（）', '') for x in results]
         print(results[0])
         # masks = torch.ones_like(targets)
         # masks[torch.where(targets == 0)] = 0
@@ -296,7 +296,7 @@ def pipieline(path_from):
         eval_gt += [tar]
 
     refs = [[u] for u in eval_gt]
-    bleu = count_score(eval_ans, refs, config)
+    bleu = count_score(eval_ans, refs)
     print(bleu)
     outs = [' '.join(u) for u in eval_ans]
     refs = [' '.join(u) for u in eval_gt]
