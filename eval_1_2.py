@@ -182,17 +182,14 @@ def pipieline(path_from):
     eval_ans = []
     eval_gt = []
     tokenizer = config.tokenizer
-    dataset = json.load(open('./data/dataset_new_3.json', 'r', encoding='utf-8'))
-    total = len(dataset)
-    train_data = dataset[:int(total / 10 * 8)]
-    test_data = dataset[int(total / 10 * 8):int(total / 10 * 9)]
-    valid_data = dataset[int(total / 10 * 9):]
+    with open('./data/test/src_txts.pkl', 'rb') as f:
+        srcs_ = pickle.load(f)
+    with open('./data/test/tar_txts.pkl', 'rb') as f:
+        tars_ = pickle.load(f)
 
     srcs = []
     tars = []
-    for dp in test_data:
-        src = dp['src']
-        tar = dp['tar']
+    for src, tar in zip(srcs_, tars_):
         src = re.sub('\*\*', '', src)
         src = src.replace('(', '（')
         src = src.replace('$', '')
@@ -217,6 +214,11 @@ def pipieline(path_from):
 
     for src, tar in zip(srcs, tars):
         src_ = step1_tokenizer([src], return_tensors="pt", padding=True, truncation=True)
+        tar_ = step1_tokenizer([tar], return_tensors="pt", padding=True, truncation=True)
+        if len(src_['input_ids']) < max_len and len(tar) < max_len and len(src) > 2 and len(tar) > 2:
+            src_ids_smaller.append(src)
+            tar_ids_smaller.append(tar)
+            tar_txts.append(txt)
         x_ids = src_['input_ids']
         x_mask = src_['attention_mask']
         x_indicator = torch.zeros_like(x_ids)
@@ -326,9 +328,9 @@ def pipieline(path_from):
         outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
         hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
         results, target_ids = restricted_decoding(querys_ori, [src], [src_tar], hidden_annotation, tokenizer, modeld)
-        results = [x.replace('$', '') for x in results]
         results = [x.replace('（）', '') for x in results]
         print(results[0])
+        results = [x.replace('$', '') for x in results]
         # masks = torch.ones_like(targets)
         # masks[torch.where(targets == 0)] = 0
         eval_ans += results
