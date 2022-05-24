@@ -9,6 +9,8 @@ from  step1.utils.dataset import obtain_indicator
 import numpy as np
 batch_size = 4
 import jieba
+import requests
+import time
 from models.units import read_clean_data, get_decoder_att_map
 from config import config
 from rank_bm25 import BM25Okapi
@@ -49,6 +51,9 @@ modeld = config.modeld_sen.from_pretrained(config.bert_model)
 modeld.load_state_dict(save_data['modeld'])
 modeld.cuda()
 modeld.eval()
+
+with open('./data/mydata_new_clean_v3_mark.pkl', 'rb') as f:
+    mark_key_equal = pickle.load(f)
 from nltk.translate.bleu_score import sentence_bleu
 import nltk
 bert_model_eval = 'hfl/chinese-bert-wwm-ext'
@@ -225,6 +230,41 @@ def pipieline(path_from):
         pre_label_f = np.argmax(logits.detach().cpu().numpy(), axis=2)
         step2_input = obtain_step2_input(pre_label_f[0], src, x_ids[0], step1_tokenizer)
         querys = step2_input[0]
+        querys_ori = copy.copy(querys)
+        temp = []
+        for query in querys:
+            if query in mark_key_equal:
+                temp.append(mark_key_equal[query])
+            else:
+                url = 'https://api.ownthink.com/kg/ambiguous?mention=%s' % query
+                headers = {
+                    'User-Agent': 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
+                }
+                try_count = 0
+                while try_count < 3:
+                    try:
+                        r = requests.get(url, headers=headers, timeout=5)
+                        break
+                    except Exception as e:
+                        try_count += 1
+                        print("trying %d time" % try_count)
+                        wait_gap = 3
+                        time.sleep((try_count + np.random.rand()) * wait_gap)
+                rs = json.loads(r.text)
+                rs = rs['data']
+                name_set = set()
+                name_set.add(query)
+                for one in rs:
+                    name_set.add(re.sub(r'\[.*\]', '', one[0]))
+                name_list = list(name_set)
+                new_query = ' '.join(name_list)
+                if len(new_query) == 0:
+                    new_query = query
+                if query != new_query:
+                    print("%s->%s" % (query, new_query))
+                mark_key_equal[query] = new_query
+                temp.append(new_query)
+        querys = temp
         contexts = step2_input[1]
         infer_titles = step2_input[2]
         key_pos = step2_input[3]
@@ -238,7 +278,6 @@ def pipieline(path_from):
         infer_title_candidates_pured = []
         infer_section_candidates_pured = []
         mapping_title = np.zeros([len(querys), config.infer_title_select, config.infer_section_range])
-        querys_ori = querys
         src, src_tar, tar = pre_process_sentence(src, tar, querys_ori)
         for query, bid in zip(querys, range(len(inds))):
             temp = []
