@@ -263,8 +263,11 @@ def pipieline(path_from):
             tar += '。'
         if tar[-1] == '。' and src[-1] != '。':
             src += '。'
-        srcs.append(src)
-        tars.append(tar)
+        src_sts = src.split('。')
+        tar_sts = tar.split('。')
+        if len(src_sts) == len(tar_sts):
+            srcs.append(src)
+            tars.append(tar)
 
     for src, tar in zip(srcs, tars):
         src_ = step1_tokenizer([src], return_tensors="pt", padding=True, truncation=True)
@@ -390,7 +393,6 @@ def pipieline(path_from):
             # masks = torch.ones_like(targets)
             # masks[torch.where(targets == 0)] = 0
             batch_rs[context] = results[0]
-        eval_gt += tar.split('。')[0:-1]
         for context in order_context:
             if context in batch_rs:
                 eval_ans += [batch_rs[context]]
