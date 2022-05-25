@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from config import Config
-config = Config(16)
+config = Config(2)
 from models.units_sen import MyData, get_decoder_att_map, mask_ref
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -93,6 +93,10 @@ def build(config):
     modelp.cuda()
     models.cuda()
     modele.cuda()
+    modelp.train()
+    models.train()
+    modele.train()
+    modeld.train()
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr*0.1)
     optimizer_s = AdamW(models.parameters(), lr=config.lr*0.1)
     optimizer_encoder = AdamW(modele.parameters(), lr=config.lr * 0.1)
