@@ -1,3 +1,4 @@
+import cuda2
 import os
 import pickle
 
@@ -7,7 +8,6 @@ from step1.modeling_cbert import BertForTokenClassification
 from transformers import BertTokenizer
 from  step1.utils.dataset import obtain_indicator
 import numpy as np
-import cuda2
 batch_size = 4
 import jieba
 import requests
