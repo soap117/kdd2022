@@ -307,9 +307,13 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
                 reference.append(temp[0:config.maxium_sec])
             inputs = tokenizer(reference, return_tensors="pt", padding=True)
             ids = inputs['input_ids']
+            decoder_input = ' '.join(['[MASK]' for x in range(100)])
+            decoder_inputs = [decoder_input for x in ids]
+            decoder_inputs = tokenizer(decoder_inputs, return_tensors="pt", padding=True)
+            decoder_inputs_ids = decoder_inputs['input_ids']
             targets_ = tokenizer(annotations, return_tensors="pt", padding=True)['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
-            outputs = model(ids.cuda(), attention_adjust=adj_matrix)
+            outputs = model(ids.cuda(), attention_adjust=adj_matrix, decoder_inputs_ids=decoder_inputs_ids)
             logits_ = outputs.logits
             len_anno = min(targets_.shape[1], logits_.shape[1])
             logits = logits_[:, 0:len_anno]
