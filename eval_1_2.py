@@ -343,7 +343,7 @@ def pipieline(path_from):
         eval_ans += [section_rs]
     result_final = {'srcs': srcs, 'prds': eval_ans, 'tars': eval_gt, 'scores': record_scores,
                     'reference': record_references}
-    with open('./data/test/my_results_sec.pkl', 'wb') as f:
+    with open('./data/test/my_results.pkl', 'wb') as f:
         pickle.dump(result_final, f)
     refs = [[u] for u in eval_gt]
     bleu = count_score(eval_ans, refs)
