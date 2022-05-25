@@ -61,8 +61,9 @@ def count_bleu_score(candidate, reference):
             print(candidate[k])
             print(reference[k])
     return avg_score
-results = pickle.load(open('../data/test/my_results_sec.pkl', 'rb'))
-hit_score = get_hit_score(results['srcs'], results['tars'], results['prds'])
+results = pickle.load(open('../data/test/my_results.pkl', 'rb'))
+results_sec = pickle.load(open('../data/test/my_results_sec.pkl', 'rb'))
+hit_score = get_hit_score(results_sec['srcs'], results_sec['tars'], results['prds'])
 print(hit_score)
 outs = [' '.join(tokenizer.tokenize(u)) for u in results['prds']]
 ints = [' '.join(tokenizer.tokenize(u)) for u in results['srcs']]

@@ -196,7 +196,7 @@ def pipieline(path_from):
 
     srcs = []
     tars = []
-    for src, tar in zip(srcs_, tars_):
+    for src, tar_ori in zip(srcs_, tars_):
         src = re.sub('\*\*', '', src)
         src = src.replace('(', '（')
         src = src.replace('$', '')
@@ -209,6 +209,8 @@ def pipieline(path_from):
         tar = tar.replace(')', '）')
         tar = tar.replace('$', '')
         tar = fix_stop(tar)
+        srcs.append(copy.copy(src))
+        tars.append(copy.copy(tar))
         if src[-1] == '。' and tar[-1] != '。':
             tar += '。'
         if tar[-1] == '。' and src[-1] != '。':
@@ -337,11 +339,11 @@ def pipieline(path_from):
             # masks = torch.ones_like(targets)
             # masks[torch.where(targets == 0)] = 0
             batch_ans += results
-        eval_gt += [tar]
+        eval_gt += [tar_ori]
         section_rs = '。'.join(batch_ans)
         section_rs += '。'
         eval_ans += [section_rs]
-    result_final = {'srcs': srcs, 'prds': eval_ans, 'tars': eval_gt, 'scores': record_scores,
+    result_final = {'srcs': srcs, 'prds': eval_ans, 'tars': tars, 'scores': record_scores,
                     'reference': record_references}
     with open('./data/test/my_results.pkl', 'wb') as f:
         pickle.dump(result_final, f)
