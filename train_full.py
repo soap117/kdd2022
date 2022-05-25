@@ -168,6 +168,12 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
             reference_ids = inputs_ref['input_ids']
             reference_ids = mask_ref(reference_ids, tokenizer).to(config.device)
+
+            an_decoder_input = ' '.join(['[MASK]' for x in range(100)])
+            an_decoder_inputs = [an_decoder_input for x in reference_ids]
+            an_decoder_inputs = tokenizer(an_decoder_inputs, return_tensors="pt", padding=True)
+            an_decoder_inputs_ids = an_decoder_inputs['input_ids']
+
             decoder_inputs = tokenizer(src_sens, return_tensors="pt", padding=True, truncation=True)
             decoder_ids = decoder_inputs['input_ids']
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
@@ -176,9 +182,9 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             target_ids_for_train = mask_ref(target_ids, tokenizer).to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
             if modele_p is not None:
-                outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
+                outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
             else:
-                outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
+                outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
             if modeld_p is not None:
                 outputs = modeld_p(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train[:, 0:-1], cut_indicator=cut_list,

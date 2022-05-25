@@ -61,13 +61,13 @@ def count_bleu_score(candidate, reference):
             print(candidate[k])
             print(reference[k])
     return avg_score
-results = pickle.load(open('../data/test/my_results.pkl', 'rb'))
+results = pickle.load(open('../data/test/my_results_bart.pkl', 'rb'))
 results_sec = pickle.load(open('../data/test/my_results_sec.pkl', 'rb'))
-hit_score = get_hit_score(results_sec['srcs'], results_sec['tars'], results['prds'])
+hit_score = get_hit_score(results['srcs'], results['tars'], results['prds'])
 print(hit_score)
 outs = [' '.join(tokenizer.tokenize(u)) for u in results['prds']]
-ints = [' '.join(tokenizer.tokenize(u)) for u in results_sec['srcs']]
-refs = [[' '.join(tokenizer.tokenize(u))] for u in results_sec['tars']]
+ints = [' '.join(tokenizer.tokenize(u)) for u in results['srcs']]
+refs = [[' '.join(tokenizer.tokenize(u))] for u in results['tars']]
 sari = load_metric("sari")
 bleu = load_metric("bleu")
 meteor = load_metric('meteor')
@@ -82,6 +82,6 @@ rouge_score = rouge.compute(predictions=predictions,
                         references=references)
 print(rouge_score)
 outs = [tokenizer.tokenize(u) for u in results['prds']]
-refs = [[tokenizer.tokenize(u)] for u in results_sec['tars']]
+refs = [[tokenizer.tokenize(u)] for u in results['tars']]
 bleu_score = bleu.compute(predictions=outs, references=refs)
 print(bleu_score)
