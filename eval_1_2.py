@@ -196,7 +196,7 @@ def pipieline(path_from):
 
     srcs = []
     tars = []
-    for src, tar_ori in zip(srcs_, tars_):
+    for src, tar in zip(srcs_, tars_):
         src = re.sub('\*\*', '', src)
         src = src.replace('(', '（')
         src = src.replace('$', '')
@@ -339,7 +339,6 @@ def pipieline(path_from):
             # masks = torch.ones_like(targets)
             # masks[torch.where(targets == 0)] = 0
             batch_ans += results
-        eval_gt += [tar_ori]
         section_rs = '。'.join(batch_ans)
         section_rs += '。'
         eval_ans += [section_rs]

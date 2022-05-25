@@ -66,8 +66,8 @@ results_sec = pickle.load(open('../data/test/my_results_sec.pkl', 'rb'))
 hit_score = get_hit_score(results_sec['srcs'], results_sec['tars'], results['prds'])
 print(hit_score)
 outs = [' '.join(tokenizer.tokenize(u)) for u in results['prds']]
-ints = [' '.join(tokenizer.tokenize(u)) for u in results['srcs']]
-refs = [[' '.join(tokenizer.tokenize(u))] for u in results['tars']]
+ints = [' '.join(tokenizer.tokenize(u)) for u in results_sec['srcs']]
+refs = [[' '.join(tokenizer.tokenize(u))] for u in results_sec['tars']]
 sari = load_metric("sari")
 bleu = load_metric("bleu")
 meteor = load_metric('meteor')
@@ -82,6 +82,6 @@ rouge_score = rouge.compute(predictions=predictions,
                         references=references)
 print(rouge_score)
 outs = [tokenizer.tokenize(u) for u in results['prds']]
-refs = [[tokenizer.tokenize(u)] for u in results['tars']]
+refs = [[tokenizer.tokenize(u)] for u in results_sec['tars']]
 bleu_score = bleu.compute(predictions=outs, references=refs)
 print(bleu_score)
