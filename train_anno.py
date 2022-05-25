@@ -154,7 +154,7 @@ def train_eval(modelp, models, model, optimizer_p, optimizer_s, optimizer_decode
             decoder_inputs = [decoder_input for x in ids]
             decoder_inputs = tokenizer(decoder_inputs, return_tensors="pt", padding=True)
             decoder_inputs_ids = decoder_inputs['input_ids']
-            outputs = model(ids.cuda(), attention_adjust=adj_matrix, decoder_input_ids=decoder_inputs_ids)
+            outputs = model(ids.cuda(), attention_adjust=adj_matrix, decoder_input_ids=decoder_inputs_ids.cuda())
             logits_ = outputs.logits
             len_anno = min(targets_.shape[1], logits_.shape[1])
             logits = logits_[:, 0:len_anno]
@@ -313,7 +313,7 @@ def test(modelp, models, model, optimizer_p, optimizer_s, optimizer_decoder, dat
             decoder_inputs_ids = decoder_inputs['input_ids']
             targets_ = tokenizer(annotations, return_tensors="pt", padding=True)['input_ids']
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', ids, scores)
-            outputs = model(ids.cuda(), attention_adjust=adj_matrix, decoder_inputs_ids=decoder_inputs_ids)
+            outputs = model(input_ids=ids.cuda(), attention_adjust=adj_matrix, decoder_input_ids=decoder_inputs_ids.cuda())
             logits_ = outputs.logits
             len_anno = min(targets_.shape[1], logits_.shape[1])
             logits = logits_[:, 0:len_anno]
