@@ -414,23 +414,8 @@ def pipieline(path_from):
 
     result_final = {'srcs': srcs, 'prds': eval_ans, 'tars': eval_gt, 'scores': record_scores,
                     'reference': record_references}
-    with open('./data/test/my_results_sec.pkl', 'wb') as f:
+    with open('./data/test/my_results_sec_free.pkl', 'wb') as f:
         pickle.dump(result_final, f)
-    for k in reversed(range(len(eval_gt))):
-        if len(eval_gt[k]) == 0:
-            del eval_gt[k]
-            del eval_ans[k]
-    refs = [[u] for u in eval_gt]
-    bleu = count_score(eval_ans, refs)
-    print(bleu)
-    outs = [' '.join(u) for u in eval_ans]
-    refs = [' '.join(u) for u in eval_gt]
-    from rouge import Rouge
-    rouge = Rouge()
-    scores = rouge.get_scores(outs, refs, avg=True)
-    from pprint import pprint
-    pprint(scores)
-
 
 
 
