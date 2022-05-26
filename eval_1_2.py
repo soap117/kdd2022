@@ -330,7 +330,14 @@ def pipieline(path_from):
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
             reference_ids = inputs_ref['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
-            outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
+
+            an_decoder_input = ' '.join(['[MASK]' for x in range(100)])
+            an_decoder_inputs = [an_decoder_input for x in reference_ids]
+            an_decoder_inputs = tokenizer(an_decoder_inputs, return_tensors="pt", padding=True)
+            an_decoder_inputs_ids = an_decoder_inputs['input_ids'].to(config.device)
+
+            outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix,
+                                        decoder_input_ids=an_decoder_inputs_ids)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
             results, target_ids = restricted_decoding(querys_ori, [src], [src_tar], hidden_annotation, tokenizer, modeld)
             results = [x.replace('（）', '') for x in results]
