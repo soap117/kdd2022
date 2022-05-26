@@ -139,7 +139,7 @@ def train(model, optimizer, scheduler, train_dataloader, val_dataloader, test_da
 
 
 def main():
-    model, optimizer,scheduler, train_dataloader, val_dataloader, test_dataloader, loss_fun, config = build(768, 8, True)
+    model, optimizer,scheduler, train_dataloader, val_dataloader, test_dataloader, loss_fun, config = build(768, 16, True)
     train(model, optimizer, scheduler, train_dataloader, val_dataloader, test_dataloader, loss_fun, config)
     print('finish')
 
