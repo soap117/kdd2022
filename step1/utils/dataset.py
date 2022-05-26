@@ -6,7 +6,7 @@ import nltk
 import pickle
 import numpy as np
 import torch
-
+from keras.preprocessing.sequence import pad_sequences
 def try_match(checker, templete, token_ids):
     h = checker
     for ext in range(len(templete)):
@@ -35,18 +35,16 @@ def obtain_indicator(token_ids_src, mask_tar):
 
 
 
-def build_dataset(config, src_ids_path, src_masks_path, tar_masks_path):
+def build_dataset(src_ids_path, tar_masks_path):
     token_ids_srcs = pickle.load(open(src_ids_path, 'rb'))
     if isinstance(token_ids_srcs, dict):
         token_ids_srcs = token_ids_srcs['pad']
-    mask_srcs = pickle.load(open(src_masks_path, 'rb'))
-    mask_srcs = np.array(mask_srcs)
     mask_tars = pickle.load(open(tar_masks_path,'rb'))
     mask_tars = np.array(mask_tars)
     dataset = []
-    for token_ids_src, mask_src, mask_tar in zip(token_ids_srcs, mask_srcs, mask_tars):
+    for token_ids_src, mask_tar in zip(token_ids_srcs, mask_tars):
         indicator = obtain_indicator(token_ids_src, mask_tar)
-        dataset.append((token_ids_src, mask_src, mask_tar, indicator))
+        dataset.append((token_ids_src, mask_tar, indicator))
     return dataset
 
 
@@ -62,12 +60,18 @@ class DatasetIterater(object):
         self.device = device
 
     def _to_tensor(self, datas):
-        x_src = torch.LongTensor([_[0] for _ in datas]).to(self.device)
-        mask_src = torch.LongTensor([_[1] for _ in datas]).to(self.device)
-        mask_tar = torch.LongTensor([_[2] for _ in datas]).to(self.device)
-        indicator = torch.LongTensor([_[3] for _ in datas]).to(self.device)
+        src_ids = [_[0] for _ in datas]
+        max_len = np.max([len(u) for u in src_ids])
+        tar_ids = [_[1] for _ in datas]
+        indicator = [_[2] for _ in datas]
+        src_ids = torch.LongTensor(pad_sequences(src_ids, maxlen=max_len, dtype="long", value=0, truncating="post", padding="post"))
+        tar_ids = torch.LongTensor(pad_sequences(tar_ids, maxlen=max_len, dtype="long", value=0, truncating="post", padding="post"))
+        indicator = torch.LongTensor(
+            pad_sequences(indicator, maxlen=max_len, dtype="long", value=0, truncating="post", padding="post"))
+        src_masks = torch.ones_like(src_ids)
+        src_masks[src_ids == 0] = 0
 
-        return (x_src, mask_src, indicator), mask_tar
+        return (src_ids.to(self.device), src_masks.to(self.device), indicator.to(self.device)), tar_ids.to(self.device)
 
     def __next__(self):
         if self.residue and self.index == self.n_batches:

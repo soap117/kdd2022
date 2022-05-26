@@ -35,7 +35,7 @@ def get_hit_score(srcs, tars, pres):
         for annotation_pre in annotations_pre:
             for annotation in annotations:
                 bleu = get_sentence_bleu(tokenizer.tokenize(annotation_pre), [tokenizer.tokenize(annotation)])
-                if bleu > 0.75:
+                if bleu > 0.5:
                     common_ones += 1
                     break
         total = len(annotations_pre)+len(annotations)-common_ones
@@ -61,8 +61,13 @@ def count_bleu_score(candidate, reference):
             print(candidate[k])
             print(reference[k])
     return avg_score
-results = pickle.load(open('../data/test/my_results_pmbert.pkl', 'rb'))
+results = pickle.load(open('../data/test/my_results_sec_free.pkl', 'rb'))
 results_sec = pickle.load(open('../data/test/my_results_sec.pkl', 'rb'))
+for i in range(len(results['srcs'])-1, -1, -1):
+    if len(results['srcs'][i]) <= 2 or len(results['tars'][i]) <= 2:
+        del results['srcs'][i]
+        del results['prds'][i]
+        del results['tars'][i]
 hit_score = get_hit_score(results['srcs'], results['tars'], results['prds'])
 print(hit_score)
 outs = [' '.join(tokenizer.tokenize(u)) for u in results['prds']]

@@ -19,11 +19,11 @@ def build(hidden_size, batch_size, cuda):
     x = import_module('config')
     bert_model = 'hfl/chinese-bert-wwm-ext'
     config = x.Config(batch_size, bert_model)
-    train_data = build_dataset(config, './data/train/src_ids.pkl', './data/train/src_masks.pkl',
+    train_data = build_dataset('./data/train/src_ids.pkl',
                                './data/train/tar_masks.pkl')
-    test_data = build_dataset(config, './data/test/src_ids.pkl', './data/test/src_masks.pkl',
+    test_data = build_dataset('./data/test/src_ids.pkl',
                               './data/test/tar_masks.pkl')
-    val_data = build_dataset(config, './data/valid/src_ids.pkl', './data/valid/src_masks.pkl',
+    val_data = build_dataset('./data/valid/src_ids.pkl',
                              './data/valid/tar_masks.pkl')
     train_dataloader = build_iterator(train_data, config)
     val_dataloader = build_iterator(val_data, config)
@@ -32,15 +32,6 @@ def build(hidden_size, batch_size, cuda):
     keywords_all = pickle.load(open('./data/keywords.pkl', 'rb'))
     L = len(config.tokenizer)
     new_words = []
-    for keyword in keywords_all.keys():
-        if keyword == '':
-            print('empty!')
-            continue
-        config.tokenizer.add_tokens([keyword])
-        if len(config.tokenizer) > L:
-            L = len(config.tokenizer)
-            new_words.append(keyword)
-    keywords_all.pop('')
     model = BertForTokenClassification.from_pretrained(bert_model, num_labels=5)
     model.resize_token_embeddings(len(config.tokenizer))
     # for i, keyword in tqdm(enumerate(new_words)):
@@ -60,7 +51,7 @@ def build(hidden_size, batch_size, cuda):
 
 def valid(model, dataloader, config):
     # validation steps
-    tag_values = [0, 1, 2, 3 , 4]
+    tag_values = [0, 1, 2, 3]
     model.eval()
     eval_loss, eval_accuracy = 0, 0
     predictions, true_labels = [], []
@@ -89,10 +80,10 @@ def valid(model, dataloader, config):
                 print('eval loss:%f' % loss.item())
     eval_loss /= len(dataloader)
     pred_tags = [tag_values[p_i] for p, l in zip(predictions, true_labels)
-                 for p_i, l_i in zip(p, l) if tag_values[l_i] != 2]
+                 for p_i, l_i in zip(p, l) if tag_values[l_i] != 0]
 
     valid_tags = [tag_values[l_i] for l in true_labels
-                  for l_i in l if tag_values[l_i] != 2]
+                  for l_i in l if tag_values[l_i] != 0]
     acc = accuracy_score(pred_tags, valid_tags)
     f1 = f1_score(pred_tags, valid_tags, average='micro')
     return acc, f1, eval_loss
