@@ -1,4 +1,4 @@
-import cuda2
+import cuda
 import os
 import pickle
 
