@@ -310,7 +310,7 @@ def restricted_decoding(querys_ori, srcs, tars, hidden_annotations, tokenizer, m
                 if not free_flag:
                     free_flag = True
                     c_count = 1
-                    while target_id[pointer] != tokenizer.vocab['）']:
+                    while target_id[pointer] != tokenizer.vocab['）'] and not is_free:
                         pointer += 1
                     pointer += 1
                     cons_pointer = pointer
@@ -321,14 +321,14 @@ def restricted_decoding(querys_ori, srcs, tars, hidden_annotations, tokenizer, m
                 next_token = target_id[pointer]
                 pointer += 1
             final_ans = torch.cat([final_ans, torch.LongTensor([next_token]).to(final_ans.device)], dim=0)
-            if free_flag and (next_token == tokenizer.vocab['）'] or c_count > 30):
+            if free_flag and (next_token == tokenizer.vocab['）'] or c_count > 30) and not is_free:
                 next_token = target_id[pointer]
                 pointer += 1
                 final_ans = torch.cat([final_ans, torch.LongTensor([next_token]).to(final_ans.device)], dim=0)
                 if c_count > 30:
                     final_ans = torch.cat([final_ans, torch.LongTensor([tokenizer.vocab['）']]).to(final_ans.device)], dim=0)
                 free_flag = False
-            if free_flag and next_token == target_id[cons_pointer]:
+            if free_flag and next_token == target_id[cons_pointer] and not is_free:
                 cons_count += 1
                 cons_pointer += 1
                 if cons_count == 3:
