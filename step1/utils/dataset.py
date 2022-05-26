@@ -61,7 +61,7 @@ class DatasetIterater(object):
 
     def _to_tensor(self, datas):
         src_ids = [_[0] for _ in datas]
-        max_len = np.max([len(u) for u in src_ids])
+        max_len = min(np.max([len(u) for u in src_ids]), 512)
         tar_ids = [_[1] for _ in datas]
         indicator = [_[2] for _ in datas]
         src_ids = torch.LongTensor(pad_sequences(src_ids, maxlen=max_len, dtype="long", value=0, truncating="post", padding="post"))
