@@ -1,5 +1,5 @@
 import cuda2
-import os
+from eval_units import *
 import pickle
 
 import torch
@@ -13,10 +13,8 @@ batch_size = 4
 import jieba
 import requests
 import time
-from models.units import read_clean_data, get_decoder_att_map
+from models.units import get_decoder_att_map
 from config import config
-from rank_bm25 import BM25Okapi
-from section_inference import preprocess_sec
 from models.retrieval import TitleEncoder, PageRanker, SectionRanker
 with open('./data/test/dataset-aligned-para.pkl', 'rb') as f:
     data_test = pickle.load(f)
@@ -25,17 +23,8 @@ tars_ = []
 for point in data_test:
     srcs_.append(point[0])
     tars_.append(point[1])
-titles, sections, title2sections, sec2id = read_clean_data(config.data_file_anno)
-corpus = sections
-tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
-bm25_section = BM25Okapi(tokenized_corpus)
-step2_tokenizer = config.tokenizer
-step2_tokenizer.model_max_length = 300
-corpus = titles
-tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
-bm25_title = BM25Okapi(tokenized_corpus)
 save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
-save_step1_data = torch.load('./results/' + 'best_save(2).data')
+save_step1_data = torch.load('./step1/cache/' + 'best_save.data')
 
 
 bert_model = 'hfl/chinese-bert-wwm-ext'
@@ -63,16 +52,6 @@ modeld.load_state_dict(save_data['modeld'])
 modeld.cuda()
 modeld.eval()
 
-with open('./data/mydata_new_clean_v3_mark.pkl', 'rb') as f:
-    mark_key_equal = pickle.load(f)
-from nltk.translate.bleu_score import sentence_bleu
-import nltk
-bert_model_eval = 'hfl/chinese-bert-wwm-ext'
-tokenzier_eval = BertTokenizer.from_pretrained(bert_model_eval)
-def get_sentence_bleu(candidate, reference):
-    score = sentence_bleu(reference, candidate)
-    return score
-
 
 def count_score(candidate, reference):
     avg_score = 0
@@ -96,7 +75,7 @@ def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
         r += 1
     for c_id in range(len(src_ids)):
         if src_ids[c_id] == step1_tokenizer.vocab['。']:
-            context = step1_tokenizer.decode(src_ids[l:r]).replace(' ', '').replace('[CLS]', '').replace('[SEP]', '')
+            context = step1_tokenizer.decode(src_ids[l:r+1]).replace(' ', '').replace('[CLS]', '').replace('[SEP]', '')
             input_list[4].append((False, context))
             l = r + 1
             r = l+1
@@ -112,7 +91,7 @@ def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
             templete = src_ids[l_k:r_k]
             tokens = step1_tokenizer.convert_ids_to_tokens(templete)
             key = step1_tokenizer.convert_tokens_to_string(tokens).replace(' ', '')
-            context = step1_tokenizer.decode(src_ids[l:r]).replace(' ', '').replace('[CLS]', '').replace('[SEP]', '')
+            context = step1_tokenizer.decode(src_ids[l:r+1]).replace(' ', '').replace('[CLS]', '').replace('[SEP]', '')
             key_cut = jieba.lcut(key)
             infer_titles = bm25_title.get_top_n(key_cut, titles, config.infer_title_range)
             if len(key) > 0:

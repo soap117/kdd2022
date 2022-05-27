@@ -31,13 +31,6 @@ def get_hit_score(srcs, tars, pres):
     recalls = []
     precisions = []
     for src, tar, pre in zip(srcs, tars, pres):
-        for unikey in unique_keys:
-            if unikey in src:
-                print(unikey)
-                print('++++++++++++++')
-                print(src)
-                print('--------------')
-                print(pre)
         annotations = obtain_annotation(src, tar)
         annotations_pre = obtain_annotation(src, pre)
         common_ones = 0
@@ -70,7 +63,7 @@ def count_bleu_score(candidate, reference):
             print(candidate[k])
             print(reference[k])
     return avg_score
-results = pickle.load(open('../data/test/my_results_sec_v4.pkl', 'rb'))
+results = pickle.load(open('../data/test/my_results_pmbert_noraml.pkl', 'rb'))
 results_temp = pickle.load(open('../data/test/my_results_bart.pkl', 'rb'))
 if 'srcs' not in results:
     results['srcs'] = results_temp['srcs']
