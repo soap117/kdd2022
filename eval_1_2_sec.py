@@ -156,7 +156,7 @@ def mark_sentence(input_list):
             region = (0, 0)
         if region[0] != 0 or region[1] != 0:
             if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（' and region[1] + 1 < len(
-                    tar_sentence) and tar_sentence[region[1] + 1] != '（':
+                    tar_sentence) and tar_sentence[region[1] + 1] != '（' or region[1] == len(tar_sentence)-1:
                 tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key) + tar_sentence[region[1]:]
             else:
                 tar_sentence = tar_sentence[0:region[0]] + ' ${}$ '.format(key) + tar_sentence[region[1]:]
