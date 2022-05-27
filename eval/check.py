@@ -29,6 +29,8 @@ def get_hit_score(srcs, tars, pres):
     recalls = []
     precisions = []
     for src, tar, pre in zip(srcs, tars, pres):
+        if src == pre:
+            print('wtf')
         annotations = obtain_annotation(src, tar)
         annotations_pre = obtain_annotation(src, pre)
         common_ones = 0
@@ -61,13 +63,19 @@ def count_bleu_score(candidate, reference):
             print(candidate[k])
             print(reference[k])
     return avg_score
-results = pickle.load(open('../data/test/my_results_sec_v3.pkl', 'rb'))
+results = pickle.load(open('../data/test/my_results_t5.pkl', 'rb'))
 results_sec = pickle.load(open('../data/test/my_results_sec.pkl', 'rb'))
 for i in range(len(results['srcs'])-1, -1, -1):
     if len(results['srcs'][i]) <= 2 or len(results['tars'][i]) <= 2:
         del results['srcs'][i]
         del results['prds'][i]
         del results['tars'][i]
+temp = []
+for one in results['prds']:
+    one = one.replace('(', '（')
+    one = one.replace(')', '）')
+    temp.append(one)
+results['prds'] = temp
 hit_score = get_hit_score(results['srcs'], results['tars'], results['prds'])
 print(hit_score)
 outs = [' '.join(tokenizer.tokenize(u)) for u in results['prds']]

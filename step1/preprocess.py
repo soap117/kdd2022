@@ -1,132 +1,115 @@
+
 import pickle
 import torch
-import numpy as np
 from tqdm import tqdm
 import re
-from transformers import BertTokenizer, BertModel
-from keras.preprocessing.sequence import pad_sequences
+import random
 import os
-import asyncio
-from pprint import pprint
-import argparse
+import json
+import numpy as np
+from align import creat_sentence, deal_one, deal_anno
+from transformers import BertTokenizer
+tokenizer = BertTokenizer.from_pretrained('hfl/chinese-bert-wwm-ext')
+def aligneddata(dataset,path):
+    count = 0
+    # with open(os.path.join(path,'dataset.pkl'),'rb') as f:
+    #     dataset = pickle.load(f)
+    # src_all = [u[0] for u in dataset]
+    # tar_all = [u[1] for u in dataset]
+    src_all = [u['src'] for u in dataset]
+    tar_all = [u['tar'] for u in dataset]
+    contents_all = [u['contents'] for u in dataset]
 
-CLS = '[CLS]'
-SEP = '[SEP]'
+    for i in range(len(src_all)):
+        src = src_all[i]
+        src = re.sub('\*\*', '', src).lower()
+        src = src.replace('\n', '').replace('。。', '。')
+        src_all[i] = src
 
-bert_model = 'hfl/chinese-bert-wwm-ext'
-tokenizer = BertTokenizer.from_pretrained(bert_model)
-# model = BertModel.from_pretrained(bert_model)
-keywords_all = pickle.load(open('./data/keywords.pkl','rb'))
-L = len(tokenizer)
-print(L)
-new_words = []
-for keyword in tqdm(keywords_all.keys()):
-    if keyword=='':
-        print('empty!')
-        continue
-    tokenizer.add_tokens([keyword])
-    if len(tokenizer)>L:
-        L = len(tokenizer)
-        new_words.append(keyword)
+    for i in range(len(tar_all)):
+        tar = tar_all[i]
+        tar = re.sub('\*\*', '', tar).lower()
+        tar = tar.replace('\n', '').replace('。。', '。')
+        tar_all[i] = tar
 
-# model.resize_token_embeddings(len(tokenizer))
-# for i, keyword in tqdm(enumerate(new_words)):
-#     model.embeddings.word_embeddings.weight[-len(new_words)+i, :] = keywords_all[keyword]
-print(len(tokenizer))
-print(tokenizer.tokenize('白癜风得到的依从性关于 其他的痛风石'))
+    print(len(dataset))
 
-
-def preprocess(path_from, path_to, index):
-    global keywords_all
-    with open(os.path.join(path_from,'dataset-aligned.pkl'), 'rb') as f:
-        dataset_aligned = pickle.load(f)
-    src_all, src_ids = [], []
-    tar_masks = []
-    keywordset_list = []
-    worker_num = 8
-
+    dataset_new = []
+    dataset_new_para = []
     dataset = []
-    for i in range(worker_num):
-        if i == index:
-            for j, data in enumerate(
-                    dataset_aligned[i * len(dataset_aligned) // worker_num: (i + 1) * len(dataset_aligned) // worker_num]):
-                dataset.append((i * len(dataset_aligned) // worker_num + j, data))
+    src_ids = []
+    tar_masks = []
 
-    for _index, data in tqdm(dataset, ascii=True, ncols=50):
-        content = data[2]
-        src = data[0].strip()
-
-        tokens = [CLS] + tokenizer.tokenize(re.sub('\*\*', '', src).lower()) + [SEP]
-        masks = np.array([0 for _ in range(len(tokens))])
-        _keywords = []
-
-        for keyword in keywords_all.keys():
-            if keyword not in src: continue
-            keyword_tokens = tokenizer.tokenize(keyword)
-            l = len(keyword_tokens)
-            for i in range(len(tokens) - l):
-                if tokens[i:i + l] == keyword_tokens:
-                    masks[i:i + l] = 1
-                    _keywords.append(keyword)
-
-        ids = tokenizer.convert_tokens_to_ids(tokens)
+    for src, tar, content in tqdm(zip(src_all, tar_all, contents_all)):
+        if len(src)==0 or len(tar)==0: continue
+        # if src[-1] == '。' and tar[-1] != '。':
+        #     tar += '。'
+        # if tar[-1] == '。' and src[-1] != '。':
+        #     src += '。'
+        # srcs = src.strip('。').split('。')
+        # tars = tar.strip('。').split('。')
+        src_mark = ''
+        srcs, tars = creat_sentence(src, tar)
+        tars_sec = '。'.join(tars)
+        srcs_sec = '。'.join(srcs)
+        #src_tokens = ['[CLS]'] + tokenizer.tokenize(srcs_sec) + ['[SEP]']
+        #masks = np.array([0 for _ in range(len(src_tokens))])
+        src_tokens = []
+        masks = []
+        for sen in content:
+            sen_text = sen['text']
+            sen_text = deal_one(sen_text)
+            sen_tokens = tokenizer.tokenize(sen_text)
+            sen_masks = np.array([0 for _ in range(len(sen_tokens))])
+            for raw_anno in sen['tooltips']:
+                anno_name = deal_anno(raw_anno['origin'])
+                find_rs = None
+                gap = ''
+                while find_rs is None and len(gap)<3:
+                    find_rs = re.search(anno_name+gap+'（[^（）]*）', tars_sec)
+                    gap += '.'
+                if find_rs is None:
+                    continue
+                comp_anno_words = tars_sec[find_rs.regs[0][0]:find_rs.regs[0][1]]
+                if comp_anno_words not in srcs_sec:
+                    is_real_anno = True
+                else:
+                    is_real_anno = False
+                if is_real_anno:
+                    anno_tokens = tokenizer.tokenize(anno_name)
+                    for ith in range(len(sen_tokens)):
+                        if sen_tokens[ith:ith+len(anno_tokens)] == anno_tokens:
+                            sen_masks[ith+len(anno_tokens)-1] = 3
+                            sen_masks[ith+1:ith+len(anno_tokens)-1] = 2
+                            sen_masks[ith] = 1
+                            break
+                    count += 1
+            src_tokens += sen_tokens
+            masks.append(sen_masks)
+        src_tokens = ['[CLS]'] + src_tokens + ['[SEP]']
+        masks = [np.zeros(1)] + masks + [np.zeros(1)]
+        masks = np.concatenate(masks, axis=0)
+        ids = tokenizer.convert_tokens_to_ids(src_tokens)
         src_ids.append(ids)
         tar_masks.append(masks)
-        keywordset_list.append(_keywords)
 
-
-    print(len(src_ids))
-    src_ids_smaller, tar_masks_smaller,keywords_smaller = [], [], []
-    max_len = 512
-    indexs = []
-    for i,(src, masks,keywords) in enumerate(zip(src_ids, tar_masks,keywordset_list)):
-        if len(src) < max_len and len(src) > 2:
-            src_ids_smaller.append(src)
-            tar_masks_smaller.append(masks)
-            keywords_smaller.append(keywords)
-            indexs.append(i)
-
-    src_ids, tar_masks, keywordset_list = src_ids_smaller, tar_masks_smaller, keywords_smaller
-    print(len(src_ids))
-
-    tag_values = [0, 1, 2]
-    tag2idx = {t: i for i, t in enumerate(tag_values)}
-
-    src_ids = pad_sequences(src_ids, maxlen=max_len, dtype="long", value=0, truncating="post", padding="post")
-    tar_masks = pad_sequences(tar_masks, maxlen=max_len, dtype="long", value=tag2idx[2], truncating="post", padding="post")
-
-    src_masks = [[float(i != 0.0) for i in ii] for ii in src_ids]
-
-    with open(os.path.join(path_to, 'src_ids_{}.pkl'.format(index)), 'wb') as f:
+    print(count)
+    with open(os.path.join(path, 'src_ids.pkl'), 'wb') as f:
         pickle.dump(src_ids, f)
-    with open(os.path.join(path_to, 'src_masks_{}.pkl'.format(index)), 'wb') as f:
-        pickle.dump(src_masks, f)
-    with open(os.path.join(path_to, 'tar_masks_{}.pkl'.format(index)), 'wb') as f:
+    with open(os.path.join(path, 'tar_masks.pkl'), 'wb') as f:
         pickle.dump(tar_masks, f)
-    with open(os.path.join(path_to, 'keywordset_list_{}.pkl'.format(index)), 'wb') as f:
-        pickle.dump(keywordset_list, f)
 
-    # for ids, masks in zip(src_ids[:5], tar_masks[:5]):
-    #     tokens = tokenizer.convert_ids_to_tokens(ids)
-    #     for token, mask in zip(tokens, masks):
-    #         print(token, mask)
 
-def main(index):
+def main():
+    dataset = json.load(open('../data/dataset_new_3.json', 'r', encoding='utf-8'))
+    total = len(dataset)
     print('train dataset:')
-    preprocess('../../data/train', './data/train',index)
+    aligneddata(dataset[:int(total/10*8)],'./data/train')
     print('test dataset:')
-    preprocess('../../data/test', './data/test',index)
+    aligneddata(dataset[int(total/10*8):int(total/10*9)],'./data/test')
     print('valid dataset:')
-    preprocess('../../data/valid', './data/valid',index)
-    print('done')
+    aligneddata(dataset[int(total/10*9):],'./data/valid')
+
 
 if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-i', type=int)
-    args = parser.parse_args()
-    print(args.i)
-    main(args.i)
-
-
-
+    main()

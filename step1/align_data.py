@@ -20,7 +20,7 @@ def aligneddata(dataset,path):
     src_all = [u['src'] for u in dataset]
     tar_all = [u['tar'] for u in dataset]
     contents_all = [u['contents'] for u in dataset]
-
+    count = 0
     for i in range(len(src_all)):
         src = src_all[i]
         src = re.sub('\*\*', '', src).lower()
@@ -88,6 +88,7 @@ def aligneddata(dataset,path):
                             sen_masks[ith] = 1
                             break
                     appear_set[keyword] = True
+                    count += 1
             src_tokens += sen_tokens
             masks.append(sen_masks)
         src_tokens = ['[CLS]'] + src_tokens + ['[SEP]']
@@ -97,7 +98,7 @@ def aligneddata(dataset,path):
         src_ids.append(ids)
         tar_masks.append(masks)
 
-
+    print(count)
     with open(os.path.join(path, 'src_ids.pkl'), 'wb') as f:
         pickle.dump(src_ids, f)
     with open(os.path.join(path, 'tar_masks.pkl'), 'wb') as f:
