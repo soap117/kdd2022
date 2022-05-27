@@ -10,7 +10,7 @@ import numpy as np
 from align import creat_sentence, deal_one, deal_anno
 from transformers import BertTokenizer
 tokenizer = BertTokenizer.from_pretrained('hfl/chinese-bert-wwm-ext')
-keywords_all = list(pickle.load(open('./data/keywords.pkl','rb')))
+keywords_all = list(pickle.load(open('./data/train_keys.pkl','rb')))
 keywords_all = sorted(keywords_all, key=lambda x:len(x))
 def aligneddata(dataset,path):
     # with open(os.path.join(path,'dataset.pkl'),'rb') as f:
