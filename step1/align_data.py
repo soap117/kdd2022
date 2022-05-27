@@ -10,6 +10,8 @@ import numpy as np
 from align import creat_sentence, deal_one, deal_anno
 from transformers import BertTokenizer
 tokenizer = BertTokenizer.from_pretrained('hfl/chinese-bert-wwm-ext')
+keywords_all = list(pickle.load(open('./data/keywords.pkl','rb')))
+keywords_all = sorted(keywords_all, key=lambda x:len(x))
 def aligneddata(dataset,path):
     # with open(os.path.join(path,'dataset.pkl'),'rb') as f:
     #     dataset = pickle.load(f)
@@ -55,13 +57,16 @@ def aligneddata(dataset,path):
         #masks = np.array([0 for _ in range(len(src_tokens))])
         src_tokens = []
         masks = []
+        appear_set = {}
         for sen in content:
             sen_text = sen['text']
             sen_text = deal_one(sen_text)
             sen_tokens = tokenizer.tokenize(sen_text)
             sen_masks = np.array([0 for _ in range(len(sen_tokens))])
-            for raw_anno in sen['tooltips']:
-                anno_name = deal_anno(raw_anno['origin'])
+            for keyword in keywords_all:
+                if keyword not in sen_text or keyword in appear_set:
+                    continue
+                anno_name = deal_anno(keyword)
                 find_rs = None
                 gap = ''
                 while find_rs is None and len(gap)<3:
@@ -82,6 +87,7 @@ def aligneddata(dataset,path):
                             sen_masks[ith+1:ith+len(anno_tokens)-1] = 2
                             sen_masks[ith] = 1
                             break
+                    appear_set[keyword] = True
             src_tokens += sen_tokens
             masks.append(sen_masks)
         src_tokens = ['[CLS]'] + src_tokens + ['[SEP]']
