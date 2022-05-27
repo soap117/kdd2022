@@ -61,7 +61,7 @@ def count_bleu_score(candidate, reference):
             print(candidate[k])
             print(reference[k])
     return avg_score
-results = pickle.load(open('../data/test/my_results_sec_free.pkl', 'rb'))
+results = pickle.load(open('../data/test/my_results_sec_v3.pkl', 'rb'))
 results_sec = pickle.load(open('../data/test/my_results_sec.pkl', 'rb'))
 for i in range(len(results['srcs'])-1, -1, -1):
     if len(results['srcs'][i]) <= 2 or len(results['tars'][i]) <= 2:
