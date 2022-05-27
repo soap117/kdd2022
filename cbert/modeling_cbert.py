@@ -1766,6 +1766,7 @@ class BertForTokenClassification(BertPreTrainedModel):
         logits[:,:,0] += attention_block
         loss = None
         if labels is not None:
+            weight = torch.FloatTensor([1, 3, 1, 3])
             loss_fct = CrossEntropyLoss()
             # Only keep active parts of the loss
             if attention_mask is not None:

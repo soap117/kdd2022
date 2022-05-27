@@ -4,10 +4,10 @@ import pickle
 
 import torch
 from models.units_sen import restricted_decoding
-from step1.modeling_cbert import BertForTokenClassification
+from cbert.modeling_cbert import BertForTokenClassification
 from transformers import BertTokenizer
 from section_inference import preprocess_sec
-from  step1.utils.dataset import obtain_indicator
+from cbert.utils.dataset import obtain_indicator
 import numpy as np
 batch_size = 4
 import jieba
@@ -24,11 +24,11 @@ for point in data_test:
     srcs_.append(point[0])
     tars_.append(point[1])
 save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
-save_step1_data = torch.load('./step1/cache/' + 'best_save.data')
+save_step1_data = torch.load('./cbert/cache/' + 'best_save.data')
 
 
 bert_model = 'hfl/chinese-bert-wwm-ext'
-model_step1 = BertForTokenClassification.from_pretrained(bert_model, num_labels=5)
+model_step1 = BertForTokenClassification.from_pretrained(bert_model, num_labels=4)
 model_step1.load_state_dict(save_step1_data['para'])
 model_step1.eval()
 step1_tokenizer = BertTokenizer.from_pretrained(bert_model)

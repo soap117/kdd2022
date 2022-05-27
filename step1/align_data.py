@@ -13,6 +13,7 @@ tokenizer = BertTokenizer.from_pretrained('hfl/chinese-bert-wwm-ext')
 keywords_all = list(pickle.load(open('./data/train_keys.pkl','rb')))
 keywords_all = sorted(keywords_all, key=lambda x:len(x))
 def aligneddata(dataset,path):
+    import matplotlib.pyplot as plt
     # with open(os.path.join(path,'dataset.pkl'),'rb') as f:
     #     dataset = pickle.load(f)
     # src_all = [u[0] for u in dataset]
@@ -21,6 +22,8 @@ def aligneddata(dataset,path):
     tar_all = [u['tar'] for u in dataset]
     contents_all = [u['contents'] for u in dataset]
     count = 0
+    count_should = 0
+    key_count = {}
     for i in range(len(src_all)):
         src = src_all[i]
         src = re.sub('\*\*', '', src).lower()
@@ -63,9 +66,9 @@ def aligneddata(dataset,path):
             sen_text = deal_one(sen_text)
             sen_tokens = tokenizer.tokenize(sen_text)
             sen_masks = np.array([0 for _ in range(len(sen_tokens))])
-            for keyword in keywords_all:
-                if keyword not in sen_text or keyword in appear_set:
-                    continue
+            for tooltip in sen['tooltips']:
+                keyword = tooltip['origin']
+                count_should += 1
                 anno_name = deal_anno(keyword)
                 find_rs = None
                 gap = ''
@@ -79,6 +82,10 @@ def aligneddata(dataset,path):
                     is_real_anno = True
                 else:
                     is_real_anno = False
+                if keyword in key_count:
+                    key_count[keyword] += 1
+                else:
+                    key_count[keyword] = 1
                 if is_real_anno:
                     anno_tokens = tokenizer.tokenize(anno_name)
                     for ith in range(len(sen_tokens)):
@@ -99,6 +106,15 @@ def aligneddata(dataset,path):
         tar_masks.append(masks)
 
     print(count)
+    print(count_should)
+    key_count = key_count.items()
+    key_count = sorted(key_count, key=lambda x:x[1], reverse=True)
+    y = [x[1] for x in key_count]
+    x = [x for x in range(len(key_count))]
+    plt.plot(x, y, 'ro-')
+    plt.show()
+    print(key_count[0:100])
+    print(key_count[-11:-1])
     with open(os.path.join(path, 'src_ids.pkl'), 'wb') as f:
         pickle.dump(src_ids, f)
     with open(os.path.join(path, 'tar_masks.pkl'), 'wb') as f:
