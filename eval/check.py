@@ -7,6 +7,8 @@ import nltk
 from datasets import load_metric
 bert_model = 'fnlp/bart-base-chinese'
 tokenizer = BertTokenizer.from_pretrained(bert_model)
+with open('../step1/data/unique_test_keys.pkl','rb') as f:
+    unique_keys = pickle.load(f)
 def obtain_annotation(src, tar):
     t_s = 0
     annotations = []
@@ -29,8 +31,13 @@ def get_hit_score(srcs, tars, pres):
     recalls = []
     precisions = []
     for src, tar, pre in zip(srcs, tars, pres):
-        if src == pre:
-            print('wtf')
+        for unikey in unique_keys:
+            if unikey in src:
+                print(unikey)
+                print('++++++++++++++')
+                print(src)
+                print('--------------')
+                print(pre)
         annotations = obtain_annotation(src, tar)
         annotations_pre = obtain_annotation(src, pre)
         common_ones = 0
@@ -63,8 +70,11 @@ def count_bleu_score(candidate, reference):
             print(candidate[k])
             print(reference[k])
     return avg_score
-results = pickle.load(open('../data/test/my_results_t5.pkl', 'rb'))
-results_sec = pickle.load(open('../data/test/my_results_sec.pkl', 'rb'))
+results = pickle.load(open('../data/test/my_results_sec_v4.pkl', 'rb'))
+results_temp = pickle.load(open('../data/test/my_results_bart.pkl', 'rb'))
+if 'srcs' not in results:
+    results['srcs'] = results_temp['srcs']
+    results['tars'] = results_temp['tars']
 for i in range(len(results['srcs'])-1, -1, -1):
     if len(results['srcs'][i]) <= 2 or len(results['tars'][i]) <= 2:
         del results['srcs'][i]

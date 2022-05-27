@@ -14,5 +14,20 @@ for data in dataset_train:
 
 print(len(train_keys))
 
+test_keys = set()
+for data in dataset_test_dev:
+    for content in data['contents']:
+        for tooltip in content['tooltips']:
+            test_keys.add(tooltip['origin'])
+
+print(len(test_keys))
+unique_test_keys = test_keys.difference(train_keys)
+print(len(unique_test_keys))
+print(unique_test_keys)
+
 with open('./data/train_keys.pkl','wb') as f:
     pickle.dump(train_keys, f)
+with open('./data/test_keys.pkl','wb') as f:
+    pickle.dump(test_keys, f)
+with open('./data/unique_test_keys.pkl','wb') as f:
+    pickle.dump(unique_test_keys, f)
