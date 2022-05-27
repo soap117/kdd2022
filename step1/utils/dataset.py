@@ -65,7 +65,7 @@ class DatasetIterater(object):
         tar_ids = [_[1] for _ in datas]
         indicator = [_[2] for _ in datas]
         src_ids = torch.LongTensor(pad_sequences(src_ids, maxlen=max_len, dtype="long", value=0, truncating="post", padding="post"))
-        tar_ids = torch.LongTensor(pad_sequences(tar_ids, maxlen=max_len, dtype="long", value=0, truncating="post", padding="post"))
+        tar_ids = torch.LongTensor(pad_sequences(tar_ids, maxlen=max_len, dtype="long", value=4, truncating="post", padding="post"))
         indicator = torch.LongTensor(
             pad_sequences(indicator, maxlen=max_len, dtype="long", value=0, truncating="post", padding="post"))
         src_masks = torch.ones_like(src_ids)

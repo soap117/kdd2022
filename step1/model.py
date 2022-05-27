@@ -51,7 +51,7 @@ def build(hidden_size, batch_size, cuda):
 
 def valid(model, dataloader, config):
     # validation steps
-    tag_values = [0, 1, 2, 3]
+    tag_values = [0, 1, 2, 3, 4]
     model.eval()
     eval_loss, eval_accuracy = 0, 0
     predictions, true_labels = [], []
@@ -62,7 +62,7 @@ def valid(model, dataloader, config):
             x_indicates = batch_src[2]
             labels = batch_tar
             with torch.no_grad():
-                outputs = model(x_ids, existing_indicates=x_indicates, attention_mask=x_mask, labels=labels)
+                outputs = model(x_ids, existing_indicates=x_indicates, labels=labels)
             logits = outputs.logits
             label_ids = labels.to('cpu').numpy()
             loss = outputs.loss
@@ -79,13 +79,13 @@ def valid(model, dataloader, config):
             if i % 100 == 0:
                 print('eval loss:%f' % loss.item())
     eval_loss /= len(dataloader)
-    pred_tags = [tag_values[p_i] for p, l in zip(predictions, true_labels)
-                 for p_i, l_i in zip(p, l) if tag_values[l_i] != 0]
+    pred_tags = [p_i for p, l in zip(predictions, true_labels)
+                 for p_i, l_i in zip(p, l) if l_i != 4]
 
-    valid_tags = [tag_values[l_i] for l in true_labels
-                  for l_i in l if tag_values[l_i] != 0]
+    valid_tags = [l_i for l in true_labels
+                  for l_i in l if l_i != 4]
     acc = accuracy_score(pred_tags, valid_tags)
-    f1 = f1_score(pred_tags, valid_tags, average='micro')
+    f1 = f1_score(pred_tags, valid_tags, average='macro')
     return acc, f1, eval_loss
 
 def train(model, optimizer, scheduler, train_dataloader, val_dataloader, test_dataloader, loss_fun, config):
@@ -102,7 +102,7 @@ def train(model, optimizer, scheduler, train_dataloader, val_dataloader, test_da
             x_mask = batch_src[1]
             x_indicates = batch_src[2]
             labels = batch_tar
-            outputs = model(x_ids, existing_indicates=x_indicates, attention_mask=x_mask, labels=labels)
+            outputs = model(x_ids, existing_indicates=x_indicates, labels=labels)
             loss = outputs.loss
             train_loss += loss.item()
             loss.backward()
