@@ -90,7 +90,7 @@ def valid(model, dataloader, config):
 
 def train(model, optimizer, scheduler, train_dataloader, val_dataloader, test_dataloader, loss_fun, config):
     # training steps
-    max_acc = -99999
+    max_f1 = -99999
     save_file = {}
     for e in range(config.num_epochs):
         model.train()
@@ -118,11 +118,11 @@ def train(model, optimizer, scheduler, train_dataloader, val_dataloader, test_da
         print("Valid loss: {}".format(val_loss))
         print("Validation Accuracy: {}".format(acc))
         print("Validation F1-Score: {}".format(f1))
-        if acc > max_acc:
-            max_acc = acc
+        if f1 > max_f1:
+            max_f1 = f1
             save_file['epoch'] = e + 1
             save_file['para'] = model.state_dict()
-            save_file['best_acc'] = acc
+            save_file['best_acc'] = f1
             torch.save(save_file, './cache/best_save.data')
 
         print(save_file['epoch'] - 1)
