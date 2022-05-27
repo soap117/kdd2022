@@ -30,12 +30,14 @@ for i, (batch_src, batch_tar) in tqdm(enumerate(test_dataloader)):
         l, r = 0, 0
         keywords = []
         while l<len(labels):
-            while l<len(labels) and labels[l] == 0: l += 1
-            r = l
-            while r<len(labels) and labels[r] != 0 and labels[r-1] != 3: r += 1
+            while l<len(labels) and (labels[l] == 0 or labels[l] == 4): l += 1
+            r = l+1
+            while r<len(labels) and labels[r] != 0 and labels[r] != 4 and labels[r-1] != 3: r += 1
             keyword = src[l:r]
-            keyword = ''.join(keyword)
-            if keyword != '': keywords.append(keyword)
+            if l<len(labels) and labels[l] == 1:
+                keyword = ''.join(keyword)
+                if keyword != '':
+                    keywords.append(keyword)
             l = r
         print(''.join(src))
         print(keywords)
