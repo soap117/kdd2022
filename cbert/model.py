@@ -29,7 +29,7 @@ def build(hidden_size, batch_size, cuda):
     test_dataloader = build_iterator(test_data, config)
 
 
-    model = BertForTokenClassification.from_pretrained(bert_model, num_labels=5)
+    model = BertForTokenClassification.from_pretrained(bert_model, num_labels=4)
 
     if cuda:
         model.cuda()

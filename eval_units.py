@@ -55,9 +55,7 @@ def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
         if pre_labels[c_id] == 1:
             l_k = c_id
             r_k = l_k+1
-            while r_k<len(pre_labels) and pre_labels[r_k] != 0 and pre_labels[r_k] != 4:
-                r_k += 1
-            if pre_labels[r_k] == 4:
+            while r_k<len(pre_labels) and pre_labels[r_k] == 3:
                 r_k += 1
             templete = src_ids[l_k:r_k]
             tokens = step1_tokenizer.convert_ids_to_tokens(templete)
