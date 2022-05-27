@@ -79,7 +79,7 @@ def valid(model, dataloader, config):
     valid_tags = [tag_values[l_i] for l in true_labels
                   for l_i in l if tag_values[l_i] != 2]
     acc = accuracy_score(pred_tags, valid_tags)
-    f1 = f1_score(pred_tags, valid_tags, average='micro')
+    f1 = f1_score(pred_tags, valid_tags, average='macro')
     return acc, f1, eval_loss
 
 def train(model, optimizer, scheduler, train_dataloader, val_dataloader, test_dataloader, loss_fun, config):
