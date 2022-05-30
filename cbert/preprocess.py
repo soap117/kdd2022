@@ -102,13 +102,50 @@ def preprocess(dataset, path_to):
 
 def main():
     dataset = json.load(open('../data/dataset_new_3.json', 'r', encoding='utf-8'))
-    total = len(dataset)
+    temp = {}
+    for one in dataset:
+        temp[one['textid']] = one
+    type_dict = pickle.load(open('./data/pmid_type_dict.pkl', 'rb'))
+    type2ids = {}
+    for (key, value) in type_dict.items():
+        if value in type2ids:
+            type2ids[value].append(key)
+        else:
+            type2ids[value] = [key]
+    train_valid_test = pickle.load(open('./data/train_valid_test_diseases.pkl', 'rb'))
+    train_diseases = train_valid_test[0]
+    valid_diseases = train_valid_test[1]
+    test_diseases = train_valid_test[2]
+    train_data = []
+    for disease in train_diseases:
+        train_data += type2ids[disease]
+    test_data = []
+    for disease in test_diseases:
+        test_data += type2ids[disease]
+    valid_data = []
+    for disease in valid_diseases:
+        valid_data += type2ids[disease]
+    dataset_train = []
+    dataset_test = []
+    dataset_valid = []
+    for id_one in train_data:
+        if id_one not in temp:
+            continue
+        dataset_train.append(temp[id_one])
+    for id_one in test_data:
+        if id_one not in temp:
+            continue
+        dataset_test.append(temp[id_one])
+    for id_one in valid_data:
+        if id_one not in temp:
+            continue
+        dataset_valid.append(temp[id_one])
     print('train dataset:')
-    preprocess(dataset[:int(total/10*8)], './data/train')
+    preprocess(dataset_train, './data/train')
     print('test dataset:')
-    preprocess(dataset[int(total/10*8):int(total/10*9)], './data/test')
+    preprocess(dataset_test, './data/test')
     print('valid dataset:')
-    preprocess(dataset[int(total/10*9):], './data/valid')
+    preprocess(dataset_valid, './data/valid')
     print('done')
 
 if __name__ == '__main__':

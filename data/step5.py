@@ -153,10 +153,10 @@ def creat_sentence(data_new):
                 sentence_format[file_sen]['tar_st'] = file['tar_st']
                 sentence_format[file_sen]['textid'] = file['file']['textid']
     return list(sentence_format.values()), failed
-with open('mydata_new_clean_v4_sec_sub_trn.pkl', 'rb') as f:
+with open('mydata_v5_anno.pkl', 'rb') as f:
     data_new = pickle.load(f)
 sentence_format, failed = creat_sentence(data_new)
 print(len(sentence_format))
 print(failed)
-with open('mydata_sen_clean_v4_sec_sub_trn.pkl', 'wb') as f:
+with open('mydata_v5.pkl', 'wb') as f:
     pickle.dump(sentence_format, f)

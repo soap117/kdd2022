@@ -34,7 +34,9 @@ class Config(object):
         self.hidden_anno_len = 10
         self.multi_gpu = False
         self.full_gpu_id = 0
-        self.data_file = 'data/mydata_sen_clean_v4_sec_sub_trn.pkl'
-        self.data_file_anno = 'data/mydata_new_clean_v4_sec_sub_trn.pkl'
+        self.data_file_old = 'data/mydata_v5.pkl'
+        self.data_file_anno_old = 'data/mydata_v5_anno.pkl'
+        self.data_file = 'data/mydata_v5.pkl'
+        self.data_file_anno = 'data/mydata_v5_anno.pkl'
 
 config = Config(16)
