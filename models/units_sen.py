@@ -231,10 +231,7 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             else:
                 region = (0, 0)
             if region[0] != 0 or region[1] != 0:
-                if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（' and region[1]+1 < len(tar_sentence) and tar_sentence[region[1]+1] != '（' and region[1]+2 < len(tar_sentence) and tar_sentence[region[1]+2] != '（':
-                    tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key['origin']) + tar_sentence[region[1]:]
-                else:
-                    tar_sentence = tar_sentence[0:region[0]] + ' ${}$ '.format(key['origin']) + tar_sentence[region[1]:]
+                tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key) + tar_sentence[region[1]:]
 
             data_filed = {}
             data_filed['context'] = sentence['src_st']
