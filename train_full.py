@@ -185,16 +185,11 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids']
             target_ids_for_train = mask_ref(target_ids, tokenizer).to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
-            if modele_p is not None:
-                outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
-            else:
-                outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
+
+            outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
-            if modeld_p is not None:
-                outputs = modeld_p(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train[:, 0:-1], cut_indicator=cut_list,
-                                 anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
-            else:
-                outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train[:, 0:-1], cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
+
+            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train[:, 0:-1], cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             logits_ = outputs.logits
             #len_anno = min(target_ids.shape[1], logits_.shape[1])
             logits = logits_
@@ -356,10 +351,30 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             an_decoder_inputs = tokenizer(an_decoder_inputs, return_tensors="pt", padding=True)
             an_decoder_inputs_ids = an_decoder_inputs['input_ids'].to(config.device)
 
+            decoder_inputs = tokenizer(src_sens, return_tensors="pt", padding=True, truncation=True)
+            decoder_ids = decoder_inputs['input_ids']
+            decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
+            decoder_ids = decoder_ids.to(config.device)
+            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids']
+            target_ids_for_train = mask_ref(target_ids, tokenizer).to(config.device)
+            adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
+
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
-            results, target_ids = restricted_decoding(querys_ori, src_sens, tar_sens, hidden_annotation, tokenizer, modeld)
+            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train[:, 0:-1],
+                             cut_indicator=cut_list, anno_position=decoder_anno_position,
+                             hidden_annotation=hidden_annotation)
+            logits_ = outputs.logits
+            # len_anno = min(target_ids.shape[1], logits_.shape[1])
+            logits = logits_
             targets = target_ids[:, 1:]
+            _, predictions = torch.max(logits, dim=-1)
+            results = tokenizer.batch_decode(predictions)
+            results = [tokenizer.convert_tokens_to_string(x) for x in results]
+            results = [x.replace(' ', '') for x in results]
+            results = [x.replace('[PAD]', '') for x in results]
+            results = [x.replace('[CLS]', '') for x in results]
+            results = [x.split('[SEP]')[0] for x in results]
             ground_truth = tokenizer.batch_decode(targets)
             ground_truth = [tokenizer.convert_tokens_to_string(x) for x in ground_truth]
             ground_truth = [x.replace(' ', '') for x in ground_truth]
