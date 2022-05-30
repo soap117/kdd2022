@@ -105,14 +105,14 @@ def main():
     temp = {}
     for one in dataset:
         temp[one['textid']] = one
-    type_dict = pickle.load(open('./data/pmid_type_dict.pkl', 'rb'))
+    type_dict = pickle.load(open('../data/pmid_type_dict.pkl', 'rb'))
     type2ids = {}
     for (key, value) in type_dict.items():
         if value in type2ids:
             type2ids[value].append(key)
         else:
             type2ids[value] = [key]
-    train_valid_test = pickle.load(open('./data/train_valid_test_diseases.pkl', 'rb'))
+    train_valid_test = pickle.load(open('../data/train_valid_test_diseases.pkl', 'rb'))
     train_diseases = train_valid_test[0]
     valid_diseases = train_valid_test[1]
     test_diseases = train_valid_test[2]
