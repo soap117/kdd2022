@@ -112,7 +112,7 @@ def get_hit_score(srcs, tars, pres):
             recalls.append(recall)
             precisions.append(precision)
             f1s.append(f1)
-        return {'anno_recall': np.mean(recalls), 'anno_precision': np.mean(precision), 'anno_f1': np.mean(f1s)}
+        return {'anno_recall': np.mean(recalls), 'anno_precision': np.mean(precisions), 'anno_f1': np.mean(f1s)}
 
 def get_sentence_bleu(candidate, reference):
     score = sentence_bleu(reference, candidate)
@@ -130,7 +130,7 @@ def count_bleu_score(candidate, reference):
             print(candidate[k])
             print(reference[k])
     return avg_score
-results = pickle.load(open('../data/test/my_results_sec_new.pkl', 'rb'))
+results = pickle.load(open('../data/test/my_results_sec_new_free.pkl', 'rb'))
 results_temp = pickle.load(open('../data/test/my_results_bart.pkl', 'rb'))
 if 'srcs' not in results:
     results['srcs'] = results_temp['srcs']
