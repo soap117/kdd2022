@@ -189,7 +189,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
 
-            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids[:, 0:-1], cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
+            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids[:, 0:-1].to(config.device), cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             logits_ = outputs.logits
             #len_anno = min(target_ids.shape[1], logits_.shape[1])
             logits = logits_
