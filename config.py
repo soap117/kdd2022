@@ -3,10 +3,6 @@ from transformers import BertTokenizer,BartTokenizer
 from models.modeling_gpt2_att import GPT2LMHeadModel
 from models.modeling_bart_ex import BartForConditionalGeneration as BartEX
 from models.modeling_bart_ex import BartForAnnotation as BartAN
-from models.modeling_encoder_decoder_ex import EncoderDecoderModel
-from transformers.models.bert import modeling_bert
-'bert-base-chinese'
-model = EncoderDecoderModel.from_encoder_decoder_pretrained('bert-base-chinese', 'bert-base-chinese')
 class Config(object):
 
     """配置参数"""
