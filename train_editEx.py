@@ -212,7 +212,6 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             #masks[torch.where(targets == 0)] = 0
             lossd = loss_func(logits, targets_flat)
             loss = lossd
-            loss[targets == 1] = 0 #remove loss for UNK
             loss = loss.view(targets.size())
             loss = loss.sum(1).float()
             loss = loss/tar_lens

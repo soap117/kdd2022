@@ -118,7 +118,7 @@ class EditDecoderRNN(nn.Module):
             logits_org = torch.bmm(key_org, encoder_outputs_org.transpose(1, 2))  # bsz x nsteps x encsteps
             attn_weights_org = F.softmax(logits_org, dim=-1)  # bsz x nsteps x encsteps
             attn_applied_org = torch.bmm(attn_weights_org, encoder_outputs_org)  # bsz x nsteps x nhid
-            print(org_ids[-1])
+            #print(org_ids[-1])
             for t in range(nsteps-1):
                 # print(t)
                 decoder_output_t = output_edits[:, t:t + 1, :]
