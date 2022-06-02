@@ -235,7 +235,7 @@ class EditDecoderRNN(nn.Module):
         h_c = nn.functional.tanh(self.initial_hidden(hidden_encoder_cls))
         h = h_c[:, 0:self.hidden_size]
         c = h_c[:, self.hidden_size:]
-        return h.unsqueeze(0).contiguous(), c.unsqueeze(0).contiguous()
+        return h.unsqueeze(0).expand(self.n_layers, h.size[0], h.size[1]).contiguous(), c.unsqueeze(0).expand(self.n_layers, h.size[0], h.size[1]).contiguous()
 
 
 class EditPlus(nn.Module):
