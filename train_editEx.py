@@ -209,8 +209,8 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
-            results = [x.replace('[unused1]', '[KEEP]') for x in results]
-            results = [x.replace('[unused2]', '[DEL]') for x in results]
+            results = [x.replace('[unused1]', '[K]') for x in results]
+            results = [x.replace('[unused2]', '[D]') for x in results]
             results = [x.replace('[CLS]', '') for x in results]
             results = [x.split('[SEP]')[0] for x in results]
 
