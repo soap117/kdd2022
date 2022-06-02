@@ -24,7 +24,7 @@ def find_spot(input_ids, querys_ori, tokenizer):
     positions = []
     for ori_query in querys_ori:
         flag = False
-        format = '${}$'.format(ori_query)
+        format = '${}$（'.format(ori_query)
         format_id = tokenizer(format)['input_ids'][1:-1]
         for bid in range(input_ids.shape[0]):
             l = 0
@@ -300,6 +300,28 @@ def sent2edit(sent1, sent2):
     #     edits.append('STOP') #in the case that input and output sentences are the same
     return ' '.join(edits)
 
+def operation2sentence(operations, input_sentences):
+    operations = operations.cpu().detach().numpy()
+    input_sentences = input_sentences.cpu().detach().numpy()
+    outputs = []
+    for operation, input_sentence in zip(operations, input_sentences):
+        read_index = 0
+        output = []
+        for op in operation:
+            if op == config.tokenizer.vocab['[unused1]']:
+                output.append(input_sentence[read_index])
+                read_index += 1
+            elif op != config.tokenizer.vocab['[SEP]'] and op != config.tokenizer.vocab['[unused2]']:
+                output.append(op)
+            elif op == config.tokenizer.vocab['[unused2]']:
+                # del do nothing
+                continue
+            else:
+                output += input_sentence[read_index:]
+                break
+        outputs.append(output)
+    return outputs
+
 
 def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_section):
     sentences_data = []
@@ -308,17 +330,16 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
         src_sentence_ori = copy.copy(src_sentence)
         tar_sentence = sentence['tar_st']
         key_list = []
-        src_tokens = config.tokenizer.tokenize(src_sentence_ori)
-        tar_tokens = config.tokenizer.tokenize(tar_sentence)
-        edit_tokens = sent2edit(src_tokens, tar_tokens)
-        for key in sentence['data']:
+        temp_keys = sentence['data']
+        temp_keys = sorted(temp_keys, key=lambda x: len(x['origin']), reverse=True)
+        for key in temp_keys:
             region = re.search(key['origin'], src_sentence)
             if region is not None:
                 region = region.regs[0]
             else:
                 region = (0, 0)
             if region[0] != 0 or region[1] != 0:
-                src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key['origin']) + ''.join([' [MASK] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
+                src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key['origin']) + '（' + ''.join([' [MASK] ' for x in range(config.hidden_anno_len)]) + '）' + src_sentence[region[1]:]
             region = re.search(key['origin'], tar_sentence)
             if region is not None:
                 region = region.regs[0]
@@ -364,6 +385,9 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             if e-s > 5:
                 print(key['key'])
             key_list.append(data_filed)
+        src_tokens = config.tokenizer.tokenize(src_sentence)
+        tar_tokens = config.tokenizer.tokenize(tar_sentence)
+        edit_tokens = sent2edit(src_tokens, tar_tokens)
         sentences_data.append({'src_sen': src_sentence, 'src_sen_ori': src_sentence_ori,
                                'tar_sen': tar_sentence, 'textid': sentence['textid'], 'key_data':key_list, 'edit_sen':edit_tokens})
     return sentences_data

@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 from config import Config
-config = Config(2)
-from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref
+config = Config(16)
+from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref, read_clean_data, find_spot, restricted_decoding, operation2sentence
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
 from tqdm import tqdm
@@ -11,7 +11,6 @@ import numpy as np
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction, corpus_bleu
 smooth = SmoothingFunction()
 import jieba
-from models.units_sen import read_clean_data, find_spot, restricted_decoding
 from rank_bm25 import BM25Okapi
 from models.modeling_gpt2_att import GPT2LMHeadModel
 from models.modeling_bart_att import BartForConditionalGeneration
@@ -55,10 +54,10 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    if False and os.path.exists(config.data_file.replace('.pkl', '_train_dataset.pkl')):
-        train_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset.pkl'))
-        valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset.pkl'))
-        test_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset.pkl'))
+    if os.path.exists(config.data_file.replace('.pkl', '_train_dataset_edit.pkl')):
+        train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset_edit.pkl'))
+        valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset_edit.pkl'))
+        test_dataset = torch.load(config.data_file.replace('.pkl', '_test_dataset_edit.pkl'))
     else:
         train_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_valid_dataset_raw.pkl'), titles, sections, title2sections, sec2id, bm25_title, bm25_section)
         valid_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_valid_dataset_raw.pkl'), titles, sections, title2sections, sec2id,
@@ -66,9 +65,9 @@ def build(config):
                                bm25_section)
         test_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_valid_dataset_raw.pkl'), titles, sections, title2sections, sec2id, bm25_title,
                               bm25_section)
-        torch.save(train_dataset, config.data_file.replace('.pkl', '_train_dataset.pkl'))
-        torch.save(valid_dataset, config.data_file.replace('.pkl', '_valid_dataset.pkl'))
-        torch.save(test_dataset, config.data_file.replace('.pkl', '_test_dataset.pkl'))
+        torch.save(train_dataset, config.data_file.replace('.pkl', '_train_dataset_edit.pkl'))
+        torch.save(valid_dataset, config.data_file.replace('.pkl', '_valid_dataset_edit.pkl'))
+        torch.save(test_dataset, config.data_file.replace('.pkl', '_test_dataset_edit.pkl'))
 
     train_dataloader = DataLoader(dataset=train_dataset, batch_size=config.batch_size
                                   , collate_fn=train_dataset.collate_fn)
@@ -109,7 +108,7 @@ def build(config):
     optimizer_s = AdamW(models.parameters(), lr=config.lr*0.1)
     optimizer_encoder = AdamW(modele.parameters(), lr=config.lr)
     optimizer_decoder = AdamW(modeld.parameters(), lr=config.lr)
-    loss_func = torch.nn.CrossEntropyLoss(reduction='none')
+    loss_func = nn.NLLLoss(ignore_index=config.tokenizer.vocab['[PAD]'], reduction='none')
     return modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
 def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
@@ -118,7 +117,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
     count_s = -1
     count_p = -1
     data_size = len(train_dataloader)
-    #test_loss, eval_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
+    test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
     for epoch in range(config.train_epoch*4):
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, src_sens_ori, tar_sens, cut_list, edit_sens) in zip(
                 tqdm(range(data_size)), train_dataloader):
@@ -189,32 +188,35 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
 
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             decoder_ids = decoder_ids.to(config.device)
-            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids']
-            target_ids_for_train = mask_ref(target_ids, tokenizer).to(config.device)
+            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
 
-            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train[:, 0:-1].to(config.device),
+            logits, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
                              anno_position=decoder_anno_position, hidden_annotation=hidden_annotation, input_edits=decoder_ids_edits, org_ids=decoder_ids_ori)
-            logits_ = outputs.logits
-            #len_anno = min(target_ids.shape[1], logits_.shape[1])
-            logits = logits_
-            targets = target_ids[:, 1:]
+            targets = decoder_ids_edits[:, 1:]
             _, predictions = torch.max(logits, dim=-1)
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
+            results = [x.replace('[unused1]', '[KEEP]') for x in results]
+            results = [x.replace('[unused2]', '[DEL]') for x in results]
             results = [x.replace('[CLS]', '') for x in results]
             results = [x.split('[SEP]')[0] for x in results]
             logits = logits.reshape(-1, logits.shape[2])
-            targets = targets.reshape(-1).to(config.device)
+            tar_lens = targets.ne(0).sum(1).float()
+            targets_flat = targets.reshape(-1).to(config.device)
             #masks = torch.ones_like(targets)
             #masks[torch.where(targets == 0)] = 0
-            lossd = (loss_func(logits, targets)).sum()/config.batch_size
-            loss = lossd
+            lossd = (loss_func(logits, targets_flat))
+            loss[targets == 1] = 0 #remove loss for UNK
+            loss = loss.view(targets.size())
+            loss = loss.sum(1).float()
+            loss = loss/tar_lens
+            loss = loss.mean()
             if count_p < 2:
                 loss += losss.mean()
             else:
@@ -261,7 +263,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             print('New Test Loss D:%f' % (d_eval_loss))
             state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(), 'modele': modele.state_dict(), 'modeld': modeld.state_dict(),
                      'eval_rs': eval_ans}
-            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
+            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_edit.pkl').replace('data/', ''))
             min_loss_d = d_eval_loss
             for one, one_g in zip(eval_ans[0:10], grand_ans[0:10]):
                 print(one)
@@ -292,7 +294,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
         eval_ans = []
         eval_gt = []
         data_size = len(dataloader)
-        for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list, pos_titles, pos_sections) in zip(
+        for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, src_sens_ori, tar_sens, cut_list, pos_titles, pos_sections, edit_sens) in zip(
                 tqdm(range(data_size)), dataloader):
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             rs2 = modelp(query_embedding=query_embedding, candidates=infer_titles, is_infer=True)
@@ -359,23 +361,30 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             an_decoder_inputs = tokenizer(an_decoder_inputs, return_tensors="pt", padding=True)
             an_decoder_inputs_ids = an_decoder_inputs['input_ids'].to(config.device)
 
-            decoder_inputs = modeld.tokenizer(src_sens, return_tensors="pt", padding=True, truncation=True)
+            decoder_inputs = tokenizer(src_sens, return_tensors="pt", padding=True, truncation=True)
             decoder_ids = decoder_inputs['input_ids']
+            decoder_inputs_ori = tokenizer(src_sens_ori, return_tensors="pt", padding=True, truncation=True)
+            decoder_ids_ori = decoder_inputs_ori['input_ids'].to(config.device)
+            decoder_edits = tokenizer(edit_sens, return_tensors="pt", padding=True, truncation=True)
+            decoder_ids_edits = decoder_edits['input_ids'].to(config.device)
+
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             decoder_ids = decoder_ids.to(config.device)
-            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids']
-            target_ids_for_train = mask_ref(target_ids, tokenizer).to(config.device)
+            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(
+                config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
-            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train[:, 0:-1], anno_position=decoder_anno_position,
-                             hidden_annotation=hidden_annotation)
-            logits_ = outputs.logits
-            # len_anno = min(target_ids.shape[1], logits_.shape[1])
-            logits = logits_
+
+            logits, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
+                                          anno_position=decoder_anno_position, hidden_annotation=hidden_annotation,
+                                          input_edits=decoder_ids_edits, org_ids=decoder_ids_ori, force_ratio=0.0)
+
             targets = target_ids[:, 1:]
             _, predictions = torch.max(logits, dim=-1)
+
+            predictions = operation2sentence(predictions, decoder_ids)
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
             results = [x.replace(' ', '') for x in results]

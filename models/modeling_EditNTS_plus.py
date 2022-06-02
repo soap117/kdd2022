@@ -102,6 +102,7 @@ class EditDecoderRNN(nn.Module):
         decoder_out = []
         counter_for_keep_del = np.zeros(bsz, dtype=int)
         counter_for_keep_ins =np.zeros(bsz, dtype=int)
+        counter_for_annos = np.zeros(bsz, dtype=int)
         encoder_outputs_org = F.tanh(self.output_hidden_alignment(encoder_outputs_org))
         # decoder in the training:
 
@@ -117,14 +118,17 @@ class EditDecoderRNN(nn.Module):
             logits_org = torch.bmm(key_org, encoder_outputs_org.transpose(1, 2))  # bsz x nsteps x encsteps
             attn_weights_org = F.softmax(logits_org, dim=-1)  # bsz x nsteps x encsteps
             attn_applied_org = torch.bmm(attn_weights_org, encoder_outputs_org)  # bsz x nsteps x nhid
-
+            print(org_ids[-1])
             for t in range(nsteps-1):
                 # print(t)
                 decoder_output_t = output_edits[:, t:t + 1, :]
                 attn_applied_org_t = attn_applied_org[:, t:t + 1, :]
 
                 ## find current word
-                inds = torch.LongTensor(counter_for_keep_del)
+                inds = torch.LongTensor(counter_for_annos)
+                ref_word_last = org_ids[-1, counter_for_annos[-1]]
+                print('Current Refer Word:')
+                print(ref_word_last.item())
                 dummy = inds.view(-1, 1, 1)
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c = encoder_outputs_org.gather(1, dummy)
@@ -147,6 +151,10 @@ class EditDecoderRNN(nn.Module):
                                         for i in zip(counter_for_keep_del, gold_action)]
                 counter_for_keep_ins = [i[0] + 1 if i[1] != DEL_ID and i[1] != STOP_ID and i[1] != PAD_ID else i[0]
                                         for i in zip(counter_for_keep_ins, gold_action)]
+                counter_for_annos = [i[0] + 1 if i[1] != DEL_ID and i[1] != STOP_ID and i[1] != PAD_ID and i[1] != KEEP_ID and i[2][i[0]+1] == 103 else max(i[3], i[0])
+                                        for i in zip(counter_for_annos, gold_action, org_ids, counter_for_keep_del)]
+                print('Current Action:')
+                print(gold_action[-1])
 
                 check1 = sum([x >= org_ids.size(1) for x in counter_for_keep_del])
                 check2 = sum([x >= simp_sent.size(1) for x in counter_for_keep_ins])
@@ -185,12 +193,12 @@ class EditDecoderRNN(nn.Module):
                 attn_applied_org_t = torch.bmm(attn_weights_org_t, encoder_outputs_org)  # bsz x nsteps x nhid
 
                 ## find current word
-                inds = torch.LongTensor(counter_for_keep_del)
+                inds = torch.LongTensor(counter_for_annos)
                 dummy = inds.view(-1, 1, 1)
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c = encoder_outputs_org.gather(1, dummy)
 
-                output_t = torch.cat((output_edits, attn_applied_org_t, c, hidden_words[0]),
+                output_t = torch.cat((output_edits, attn_applied_org_t, c, hidden_words[0].permute(1,0,2)),
                                      2)  # bsz*nsteps x nhid*2
                 output_t = self.attn_MLP(output_t)
                 output_t = F.log_softmax(self.out(output_t), dim=-1)
@@ -204,6 +212,10 @@ class EditDecoderRNN(nn.Module):
                 pred_action= torch.argmax(output_t,dim=2)
                 counter_for_keep_del = [i[0] + 1 if i[1] == 2 or i[1] == 3 or i[1] == 5 else i[0]
                                         for i in zip(counter_for_keep_del, pred_action)]
+                counter_for_annos = [
+                    i[0] + 1 if i[1] != DEL_ID and i[1] != STOP_ID and i[1] != PAD_ID and i[1] != KEEP_ID and i[2][
+                        i[0] + 1] == 103 else max(i[3], i[0])
+                    for i in zip(counter_for_annos, pred_action, org_ids, counter_for_keep_del)]
 
                 # update rnn_words
                 # find previous generated word
@@ -232,8 +244,10 @@ class EditPlus(nn.Module):
         self.encoder = encoder
         self.tokenizer = tokenizer
         self.decoder = decoder
+        self.hidden_annotation_alignment = nn.Linear(encoder.config.d_model, encoder.config.d_model, bias=False)
 
-    def forward(self, input_ids, decoder_input_ids, anno_position, hidden_annotation, input_edits, org_ids):
+    def forward(self, input_ids, decoder_input_ids, anno_position, hidden_annotation, input_edits, org_ids, force_ratio=1.0):
+        hidden_annotation = self.hidden_annotation_alignment(hidden_annotation)
         encoder_outputs = self.encoder(
             input_ids=input_ids,
             anno_position=anno_position,
@@ -241,9 +255,10 @@ class EditPlus(nn.Module):
         )
         h_0, c_0 = self.decoder.initHidden(encoder_outputs[0][:, 0])
         decoder_outputs = self.decoder(
-            input_edits=input_edits, hidden_org=(h_0,c_0), encoder_outputs_org=encoder_outputs[0], org_ids=org_ids, simp_sent=decoder_input_ids, teacher_forcing_ratio = 1.
+            input_edits=input_edits, hidden_org=(h_0,c_0), encoder_outputs_org=encoder_outputs[0][:, 1:], org_ids=input_ids[:, 1:],
+            simp_sent=decoder_input_ids, teacher_forcing_ratio = force_ratio
         )
 
 
-        decoder_outputs
+        return decoder_outputs
 
