@@ -211,11 +211,11 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             #masks = torch.ones_like(targets)
             #masks[torch.where(targets == 0)] = 0
             lossd = loss_func(logits, targets_flat)
+            lossd = lossd.view(targets.size())
+            lossd = lossd.sum(1).float()
+            lossd = lossd/tar_lens
+            lossd = lossd.mean()
             loss = lossd
-            loss = loss.view(targets.size())
-            loss = loss.sum(1).float()
-            loss = loss/tar_lens
-            loss = loss.mean()
             if count_p < 2:
                 loss += losss.mean()
             else:
