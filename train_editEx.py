@@ -183,7 +183,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             decoder_ids = decoder_inputs['input_ids']
             decoder_inputs_ori = tokenizer(src_sens_ori, return_tensors="pt", padding=True, truncation=True)
             decoder_ids_ori = decoder_inputs_ori['input_ids'].to(config.device)
-            edit_sens_token = [['[CLS]'] + x.split() + ['[SEP]'] for x in edit_sens]
+            edit_sens_token = [['[CLS]'] + x + ['[SEP]'] for x in edit_sens]
             edit_sens_token_ids = [torch.LongTensor(tokenizer.convert_tokens_to_ids(x)) for x in edit_sens_token]
             edit_sens_token_ids = pad_sequence(edit_sens_token_ids, batch_first=True, padding_value=0).to(config.device)
             #decoder_edits= tokenizer(edit_sens, return_tensors="pt", padding=True, truncation=True)
@@ -373,7 +373,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             decoder_inputs_ori = tokenizer(src_sens_ori, return_tensors="pt", padding=True, truncation=True)
             decoder_ids_ori = decoder_inputs_ori['input_ids'].to(config.device)
 
-            edit_sens_token = [['[CLS]'] + x.split() + ['[SEP]'] for x in edit_sens]
+            edit_sens_token = [['[CLS]'] + x + ['[SEP]'] for x in edit_sens]
             edit_sens_token_ids = [torch.LongTensor(tokenizer.convert_tokens_to_ids(x)) for x in edit_sens_token]
             edit_sens_token_ids = pad_sequence(edit_sens_token_ids, batch_first=True, padding_value=0).to(config.device)
             #decoder_edits = tokenizer(edit_sens.replace(' ', ''), return_tensors="pt", padding=True, truncation=True)
