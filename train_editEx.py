@@ -1,3 +1,4 @@
+import cuda
 import torch
 import torch.nn as nn
 from config import Config
@@ -12,8 +13,6 @@ from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction, corpus_b
 smooth = SmoothingFunction()
 import jieba
 from rank_bm25 import BM25Okapi
-from models.modeling_gpt2_att import GPT2LMHeadModel
-from models.modeling_bart_att import BartForConditionalGeneration
 import os
 class MyDataParallel(nn.DataParallel):
     def __getattr__(self, name):
