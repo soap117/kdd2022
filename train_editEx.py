@@ -200,6 +200,9 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             logits, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
                              anno_position=decoder_anno_position, hidden_annotation=hidden_annotation, input_edits=edit_sens_token_ids, org_ids=decoder_ids_ori)
             targets = edit_sens_token_ids[:, 1:]
+            min_len = min(targets.shape[1], logits.shape[1])
+            targets = targets[:, 0:min_len]
+            logits = logits[:, 0:min_len]
             _, predictions = torch.max(logits, dim=-1)
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
