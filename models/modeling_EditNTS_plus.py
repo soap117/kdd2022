@@ -83,7 +83,7 @@ class EditDecoderRNN(nn.Module):
         unbind_h = torch.unbind(batch_h,dim=1)
         unbind_c = torch.unbind(batch_c,dim=1)
         for i in range(bsz):
-            elem=self.execute(unbind_symbol[i], unbind_input[i], (unbind_h[i].view(1,1,-1), unbind_c[i].view(1,1,-1)))
+            elem=self.execute(unbind_symbol[i], unbind_input[i], (unbind_h[i].view(self.n_layers,1,-1), unbind_c[i].view(self.n_layers,1,-1)))
             unbind_new_h.append(elem[0])
             unbind_new_c.append(elem[1])
         new_batch_lm_h = torch.cat(unbind_new_h,dim=1)
