@@ -209,9 +209,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             results = [x.replace('[unused2]', '[DEL]') for x in results]
             results = [x.replace('[CLS]', '') for x in results]
             results = [x.split('[SEP]')[0] for x in results]
-            print(target_ids.shape)
-            print(targets.shape)
-            print(logits.shape)
+
             logits = logits.reshape(-1, logits.shape[2])
             tar_lens = targets.ne(0).sum(1).float()
             targets_flat = targets.reshape(-1).to(config.device)
