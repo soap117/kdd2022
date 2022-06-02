@@ -54,7 +54,7 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    debug_flag = True
+    debug_flag = False
     if not debug_flag and os.path.exists(config.data_file.replace('.pkl', '_train_dataset_edit.pkl')):
         train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset_edit.pkl'))
         valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset_edit.pkl'))
@@ -107,8 +107,8 @@ def build(config):
     modeld.train()
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr*0.1)
     optimizer_s = AdamW(models.parameters(), lr=config.lr*0.1)
-    optimizer_encoder = AdamW(modele.parameters(), lr=config.lr)
-    optimizer_decoder = AdamW(modeld.parameters(), lr=config.lr)
+    optimizer_encoder = AdamW(modele.parameters(), lr=config.lr*0.1)
+    optimizer_decoder = AdamW(modeld.parameters(), lr=config.lr*0.1)
     loss_func = nn.NLLLoss(ignore_index=config.tokenizer.vocab['[PAD]'], reduction='none')
     return modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
