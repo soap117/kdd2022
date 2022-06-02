@@ -291,12 +291,7 @@ def sent2edit(sent1, sent2):
     edits = edits[::-1]
     # replace the keeps at the end to stop, this helps a bit with imbalanced classes (KEEP,INS,DEL,STOP)
     ediits_ori = copy.copy(edits)
-    for i in range(len(edits))[::-1]: #reversely checking
-        if edits[i] == '[unused1]':
-            if edits[i-1] =='[unused1]':
-                edits.pop(i)
-            else:
-                break
+
 
     # if edits == []: # do we learn edits if input and output are the same?
     #     edits.append('STOP') #in the case that input and output sentences are the same
@@ -414,6 +409,9 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
         if temp != tar_tokens:
             print('SKIP problematic example')
             sent2edit(src_tokens, tar_tokens)
+            continue
+        if len(tar_tokens)>3*len(src_tokens) or len(src_tokens)>3*len(tar_tokens):
+            print('Not a good match')
             continue
         sentences_data.append({'src_sen': src_sentence, 'src_sen_ori': src_sentence_ori,
                                'tar_sen': tar_sentence, 'textid': sentence['textid'], 'key_data':key_list, 'edit_sen':edit_tokens})
