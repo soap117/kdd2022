@@ -127,8 +127,8 @@ class EditDecoderRNN(nn.Module):
                 ## find current word
                 inds = torch.LongTensor(counter_for_annos)
                 ref_word_last = org_ids[-1, counter_for_annos[-1]]
-                print('Current Refer Word:')
-                print(ref_word_last.item())
+                #print('Current Refer Word:')
+                #print(ref_word_last.item())
                 dummy = inds.view(-1, 1, 1)
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c = encoder_outputs_org.gather(1, dummy)
@@ -153,8 +153,8 @@ class EditDecoderRNN(nn.Module):
                                         for i in zip(counter_for_keep_ins, gold_action)]
                 counter_for_annos = [i[0] + 1 if i[1] != DEL_ID and i[1] != STOP_ID and i[1] != PAD_ID and i[1] != KEEP_ID and i[2][i[0]+1] == 103 else max(i[3], i[0])
                                         for i in zip(counter_for_annos, gold_action, org_ids, counter_for_keep_del)]
-                print('Current Action:')
-                print(gold_action[-1])
+                #print('Current Action:')
+                #print(gold_action[-1])
 
                 check1 = sum([x >= org_ids.size(1) for x in counter_for_keep_del])
                 check2 = sum([x >= simp_sent.size(1) for x in counter_for_keep_ins])

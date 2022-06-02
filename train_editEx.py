@@ -210,7 +210,8 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             targets_flat = targets.reshape(-1).to(config.device)
             #masks = torch.ones_like(targets)
             #masks[torch.where(targets == 0)] = 0
-            lossd = (loss_func(logits, targets_flat))
+            lossd = loss_func(logits, targets_flat)
+            loss = lossd
             loss[targets == 1] = 0 #remove loss for UNK
             loss = loss.view(targets.size())
             loss = loss.sum(1).float()
