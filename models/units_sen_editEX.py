@@ -290,12 +290,14 @@ def sent2edit(sent1, sent2):
                 n -= 1
     edits = edits[::-1]
     # replace the keeps at the end to stop, this helps a bit with imbalanced classes (KEEP,INS,DEL,STOP)
+    '''
     for i in range(len(edits))[::-1]: #reversely checking
         if edits[i] == '[unused1]':
             if edits[i-1] =='[unused1]':
                 edits.pop(i)
             else:
                 break
+    '''
     # if edits == []: # do we learn edits if input and output are the same?
     #     edits.append('STOP') #in the case that input and output sentences are the same
     return edits
@@ -388,7 +390,30 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             key_list.append(data_filed)
         src_tokens = config.tokenizer.tokenize(src_sentence)
         tar_tokens = config.tokenizer.tokenize(tar_sentence)
+        # check
+        '''
+        tar_ids = config.tokenizer.convert_tokens_to_ids(tar_tokens)
+        tar_ids_2 = config.tokenizer(tar_sentence)['input_ids'][1:-1]
+        if tar_ids != tar_ids_2:
+            print('here')
+         '''
         edit_tokens = sent2edit(src_tokens, tar_tokens)
+        temp = []
+        r = 0
+        for op in edit_tokens:
+            if op == '[unused1]':
+                temp.append(src_tokens[r])
+                r += 1
+            elif op != '[unused2]' and op != '[SEP]' and op != '[PAD]':
+                temp.append(op)
+            elif op == '[unused2]':
+                r += 1
+            else:
+                temp += src_tokens[r:]
+        temp += src_tokens[r:]
+        if temp != tar_tokens:
+            print('SKIP problematic example')
+            continue
         sentences_data.append({'src_sen': src_sentence, 'src_sen_ori': src_sentence_ori,
                                'tar_sen': tar_sentence, 'textid': sentence['textid'], 'key_data':key_list, 'edit_sen':edit_tokens})
     return sentences_data
