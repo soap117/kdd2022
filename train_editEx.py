@@ -58,11 +58,11 @@ def build(config):
         valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset_edit.pkl'))
         test_dataset = torch.load(config.data_file.replace('.pkl', '_test_dataset_edit.pkl'))
     else:
-        train_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_valid_dataset_raw.pkl'), titles, sections, title2sections, sec2id, bm25_title, bm25_section)
+        train_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_train_dataset_raw.pkl'), titles, sections, title2sections, sec2id, bm25_title, bm25_section)
         valid_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_valid_dataset_raw.pkl'), titles, sections, title2sections, sec2id,
                                bm25_title,
                                bm25_section)
-        test_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_valid_dataset_raw.pkl'), titles, sections, title2sections, sec2id, bm25_title,
+        test_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_test_dataset_raw.pkl'), titles, sections, title2sections, sec2id, bm25_title,
                               bm25_section)
         torch.save(train_dataset, config.data_file.replace('.pkl', '_train_dataset_edit.pkl'))
         torch.save(valid_dataset, config.data_file.replace('.pkl', '_valid_dataset_edit.pkl'))
