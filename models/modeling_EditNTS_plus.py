@@ -173,10 +173,12 @@ class EditDecoderRNN(nn.Module):
                 check1 = sum([x >= org_ids.size(1) for x in counter_for_keep_del])
                 check2 = sum([x >= simp_sent.size(1) for x in counter_for_keep_ins])
                 if check1:
+                    print('run out input')
                     print(org_ids.size(1))
                     print(counter_for_keep_del)
                     break
                 if check2:
+                    print('run out target')
                     print(simp_sent.size(1))
                     print(counter_for_keep_ins)
                     break
