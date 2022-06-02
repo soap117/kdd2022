@@ -314,6 +314,7 @@ def operation2sentence(operations, input_sentences):
             elif op != config.tokenizer.vocab['[SEP]'] and op != config.tokenizer.vocab['[unused2]']:
                 output.append(op)
             elif op == config.tokenizer.vocab['[unused2]']:
+                read_index += 1
                 # del do nothing
                 continue
             else:
