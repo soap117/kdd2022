@@ -12,6 +12,7 @@ import torch
 import random
 import torch.nn.functional as F
 import numpy as np
+import copy
 from transformers import BertTokenizer
 from models.modeling_bert_ex import BertModel
 bert_model = 'hfl/chinese-bert-wwm-ext'
@@ -107,6 +108,8 @@ class EditDecoderRNN(nn.Module):
         # decoder in the training:
 
         if use_teacher_forcing:
+            r = 0
+            temp = []
             embedded_edits = self.embedding(input_edits)
             output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_org)
 
@@ -137,7 +140,9 @@ class EditDecoderRNN(nn.Module):
                 dummy = inds.view(-1, 1, 1)
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), output_words.size(2)).cuda()
                 c_word = output_words.gather(1, dummy)
-
+                ref_word_last = simp_sent[-1, counter_for_keep_ins[-1]]
+                print('Current Refer Word:')
+                print(ref_word_last.item())
                 output_t = torch.cat((decoder_output_t, attn_applied_org_t, c,c_word),
                                      2)  # bsz*nsteps x nhid*2
                 output_t = self.attn_MLP(output_t)
@@ -151,16 +156,27 @@ class EditDecoderRNN(nn.Module):
                                         for i in zip(counter_for_keep_del, gold_action)]
                 counter_for_keep_ins = [i[0] + 1 if i[1] != DEL_ID and i[1] != STOP_ID and i[1] != PAD_ID else i[0]
                                         for i in zip(counter_for_keep_ins, gold_action)]
-                counter_for_annos = [i[0] + 1 if i[1] != DEL_ID and i[1] != STOP_ID and i[1] != PAD_ID and i[1] != KEEP_ID and i[2][i[0]+1] == 103 else max(i[3], i[0])
+                counter_for_annos = [i[0] + 1 if i[1] != DEL_ID and i[1] != STOP_ID and i[1] != PAD_ID and i[1] != KEEP_ID and i[2][i[0]+1] == 103 else max(copy.copy(i[3]), i[0])
                                         for i in zip(counter_for_annos, gold_action, org_ids, counter_for_keep_del)]
-                #print('Current Action:')
-                #print(gold_action[-1])
+                print('Current Action:')
+                print(gold_action[-1])
+                if gold_action[-1] == 1:
+                    temp.append(org_ids[-1, r].item())
+                    r += 1
+                elif gold_action[-1] != DEL_ID and gold_action[-1] != STOP_ID and gold_action[-1] != PAD_ID:
+                    temp.append(gold_action[-1].item())
+                elif gold_action[-1] == DEL_ID:
+                    r += 1
+                if temp[-1] != simp_sent[0, len(temp)]:
+                    print('here')
+
+
 
                 check1 = sum([x >= org_ids.size(1) for x in counter_for_keep_del])
                 check2 = sum([x >= simp_sent.size(1) for x in counter_for_keep_ins])
                 if check1 or check2:
-                    # print(org_ids.size(1))
-                    # print(counter_for_keep_del)
+                    print(org_ids.size(1))
+                    print(counter_for_keep_del)
                     break
 
 

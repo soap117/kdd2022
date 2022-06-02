@@ -298,7 +298,7 @@ def sent2edit(sent1, sent2):
                 break
     # if edits == []: # do we learn edits if input and output are the same?
     #     edits.append('STOP') #in the case that input and output sentences are the same
-    return ' '.join(edits)
+    return edits
 
 def operation2sentence(operations, input_sentences):
     operations = operations.cpu().detach().numpy()

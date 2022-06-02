@@ -7,6 +7,7 @@ from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref, read_
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
 from tqdm import tqdm
+from torch.nn.utils.rnn import pad_sequence
 from transformers import AdamW
 import numpy as np
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction, corpus_bleu
@@ -120,6 +121,8 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
     for epoch in range(config.train_epoch*4):
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, src_sens_ori, tar_sens, cut_list, edit_sens) in zip(
                 tqdm(range(data_size)), train_dataloader):
+            if step<26:
+                continue
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
             rs2 = modelp(query_embedding=query_embedding, candidates=infer_titles, is_infer=True)
@@ -182,8 +185,11 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             decoder_ids = decoder_inputs['input_ids']
             decoder_inputs_ori = tokenizer(src_sens_ori, return_tensors="pt", padding=True, truncation=True)
             decoder_ids_ori = decoder_inputs_ori['input_ids'].to(config.device)
-            decoder_edits= tokenizer(edit_sens, return_tensors="pt", padding=True, truncation=True)
-            decoder_ids_edits = decoder_edits['input_ids'].to(config.device)
+            edit_sens_token = [['[CLS]'] + x.split() + ['[SEP]'] for x in edit_sens]
+            edit_sens_token_ids = [torch.LongTensor(tokenizer.convert_tokens_to_ids(x)) for x in edit_sens_token]
+            edit_sens_token_ids = pad_sequence(edit_sens_token_ids, batch_first=True, padding_value=0).to(config.device)
+            #decoder_edits= tokenizer(edit_sens, return_tensors="pt", padding=True, truncation=True)
+            #decoder_ids_edits = decoder_edits['input_ids'].to(config.device)
 
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             decoder_ids = decoder_ids.to(config.device)
@@ -194,8 +200,8 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
 
             logits, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
-                             anno_position=decoder_anno_position, hidden_annotation=hidden_annotation, input_edits=decoder_ids_edits, org_ids=decoder_ids_ori)
-            targets = decoder_ids_edits[:, 1:]
+                             anno_position=decoder_anno_position, hidden_annotation=hidden_annotation, input_edits=edit_sens_token_ids, org_ids=decoder_ids_ori)
+            targets = edit_sens_token_ids[:, 1:]
             _, predictions = torch.max(logits, dim=-1)
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
@@ -367,7 +373,11 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             decoder_ids = decoder_inputs['input_ids']
             decoder_inputs_ori = tokenizer(src_sens_ori, return_tensors="pt", padding=True, truncation=True)
             decoder_ids_ori = decoder_inputs_ori['input_ids'].to(config.device)
-            decoder_edits = tokenizer(edit_sens, return_tensors="pt", padding=True, truncation=True)
+
+            edit_sens_token = [['[CLS]']+x.split()+['[SEP]'] for x in edit_sens]
+            edit_sens_token_ids = tokenizer.convert_tokens_to_ids(edit_sens_token)
+            edit_sens_token_ids = pad_sequence(edit_sens_token_ids, batch_first=True, padding_value=0).to(config.device)
+            decoder_edits = tokenizer(edit_sens.replace(' ', ''), return_tensors="pt", padding=True, truncation=True)
             decoder_ids_edits = decoder_edits['input_ids'].to(config.device)
 
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
