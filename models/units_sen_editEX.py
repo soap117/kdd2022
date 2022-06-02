@@ -305,18 +305,21 @@ def operation2sentence(operations, input_sentences):
         read_index = 0
         output = []
         for op in operation:
-            if op == config.tokenizer.vocab['[unused1]']:
-                output.append(input_sentence[read_index])
-                read_index += 1
-            elif op != config.tokenizer.vocab['[SEP]'] and op != config.tokenizer.vocab['[unused2]']:
-                output.append(op)
-            elif op == config.tokenizer.vocab['[unused2]']:
-                read_index += 1
-                # del do nothing
-                continue
-            else:
-                output += input_sentence[read_index:]
-                break
+            if read_index < len(input_sentence):
+                if op == config.tokenizer.vocab['[unused1]']:
+                    output.append(input_sentence[read_index])
+                    read_index += 1
+                elif op != config.tokenizer.vocab['[SEP]'] and op != config.tokenizer.vocab['[unused2]']:
+                    output.append(op)
+                elif op == config.tokenizer.vocab['[unused2]']:
+                    read_index += 1
+                    # del do nothing
+                    continue
+                else:
+                    output += input_sentence[read_index:]
+                    break
+        if read_index < len(input_sentence):
+            output += input_sentence[read_index:]
         outputs.append(output)
     return outputs
 
