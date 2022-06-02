@@ -72,9 +72,9 @@ def build(config):
 
     train_dataloader = DataLoader(dataset=train_dataset, batch_size=config.batch_size
                                   , collate_fn=train_dataset.collate_fn)
-    valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=config.batch_size
+    valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=1
                                   , collate_fn=train_dataset.collate_fn_test)
-    test_dataloader = DataLoader(dataset=test_dataset, batch_size=config.batch_size
+    test_dataloader = DataLoader(dataset=test_dataset, batch_size=1
                                   , collate_fn=train_dataset.collate_fn_test)
 
     title_encoder = TitleEncoder(config)
