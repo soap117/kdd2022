@@ -319,7 +319,7 @@ def operation2sentence(operations, input_sentences):
                     output += input_sentence[read_index:]
                     break
         if read_index < len(input_sentence):
-            output += input_sentence[read_index:]
+            output += list(input_sentence[read_index:])
         outputs.append(output)
     return outputs
 
