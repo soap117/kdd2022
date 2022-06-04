@@ -425,7 +425,7 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             print('SKIP problematic example')
             sent2edit(src_tokens, tar_tokens)
             continue
-        if len(tar_tokens)>2*len(src_tokens) or len(src_tokens)>2*len(tar_tokens):
+        if len(tar_tokens)>2.5*len(src_tokens) or len(src_tokens)>2.5*len(tar_tokens):
             print('Not a good match')
             continue
         sentences_data.append({'src_sen': src_sentence, 'src_sen_ori': src_sentence_ori,
