@@ -54,7 +54,7 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    debug_flag = False
+    debug_flag = True
     if not debug_flag and os.path.exists(config.data_file.replace('.pkl', '_train_dataset_edit.pkl')):
         train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset_edit.pkl'))
         valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset_edit.pkl'))
@@ -273,14 +273,14 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                      'eval_rs': eval_ans}
             torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_edit.pkl').replace('data/', ''))
             min_loss_d = d_eval_loss
-            for one, one_g in zip(eval_ans[0:10], grand_ans[0:10]):
+            for one, one_g in zip(eval_ans[0:3], grand_ans[0:3]):
                 print(one)
                 print(one_g)
             print('+++++++++++++++++++++++++++++++')
         else:
             print(count_p, count_s)
             print('New Larger Test Loss D:%f' % (d_eval_loss))
-            for one, one_g in zip(eval_ans[0:10], grand_ans[0:10]):
+            for one, one_g in zip(eval_ans[0:3], grand_ans[0:3]):
                 print(one)
                 print(one_g)
             print('+++++++++++++++++++++++++++++++')
@@ -402,6 +402,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
             results = [x.replace('[CLS]', '') for x in results]
+            results = [x.replace('[MASK]', '') for x in results]
             results = [x.split('[SEP]')[0] for x in results]
             ground_truth = tokenizer.batch_decode(targets)
             ground_truth = [tokenizer.convert_tokens_to_string(x) for x in ground_truth]

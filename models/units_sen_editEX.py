@@ -289,6 +289,13 @@ def sent2edit(sent1, sent2):
                 pos.append(left)  # (sent2[n-1])
                 n -= 1
     edits = edits[::-1]
+    for k in range(len(edits)-1, -1, -1):
+        if edits[k] == '[unused1]':
+            if edits[k-1] == '[unused1]':
+                del edits[k]
+        else:
+            edits.append('[SEP]')
+            break
     # replace the keeps at the end to stop, this helps a bit with imbalanced classes (KEEP,INS,DEL,STOP)
     ediits_ori = copy.copy(edits)
 
