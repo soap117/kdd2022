@@ -415,6 +415,7 @@ def pipieline(path_from):
             results = [x.replace('[MASK]', '') for x in results]
             results = [x.split('[SEP]')[0] for x in results]
             results = [x.replace('（）', '') for x in results]
+            print(results[0])
             results = [x.replace('$', '') for x in results]
             # masks = torch.ones_like(targets)
             # masks[torch.where(targets == 0)] = 0
