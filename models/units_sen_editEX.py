@@ -318,7 +318,7 @@ def operation2sentence(operations, input_sentences):
                 else:
                     output += input_sentence[read_index:]
                     break
-        if read_index < len(input_sentence):
+        if read_index < len(input_sentence)-1:
             output += list(input_sentence[read_index:])
         outputs.append(output)
     return outputs
