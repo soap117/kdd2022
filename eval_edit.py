@@ -48,7 +48,14 @@ modele = config.modeld_ann.from_pretrained(config.bert_model)
 modele.load_state_dict(save_data['modele'])
 modele.cuda()
 modele.eval()
-modeld = config.modeld_sen.from_pretrained(config.bert_model)
+from models.modeling_bart_ex import BartModel
+from models.modeling_EditNTS_plus import EditDecoderRNN, EditPlus
+bert_model = config.bert_model
+encoder = BartModel.from_pretrained(bert_model).encoder
+tokenizer = config.tokenizer
+decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 400, n_layers=1, embedding=encoder.embed_tokens)
+edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
+modeld = edit_nts_ex
 modeld.load_state_dict(save_data['modeld'])
 modeld.cuda()
 modeld.eval()
