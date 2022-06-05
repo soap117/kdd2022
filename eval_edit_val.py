@@ -236,7 +236,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
 
             targets = target_ids[:, 1:]
             _, predictions = torch.max(logits, dim=-1)
-
+            print(predictions)
             predictions = operation2sentence(predictions, decoder_ids)
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
@@ -254,7 +254,6 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             #masks = torch.ones_like(targets)
             #masks[torch.where(targets == 0)] = 0
             eval_ans += results
-            print(results)
             eval_gt += ground_truth
         predictions = [tokenizer.tokenize(doc) for doc in eval_ans]
         reference = [[tokenizer.tokenize(doc)] for doc in eval_gt]
