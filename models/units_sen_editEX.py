@@ -322,9 +322,6 @@ def operation2sentence(operations, input_sentences):
                     read_index += 1
                     # del do nothing
                     continue
-                else:
-                    output += input_sentence[read_index:]
-                    break
         if read_index < len(input_sentence)-1:
             try:
                 temp = list(input_sentence)[read_index:]
