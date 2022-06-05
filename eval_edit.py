@@ -372,7 +372,6 @@ def pipieline(path_from):
             record_references.append(reference)
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
             reference_ids = inputs_ref['input_ids'].to(config.device)
-            adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             an_decoder_input = ' '.join(['[MASK]' for x in range(100)])
             an_decoder_inputs = [an_decoder_input for x in reference_ids]
