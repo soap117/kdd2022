@@ -230,7 +230,7 @@ class EditDecoderRNN(nn.Module):
 
                 # gold_action = input[:, t + 1].vocab_data.cpu().numpy()  # might need to realign here because start added
                 pred_action= torch.argmax(output_t,dim=2)
-                counter_for_keep_del = [i[0] + 1 if i[1] == 2 or i[1] == 3 or i[1] == 5 else i[0]
+                counter_for_keep_del = [i[0] + 1 if i[1] == KEEP_ID or i[1] == DEL_ID else i[0]
                                         for i in zip(counter_for_keep_del, pred_action)]
                 counter_for_annos = [
                     i[0] + 1 if i[1] != DEL_ID and i[1] != STOP_ID and i[1] != PAD_ID and i[1] != KEEP_ID and i[2][
@@ -278,7 +278,6 @@ class EditPlus(nn.Module):
             input_edits=input_edits, hidden_org=(h_0,c_0), encoder_outputs_org=encoder_outputs[0][:, 1:], org_ids=input_ids[:, 1:],
             simp_sent=decoder_input_ids, teacher_forcing_ratio = force_ratio
         )
-
 
         return decoder_outputs
 
