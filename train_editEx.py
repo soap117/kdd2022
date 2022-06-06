@@ -54,7 +54,7 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    debug_flag = False
+    debug_flag = True
     if not debug_flag and os.path.exists(config.data_file.replace('.pkl', '_train_dataset_edit.pkl')):
         train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset_edit.pkl'))
         valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset_edit.pkl'))
@@ -107,7 +107,7 @@ def build(config):
     modeld.train()
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr*0.1)
     optimizer_s = AdamW(models.parameters(), lr=config.lr*0.1)
-    optimizer_encoder = AdamW(modele.parameters(), lr=config.lr*0.01)
+    optimizer_encoder = AdamW(modele.parameters(), lr=config.lr*0.1)
     optimizer_decoder = AdamW(modeld.parameters(), lr=config.lr*0.1)
     loss_func = nn.NLLLoss(ignore_index=config.tokenizer.vocab['[PAD]'], reduction='none')
     return modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
@@ -273,14 +273,14 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                      'eval_rs': eval_ans}
             torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_edit.pkl').replace('data/', ''))
             min_loss_d = d_eval_loss
-            for one, one_g in zip(eval_ans[0:3], grand_ans[0:3]):
+            for one, one_g in zip(eval_ans[0:5], grand_ans[0:5]):
                 print(one)
                 print(one_g)
             print('+++++++++++++++++++++++++++++++')
         else:
             print(count_p, count_s)
             print('New Larger Test Loss D:%f' % (d_eval_loss))
-            for one, one_g in zip(eval_ans[0:3], grand_ans[0:3]):
+            for one, one_g in zip(eval_ans[0:5], grand_ans[0:5]):
                 print(one)
                 print(one_g)
             print('+++++++++++++++++++++++++++++++')
@@ -362,7 +362,6 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
                 reference.append(temp[0:config.maxium_sec])
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
             reference_ids = inputs_ref['input_ids'].to(config.device)
-            adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             an_decoder_input = ' '.join(['[MASK]' for x in range(100)])
             an_decoder_inputs = [an_decoder_input for x in reference_ids]

@@ -309,8 +309,8 @@ def operation2sentence(operations, input_sentences):
     input_sentences = input_sentences.cpu().detach().numpy()
     outputs = []
     for operation, input_sentence in zip(operations, input_sentences):
-        read_index = 0
-        output = []
+        read_index = 1
+        output = [101]
         for op in operation:
             if read_index < len(input_sentence):
                 if op == config.tokenizer.vocab['[unused1]']:

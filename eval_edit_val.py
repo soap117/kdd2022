@@ -245,6 +245,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             results = [x.replace('[CLS]', '') for x in results]
             results = [x.replace('[MASK]', '') for x in results]
             results = [x.split('[SEP]')[0] for x in results]
+            print(results)
             ground_truth = tokenizer.batch_decode(targets)
             ground_truth = [tokenizer.convert_tokens_to_string(x) for x in ground_truth]
             ground_truth = [x.replace(' ', '') for x in ground_truth]
