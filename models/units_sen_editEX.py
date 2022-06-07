@@ -334,6 +334,13 @@ def operation2sentence(operations, input_sentences):
         outputs.append(output)
     return outputs
 
+def obtain_annotation(tar , t_s):
+    t_e = t_s + 1
+    while t_e < len(tar) and tar[t_e] != '）' and tar[t_e] !='（':
+        t_e += 1
+    annotations = tar[t_s+1:t_e]
+
+    return annotations
 
 def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_section):
     sentences_data = []
@@ -360,6 +367,13 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             if region[0] != 0 or region[1] != 0:
                 if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（':
                     tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key['origin']) + tar_sentence[region[1]:]
+                elif region[1] < len(tar_sentence) and tar_sentence[region[1]] == '（':
+                    annotation = obtain_annotation(tar_sentence, region[1])
+                    if annotation in src_sentence:
+                        tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key['origin']) + tar_sentence[
+                                                                                                      region[1]:]
+                    else:
+                        tar_sentence = tar_sentence[0:region[0]] + ' ${}$ '.format(key['origin']) + tar_sentence[region[1]:]
                 else:
                     tar_sentence = tar_sentence[0:region[0]] + ' ${}$ '.format(key['origin']) + tar_sentence[region[1]:]
 

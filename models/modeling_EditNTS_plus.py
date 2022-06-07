@@ -44,6 +44,8 @@ class EditDecoderRNN(nn.Module):
 
         self.attn_MLP = nn.Sequential(nn.Linear(hidden_size * 4, embedding_dim),
                                           nn.Tanh())
+        self.attn_REF = nn.Sequential(nn.Linear(hidden_size, 2),
+                                      nn.Softmax(dim=-1))
         self.out = nn.Linear(embedding_dim, self.vocab_size)
         self.out.weight.data = self.embedding.weight.data[:self.vocab_size]
 
@@ -127,14 +129,27 @@ class EditDecoderRNN(nn.Module):
                 decoder_output_t = output_edits[:, t:t + 1, :]
                 attn_applied_org_t = attn_applied_org[:, t:t + 1, :]
 
-                ## find current word
+                ## find current annotation word
                 inds = torch.LongTensor(counter_for_annos)
-                ref_word_last = org_ids[-1, counter_for_annos[-1]]
+                #ref_word_last = org_ids[-1, counter_for_annos[-1]]
                 #print('Current Refer Word:')
                 #print(ref_word_last.item())
                 dummy = inds.view(-1, 1, 1)
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
-                c = encoder_outputs_org.gather(1, dummy)
+                c_anno = encoder_outputs_org.gather(1, dummy)
+                ## find current input word
+                inds = torch.LongTensor(counter_for_keep_del)
+                #ref_word_last = org_ids[-1, counter_for_annos[-1]]
+                # print('Current Refer Word:')
+                # print(ref_word_last.item())
+                dummy = inds.view(-1, 1, 1)
+                dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
+                c_input = encoder_outputs_org.gather(1, dummy)
+
+                weight_ref = self.attn_REF(decoder_output_t)
+                c = torch.cat([c_input, c_anno], dim=1)
+                c = torch.bmm(weight_ref, c)
+
 
                 inds = torch.LongTensor(counter_for_keep_ins)
                 dummy = inds.view(-1, 1, 1)
@@ -213,13 +228,19 @@ class EditDecoderRNN(nn.Module):
                 attn_applied_org_t = torch.bmm(attn_weights_org_t, encoder_outputs_org)  # bsz x nsteps x nhid
 
                 ## find current word
-                inds = torch.LongTensor(counter_for_annos)
-                dummy = inds.view(-1, 1, 1)
                 if eval:
                     c_inds = org_ids.gather(1, inds.view(-1, 1).cuda())
-
+                inds = torch.LongTensor(counter_for_annos)
+                dummy = inds.view(-1, 1, 1)
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
-                c = encoder_outputs_org.gather(1, dummy)
+                c_anno = encoder_outputs_org.gather(1, dummy)
+                inds = torch.LongTensor(counter_for_keep_del)
+                dummy = inds.view(-1, 1, 1)
+                dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
+                c_input = encoder_outputs_org.gather(1, dummy)
+                weight_ref = self.attn_REF(output_edits)
+                c = torch.cat([c_input, c_anno], dim=1)
+                c = torch.bmm(weight_ref, c)
 
                 output_t = torch.cat((output_edits, attn_applied_org_t, c, hidden_words[0][-1].unsqueeze(1)),
                                      2)  # bsz*nsteps x nhid*2
