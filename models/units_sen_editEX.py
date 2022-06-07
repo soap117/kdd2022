@@ -341,7 +341,19 @@ def obtain_annotation(tar , t_s):
     annotations = tar[t_s+1:t_e]
 
     return annotations
-
+def is_in_annotation(pos, src):
+    s = 0
+    count_left = 0
+    while s < pos:
+        if src[s] == '（':
+            count_left += 1
+        elif src[s] == '）':
+            count_left -= 1
+        s += 1
+    if count_left > 0:
+        return True
+    else:
+        return False
 def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_section):
     sentences_data = []
     for sentence in tqdm(sentences):
@@ -351,7 +363,15 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
         key_list = []
         temp_keys = sentence['data']
         temp_keys = sorted(temp_keys, key=lambda x: len(x['origin']), reverse=True)
+        used = []
         for key in temp_keys:
+            flag = False
+            for key_used in used:
+                if key['origin'] in key_used:
+                    flag = True
+                    break
+            if flag:
+                continue
             region = re.search(key['origin'], src_sentence)
             if region is not None:
                 region = region.regs[0]
@@ -359,9 +379,15 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
                 region = (0, 0)
             if region[0] != 0 or region[1] != 0:
                 src_sentence = src_sentence[0:region[0]] + '${}$'.format(key['origin']) + '（' + ''.join([' [unused3] ']+[' [MASK] ' for x in range(config.hidden_anno_len-2)] + [' [unused4] ']) + '）' + src_sentence[region[1]:]
-            region = re.search(key['origin'], tar_sentence)
+            regions = [x for x in re.finditer(key['origin'], tar_sentence)]
+            region = None
+            for one in regions:
+                if is_in_annotation(one.regs[0][0], tar_sentence):
+                    continue
+                region = one.regs[0]
+                break
             if region is not None:
-                region = region.regs[0]
+                region = region
             else:
                 region = (0, 0)
             if region[0] != 0 or region[1] != 0:
@@ -407,6 +433,7 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             data_filed['neg_title_candidates'] = neg_titles
             data_filed['neg_section_candidates'] = neg_sections
             data_filed['sneg_section_candidates'] = neg_sections_strong
+            used.append(key['origin'])
             e = time.time()
             if e-s > 5:
                 print(key['key'])
