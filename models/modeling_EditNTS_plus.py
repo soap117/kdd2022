@@ -156,7 +156,7 @@ class EditDecoderRNN(nn.Module):
                                         for i in zip(counter_for_keep_del, gold_action)]
                 counter_for_keep_ins = [i[0] + 1 if i[1] != DEL_ID and i[1] != STOP_ID and i[1] != PAD_ID else i[0]
                                         for i in zip(counter_for_keep_ins, gold_action)]
-                counter_for_annos = [i[0] + 1 if i[1] != DEL_ID and i[1] != STOP_ID and i[1] != PAD_ID and i[1] != KEEP_ID and i[0]+1 < len(i[2]) and i[2][i[0]+1] == 103 else max(copy.copy(i[3]), i[0])
+                counter_for_annos = [i[0] + 1 if i[1] != DEL_ID and i[1] != STOP_ID and i[1] != PAD_ID and i[1] != KEEP_ID and i[0]+1 < len(i[2]) and i[2][i[0]+1] in [103, 3, 4] else max(copy.copy(i[3]), i[0])
                                         for i in zip(counter_for_annos, gold_action, org_ids, counter_for_keep_del)]
                 #print('Current Action:')
                 #print(gold_action[-1])
@@ -234,7 +234,7 @@ class EditDecoderRNN(nn.Module):
                                         for i in zip(counter_for_keep_del, pred_action)]
                 counter_for_annos = [
                     i[0] + 1 if i[1] != DEL_ID and i[1] != STOP_ID and i[1] != PAD_ID and i[1] != KEEP_ID and i[
-                        0] + 1 < len(i[2]) and i[2][i[0] + 1] == 103 else max(copy.copy(i[3]), i[0])
+                        0] + 1 < len(i[2]) and i[2][i[0] + 1] in [103, 3, 4] else max(copy.copy(i[3]), i[0])
                     for i in zip(counter_for_annos, pred_action, org_ids, counter_for_keep_del)]
 
                 # update rnn_words
