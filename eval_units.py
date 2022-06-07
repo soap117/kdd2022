@@ -96,8 +96,8 @@ def mark_sentence(input_list):
         else:
             region = (0, 0)
         if region[0] != 0 or region[1] != 0:
-            src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key) + ''.join(
-                [' [MASK] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
+            src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key) + '（' + ''.join(
+                [' [MASK] ' for x in range(config.hidden_anno_len)]) + '）' + src_sentence[region[1]:]
         region = re.search(key, tar_sentence)
         if region is not None:
             region = region.regs[0]
@@ -105,7 +105,8 @@ def mark_sentence(input_list):
             region = (0, 0)
         if region[0] != 0 or region[1] != 0:
             if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（' and region[1] + 1 < len(
-                    tar_sentence) and tar_sentence[region[1] + 1] != '（' or region[1] == len(tar_sentence) or region[1]+1 == len(tar_sentence):
+                    tar_sentence) and tar_sentence[region[1] + 1] != '（' and region[1] + 2 < len(tar_sentence) and \
+                    tar_sentence[region[1] + 2] != '（':
                 tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key) + tar_sentence[region[1]:]
             else:
                 tar_sentence = tar_sentence[0:region[0]] + ' ${}$ '.format(key) + tar_sentence[region[1]:]
