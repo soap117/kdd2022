@@ -449,9 +449,9 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             print('here')
          '''
         edit_tokens, edit_tokens_ori = sent2edit(src_tokens, tar_tokens)
-        tar_sentence_clean = re.sub('\$（[^（）]+）', '', tar_sentence)
-        src_sentence_clean = re.sub('\$（[^（）]+）', '', src_sentence)
-        if len(tar_sentence_clean)>2*len(src_sentence_clean) or len(src_sentence_clean)>2*len(tar_sentence_clean):
+        tar_sentence_clean = re.sub('\$（[^（）]*）', '', tar_sentence).replace('$', '')
+        src_sentence_clean = re.sub('\$（[^（）]*）', '', src_sentence).replace('$', '')
+        if len(tar_sentence_clean)>3*len(src_sentence_clean) or len(src_sentence_clean)>3*len(tar_sentence_clean):
             print('Not a good match')
             continue
         sentences_data.append({'src_sen': src_sentence, 'src_sen_ori': src_sentence_ori,
