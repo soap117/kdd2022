@@ -215,6 +215,8 @@ class EditDecoderRNN(nn.Module):
                 ## find current word
                 inds = torch.LongTensor(counter_for_annos)
                 dummy = inds.view(-1, 1, 1)
+                c_inds = org_ids.gather(1, inds.view(-1, 1).cuda())
+
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c = encoder_outputs_org.gather(1, dummy)
 
@@ -223,6 +225,8 @@ class EditDecoderRNN(nn.Module):
                 output_t = self.attn_MLP(output_t)
                 output_t = F.log_softmax(self.out(output_t), dim=-1)
 
+                if c_inds == 8020:
+                    output_t[:,:, 1] += 1e10
                 decoder_out.append(output_t)
                 decoder_input_edit=torch.argmax(output_t,dim=2)
 
