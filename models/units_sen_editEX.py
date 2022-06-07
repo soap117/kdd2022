@@ -358,7 +358,7 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             else:
                 region = (0, 0)
             if region[0] != 0 or region[1] != 0:
-                src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key['origin']) + '（' + ''.join([' [unused3] ']+[' [MASK] ' for x in range(config.hidden_anno_len-2)] + [' [unused4] ']) + '）' + src_sentence[region[1]:]
+                src_sentence = src_sentence[0:region[0]] + '${}$'.format(key['origin']) + '（' + ''.join([' [unused3] ']+[' [MASK] ' for x in range(config.hidden_anno_len-2)] + [' [unused4] ']) + '）' + src_sentence[region[1]:]
             region = re.search(key['origin'], tar_sentence)
             if region is not None:
                 region = region.regs[0]
@@ -366,16 +366,16 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
                 region = (0, 0)
             if region[0] != 0 or region[1] != 0:
                 if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（':
-                    tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key['origin']) + tar_sentence[region[1]:]
+                    tar_sentence = tar_sentence[0:region[0]] + '${}$（）'.format(key['origin']) + tar_sentence[region[1]:]
                 elif region[1] < len(tar_sentence) and tar_sentence[region[1]] == '（':
                     annotation = obtain_annotation(tar_sentence, region[1])
                     if annotation in src_sentence:
-                        tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key['origin']) + tar_sentence[
+                        tar_sentence = tar_sentence[0:region[0]] + '${}$（）'.format(key['origin']) + tar_sentence[
                                                                                                       region[1]:]
                     else:
-                        tar_sentence = tar_sentence[0:region[0]] + ' ${}$ '.format(key['origin']) + tar_sentence[region[1]:]
+                        tar_sentence = tar_sentence[0:region[0]] + '${}$'.format(key['origin']) + tar_sentence[region[1]:]
                 else:
-                    tar_sentence = tar_sentence[0:region[0]] + ' ${}$ '.format(key['origin']) + tar_sentence[region[1]:]
+                    tar_sentence = tar_sentence[0:region[0]] + '${}$'.format(key['origin']) + tar_sentence[region[1]:]
 
             data_filed = {}
             data_filed['context'] = sentence['src_st']
@@ -422,24 +422,9 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             print('here')
          '''
         edit_tokens, edit_tokens_ori = sent2edit(src_tokens, tar_tokens)
-        temp = []
-        r = 0
-        for op in edit_tokens:
-            if op == '[unused1]':
-                temp.append(src_tokens[r])
-                r += 1
-            elif op != '[unused2]' and op != '[SEP]' and op != '[PAD]':
-                temp.append(op)
-            elif op == '[unused2]':
-                r += 1
-            else:
-                temp += src_tokens[r:]
-
-        if temp != tar_tokens:
-            print('SKIP problematic example')
-            sent2edit(src_tokens, tar_tokens)
-            continue
-        if len(tar_tokens)>2.5*len(src_tokens_ori) or len(src_tokens_ori)>2.5*len(tar_tokens):
+        tar_sentence_clean = re.sub('\$（[^（）]+）', '', tar_sentence)
+        src_sentence_clean = re.sub('\$（[^（）]+）', '', src_sentence)
+        if len(tar_sentence_clean)>2*len(src_sentence_clean) or len(src_sentence_clean)>2*len(tar_sentence_clean):
             print('Not a good match')
             continue
         sentences_data.append({'src_sen': src_sentence, 'src_sen_ori': src_sentence_ori,
