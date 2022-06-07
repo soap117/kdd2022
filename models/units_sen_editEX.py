@@ -336,9 +336,14 @@ def operation2sentence(operations, input_sentences):
 
 def obtain_annotation(tar , t_s):
     t_e = t_s + 1
-    while t_e < len(tar) and tar[t_e] != '）' and tar[t_e] !='（':
+    count = 1
+    while t_e < len(tar) and count > 0:
+        if tar[t_e] == '）':
+            count -= 1
+        if tar[t_e] == '（':
+            count += 1
         t_e += 1
-    annotations = tar[t_s+1:t_e]
+    annotations = tar[t_s+1:t_e-1]
 
     return annotations
 def is_in_annotation(pos, src):
@@ -354,6 +359,27 @@ def is_in_annotation(pos, src):
         return True
     else:
         return False
+
+def obtain_annotations(tar):
+    t_s = 0
+    annotations = []
+    while t_s < len(tar):
+        if tar[t_s] == '（':
+            t_e = t_s + 1
+            count = 1
+            while t_e < len(tar) and count > 0:
+                if tar[t_e] == '）':
+                    count -= 1
+                if tar[t_e] == '（':
+                    count += 1
+                t_e += 1
+            anno_posi = tar[t_s:t_e]
+            annotations.append(anno_posi)
+            t_s = t_e
+        else:
+            t_s += 1
+    return annotations
+
 def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_section):
     sentences_data = []
     for sentence in tqdm(sentences):
@@ -386,6 +412,8 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
                     continue
                 region = one.regs[0]
                 break
+            if region is None and len(regions) == 1:
+                region = regions[0].regs[0]
             if region is not None:
                 region = region
             else:
@@ -449,9 +477,15 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             print('here')
          '''
         edit_tokens, edit_tokens_ori = sent2edit(src_tokens, tar_tokens)
-        tar_sentence_clean = re.sub('\$（[^（）]*）', '', tar_sentence).replace('$', '')
-        src_sentence_clean = re.sub('\$（[^（）]*）', '', src_sentence).replace('$', '')
-        if len(tar_sentence_clean)>3*len(src_sentence_clean) or len(src_sentence_clean)>3*len(tar_sentence_clean):
+        tar_sentence_clean = tar_sentence.replace('$', '')
+        tar_annos = obtain_annotations(tar_sentence_clean)
+        for tar_anno in tar_annos:
+            tar_sentence_clean = tar_sentence_clean.replace(tar_anno, '')
+        src_sentence_clean = src_sentence_ori.replace('$', '')
+        src_annos = obtain_annotations(src_sentence_clean)
+        for src_anno in src_annos:
+            src_sentence_clean = src_sentence_clean.replace(src_anno, '')
+        if len(tar_sentence_clean)>2*len(src_sentence_clean) or len(src_sentence_clean)>2*len(tar_sentence_clean):
             print('Not a good match')
             continue
         sentences_data.append({'src_sen': src_sentence, 'src_sen_ori': src_sentence_ori,

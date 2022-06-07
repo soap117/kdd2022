@@ -20,12 +20,15 @@ def obtain_annotation(src, tar):
     while t_s < len(tar):
         if tar[t_s] == '（':
             t_e = t_s + 1
-            while t_e < len(tar) and tar[t_e] != '）' and tar[t_e] !='（':
+            count = 1
+            while t_e < len(tar) and count > 0:
+                if tar[t_e] == '）':
+                    count -= 1
+                if tar[t_e] == '（':
+                    count += 1
                 t_e += 1
-            if t_e == len(tar):
-                break
-            anno_posi = tar[t_s+1:t_e]
-            if len(anno_posi) > 0 and anno_posi not in src and tar[t_e] == '）':
+            anno_posi = tar[t_s+1:t_e-1]
+            if len(anno_posi) > 0 and anno_posi not in src and tar[t_e-1] == '）':
                 annotations.append(anno_posi)
             t_s = t_e
         else:
@@ -130,7 +133,7 @@ def count_bleu_score(candidate, reference):
             print(candidate[k])
             print(reference[k])
     return avg_score
-results = pickle.load(open('../data/test/my_results_seq.pkl', 'rb'))
+results = pickle.load(open('../data/test/my_results_bart.pkl', 'rb'))
 results_temp = pickle.load(open('../data/test/my_results_bart.pkl', 'rb'))
 if 'srcs' not in results:
     results['srcs'] = results_temp['srcs']
