@@ -97,7 +97,7 @@ def mark_sentence(input_list):
             region = (0, 0)
         if region[0] != 0 or region[1] != 0:
             src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key) + '（' + ''.join(
-                [' [MASK] ' for x in range(config.hidden_anno_len)]) + '）' + src_sentence[region[1]:]
+                [' [MASK] ' for x in range(config.hidden_anno_len-1)] + ['[ unused4 ]']) + '）' + src_sentence[region[1]:]
         region = re.search(key, tar_sentence)
         if region is not None:
             region = region.regs[0]
