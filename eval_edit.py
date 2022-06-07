@@ -317,7 +317,7 @@ def pipieline(path_from):
 
             logits, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
                                           anno_position=decoder_anno_position, hidden_annotation=hidden_annotation,
-                                          input_edits=edit_sens_token_ids, org_ids=None, force_ratio=0.0)
+                                          input_edits=edit_sens_token_ids, org_ids=None, force_ratio=0.0, eval=True)
 
             _, predictions = torch.max(logits, dim=-1)
 

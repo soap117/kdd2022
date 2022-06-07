@@ -91,7 +91,7 @@ class EditDecoderRNN(nn.Module):
         return (new_batch_lm_h,new_batch_lm_c)
 
 
-    def forward(self, input_edits, hidden_org, encoder_outputs_org, org_ids, simp_sent, teacher_forcing_ratio=1.):
+    def forward(self, input_edits, hidden_org, encoder_outputs_org, org_ids, simp_sent, teacher_forcing_ratio=1., eval=False):
         #input_edits: desired output
         #hidden_org initial state
         #simp_sent: desired output with out special marking
@@ -215,7 +215,8 @@ class EditDecoderRNN(nn.Module):
                 ## find current word
                 inds = torch.LongTensor(counter_for_annos)
                 dummy = inds.view(-1, 1, 1)
-                c_inds = org_ids.gather(1, inds.view(-1, 1).cuda())
+                if eval:
+                    c_inds = org_ids.gather(1, inds.view(-1, 1).cuda())
 
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c = encoder_outputs_org.gather(1, dummy)
@@ -224,9 +225,9 @@ class EditDecoderRNN(nn.Module):
                                      2)  # bsz*nsteps x nhid*2
                 output_t = self.attn_MLP(output_t)
                 output_t = F.log_softmax(self.out(output_t), dim=-1)
-
-                if c_inds == 8020 or c_inds==109:
-                    output_t[:,:, 1] += 1e10
+                if eval:
+                    if c_inds == 8020 or c_inds==109:
+                        output_t[:,:, 1] += 1e10
                 decoder_out.append(output_t)
                 decoder_input_edit=torch.argmax(output_t,dim=2)
 
@@ -270,7 +271,7 @@ class EditPlus(nn.Module):
         self.decoder = decoder
         self.hidden_annotation_alignment = nn.Linear(encoder.config.d_model, encoder.config.d_model, bias=False)
 
-    def forward(self, input_ids, decoder_input_ids, anno_position, hidden_annotation, input_edits, org_ids, force_ratio=1.0):
+    def forward(self, input_ids, decoder_input_ids, anno_position, hidden_annotation, input_edits, org_ids, force_ratio=1.0, eval=False):
         hidden_annotation = self.hidden_annotation_alignment(hidden_annotation)
         encoder_outputs = self.encoder(
             input_ids=input_ids,
@@ -280,7 +281,7 @@ class EditPlus(nn.Module):
         h_0, c_0 = self.decoder.initHidden(encoder_outputs[0][:, 0])
         decoder_outputs = self.decoder(
             input_edits=input_edits, hidden_org=(h_0,c_0), encoder_outputs_org=encoder_outputs[0][:, 1:], org_ids=input_ids[:, 1:],
-            simp_sent=decoder_input_ids, teacher_forcing_ratio = force_ratio
+            simp_sent=decoder_input_ids, teacher_forcing_ratio = force_ratio, eval=eval
         )
 
         return decoder_outputs
