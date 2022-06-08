@@ -94,7 +94,7 @@ def build(config):
     bert_model = config.bert_model
     encoder = BartModel.from_pretrained(bert_model).encoder
     tokenizer = config.tokenizer
-    decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 516, n_layers=2, embedding=encoder.embed_tokens)
+    decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 400, n_layers=1, embedding=encoder.embed_tokens)
     edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
     modeld = edit_nts_ex
     modeld.cuda()
