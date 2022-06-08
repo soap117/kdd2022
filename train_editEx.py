@@ -220,6 +220,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             #masks = torch.ones_like(targets)
             #masks[torch.where(targets == 0)] = 0
             lossd = loss_func(logits, targets_flat)
+            lossd[targets_flat == 0] = 0
             lossd = lossd.view(targets.size())
             lossd = lossd.sum(1).float()
             lossd = lossd/tar_lens

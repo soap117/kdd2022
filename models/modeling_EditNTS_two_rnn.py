@@ -19,6 +19,7 @@ bert_model = 'hfl/chinese-bert-wwm-ext'
 tokenizer = BertTokenizer.from_pretrained(bert_model)
 KEEP_ID = tokenizer.vocab['[unused1]']
 DEL_ID = tokenizer.vocab['[unused2]']
+INSERT_ID = tokenizer.vocab['[unused5]']
 MAX_LEN = 512
 STOP_ID = tokenizer.vocab['[SEP]']
 PAD_ID = tokenizer.vocab['[PAD]']
@@ -35,6 +36,7 @@ class EditDecoderRNN(nn.Module):
         else:
             self.embedding = embedding
         self.rnn_edits = nn.LSTM(embedding_dim, hidden_size, num_layers=n_layers, batch_first=True)
+        self.rnn_actions = nn.LSTM(embedding_dim, hidden_size, num_layers=n_layers, batch_first=True)
         self.rnn_words = nn.LSTM(embedding_dim, hidden_size, num_layers=n_layers, batch_first=True)
         self.attn_Projection_org = nn.Linear(hidden_size, hidden_size, bias=False)
         self.initial_hidden = nn.Linear(embedding_dim, 2*hidden_size)
@@ -44,13 +46,15 @@ class EditDecoderRNN(nn.Module):
 
         self.attn_MLP = nn.Sequential(nn.Linear(hidden_size * 4, embedding_dim),
                                           nn.Tanh())
+        self.attn_ACTION = nn.Sequential(nn.Linear(hidden_size * 4, embedding_dim),
+                                      nn.Tanh())
         self.attn_REF = nn.Sequential(nn.Linear(hidden_size, 2),
                                       nn.Softmax(dim=-1))
         self.out = nn.Linear(embedding_dim, self.vocab_size)
-        self.out_action = nn.Linear(embedding_dim, 3)
+        self.out_action = nn.Linear(embedding_dim, 200)
         self.out.weight.data = self.embedding.weight.data[:self.vocab_size]
 
-    def execute(self, symbol, input, lm_state):
+    def execute(self, action, symbol, input, lm_state):
         """
         :param symbol: token_id for predicted edit action (in teacher forcing mode, give the true one)
         :param input: the word_id being editted currently
@@ -60,8 +64,9 @@ class EditDecoderRNN(nn.Module):
         # predicted_symbol = KEEP -> feed input to RNN_LM
         # predicted_symbol = DEL -> do nothing, return current lm_state
         # predicted_symbol = new word -> feed that word to RNN_LM
-        is_keep = torch.eq(symbol, KEEP_ID)
-        is_del = torch.eq(symbol, DEL_ID)
+        is_keep = torch.eq(action, KEEP_ID)
+        is_del = torch.eq(action, DEL_ID)
+        is_insert = torch.eq(action, INSERT_ID)
         if is_del:
             return lm_state
         elif is_keep: # return lstm with kept word learned in lstm
@@ -69,24 +74,25 @@ class EditDecoderRNN(nn.Module):
         else: #consider as insert here
             # print(symbol.item())
             input = self.embedding(symbol.view(-1,1))
-            _, new_lm_state = self.rnn_words(input,lm_state)
+            _, new_lm_state = self.rnn_words(input, lm_state)
         return new_lm_state
 
-    def execute_batch(self, batch_symbol, batch_input, batch_lm_state):
+    def execute_batch(self, batch_action, batch_symbol, batch_input, batch_lm_state):
         batch_h = batch_lm_state[0]
         batch_c = batch_lm_state[1]
 
-        bsz = batch_symbol.size(0)
+        bsz = batch_action.size(0)
         unbind_new_h = []
         unbind_new_c = []
 
         # unbind all batch inputs
         unbind_symbol = torch.unbind(batch_symbol,dim=0)
+        unbind_action = torch.unbind(batch_action, dim=0)
         unbind_input = torch.unbind(batch_input,dim=0)
         unbind_h = torch.unbind(batch_h,dim=1)
         unbind_c = torch.unbind(batch_c,dim=1)
         for i in range(bsz):
-            elem=self.execute(unbind_symbol[i], unbind_input[i], (unbind_h[i].unsqueeze(1).contiguous(), unbind_c[i].unsqueeze(1).contiguous()))
+            elem = self.execute(unbind_action[i], unbind_symbol[i], unbind_input[i], (unbind_h[i].unsqueeze(1).contiguous(), unbind_c[i].unsqueeze(1).contiguous()))
             unbind_new_h.append(elem[0])
             unbind_new_c.append(elem[1])
         new_batch_lm_h = torch.cat(unbind_new_h,dim=1)
@@ -94,7 +100,7 @@ class EditDecoderRNN(nn.Module):
         return (new_batch_lm_h,new_batch_lm_c)
 
 
-    def forward(self, input_edits, hidden_org, encoder_outputs_org, org_ids, simp_sent, teacher_forcing_ratio=1., eval=False):
+    def forward(self, input_edits, input_actions, hidden_org, encoder_outputs_org, org_ids, simp_sent, teacher_forcing_ratio=1., eval=False):
         #input_edits: desired output
         #hidden_org initial state
         #simp_sent: desired output with out special marking
@@ -117,11 +123,14 @@ class EditDecoderRNN(nn.Module):
             embedded_edits = self.embedding(input_edits)
             output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_org)
 
+            embedded_actions = self.embedding(input_actions)
+            output_actions, hidden_actions = self.rnn_actions(embedded_actions, hidden_org)
+
             embedded_words = self.embedding(simp_sent)
             output_words, hidden_words = self.rnn_words(embedded_words, hidden_org)
 
 
-            key_org = self.attn_Projection_org(output_edits)  # bsz x nsteps x nhid MIGHT USE WORD HERE
+            key_org = self.attn_Projection_org(output_words)  # bsz x nsteps x nhid MIGHT USE WORD HERE
             logits_org = torch.bmm(key_org, encoder_outputs_org.transpose(1, 2))  # bsz x nsteps x encsteps
             attn_weights_org = F.softmax(logits_org, dim=-1)  # bsz x nsteps x encsteps
             attn_applied_org = torch.bmm(attn_weights_org, encoder_outputs_org)  # bsz x nsteps x nhid
@@ -129,6 +138,7 @@ class EditDecoderRNN(nn.Module):
             for t in range(nsteps-1):
                 # print(t)
                 decoder_output_t = output_edits[:, t:t + 1, :]
+                decoder_action_t = output_actions[:, t:t + 1, :]
                 attn_applied_org_t = attn_applied_org[:, t:t + 1, :]
 
                 ## find current annotation word
@@ -160,17 +170,18 @@ class EditDecoderRNN(nn.Module):
                 ref_word_last = simp_sent[-1, counter_for_keep_ins[-1]]
                 #print('Current Refer Word:')
                 #print(ref_word_last.item())
+                output_action = torch.cat((decoder_action_t, attn_applied_org_t, c, c_word),
+                                          2)  # bsz*nsteps x nhid*2
+                output_action = self.attn_ACTION(output_action)
+                output_action = F.log_softmax(self.out_action(output_action), dim=-1)
+                decoder_out_action.append(output_action)
+
                 output_t = torch.cat((decoder_output_t, attn_applied_org_t, c,c_word),
                                      2)  # bsz*nsteps x nhid*2
                 output_t = self.attn_MLP(output_t)
                 output_t = F.log_softmax(self.out(output_t), dim=-1)
                 decoder_out.append(output_t)
 
-                output_action = torch.cat((decoder_output_t, attn_applied_org_t, c, c_word),
-                                     2)  # bsz*nsteps x nhid*2
-                output_action = self.attn_MLP(output_action)
-                output_action = F.log_softmax(self.out(output_action), dim=-1)
-                decoder_out_action.append(output_action)
 
 
 
@@ -210,12 +221,16 @@ class EditDecoderRNN(nn.Module):
 
         else: # no teacher forcing
             decoder_input_edit = input_edits[:, :1]
+            decoder_input_action = input_actions[:, :1]
             decoder_input_word=simp_sent[:,:1]
             t, tt = 0, max(MAX_LEN,input_edits.size(1)-1)
 
             # initialize
             embedded_edits = self.embedding(decoder_input_edit)
             output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_org)
+
+            embedded_actions = self.embedding(decoder_input_action)
+            output_actions, hidden_actions = self.rnn_edits(embedded_actions, hidden_org)
 
             embedded_words = self.embedding(decoder_input_word)
             output_words, hidden_words = self.rnn_words(embedded_words, hidden_org)
@@ -231,7 +246,10 @@ class EditDecoderRNN(nn.Module):
                     embedded_edits = self.embedding(decoder_input_edit)
                     output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_edits)
 
-                key_org = self.attn_Projection_org(output_edits)  # bsz x nsteps x nhid
+                    embedded_actions = self.embedding(decoder_input_action)
+                    output_actions, hidden_actions = self.rnn_actions(embedded_actions, hidden_actions)
+
+                key_org = self.attn_Projection_org(output_words)  # bsz x nsteps x nhid
                 logits_org = torch.bmm(key_org, encoder_outputs_org.transpose(1, 2))  # bsz x nsteps x encsteps
                 attn_weights_org_t = F.softmax(logits_org, dim=-1)  # bsz x nsteps x encsteps
                 attn_applied_org_t = torch.bmm(attn_weights_org_t, encoder_outputs_org)  # bsz x nsteps x nhid
@@ -251,20 +269,29 @@ class EditDecoderRNN(nn.Module):
                 c = torch.cat([c_input, c_anno], dim=1)
                 c = torch.bmm(weight_ref, c)
 
+                output_action = torch.cat((output_actions, attn_applied_org_t, c, hidden_words[0][-1].unsqueeze(1)),
+                                     2)  # bsz*nsteps x nhid*2
+                output_action = self.attn_ACTION(output_action)
+                output_action = F.log_softmax(self.out_action(output_action), dim=-1)
+
                 output_t = torch.cat((output_edits, attn_applied_org_t, c, hidden_words[0][-1].unsqueeze(1)),
                                      2)  # bsz*nsteps x nhid*2
                 output_t = self.attn_MLP(output_t)
                 output_t = F.log_softmax(self.out(output_t), dim=-1)
                 if eval:
                     if c_inds == 8020 or c_inds==109:
-                        output_t[:,:, 1] += 1e10
+                        output_action[:,:, 1] += 1e10
                 decoder_out.append(output_t)
-                decoder_input_edit=torch.argmax(output_t,dim=2)
+                decoder_out_action.append(output_action)
+                decoder_input_action = torch.argmax(output_action, dim=2)
+                decoder_input_edit = torch.argmax(output_t, dim=2)
+                decoder_input_edit = torch.where(decoder_input_action != INSERT_ID, decoder_input_action, decoder_input_edit)
 
 
 
                 # gold_action = input[:, t + 1].vocab_data.cpu().numpy()  # might need to realign here because start added
-                pred_action= torch.argmax(output_t,dim=2)
+                pred_action = torch.argmax(output_action, dim=2)
+                pred_edit = torch.argmax(output_t, dim=2)
                 counter_for_keep_del = [i[0] + 1 if i[1] == KEEP_ID or i[1] == DEL_ID else i[0]
                                         for i in zip(counter_for_keep_del, pred_action)]
                 counter_for_annos = [
@@ -277,14 +304,14 @@ class EditDecoderRNN(nn.Module):
                 # give previous word from tgt simp_sent
                 dummy_2 = inds.view(-1, 1).cuda()
                 org_t = org_ids.gather(1, dummy_2)
-                hidden_words = self.execute_batch(pred_action, org_t, hidden_words)  # we give the editted subsequence
+                hidden_words = self.execute_batch(pred_action, pred_edit, org_t, hidden_words)  # we give the editted subsequence
                 # hidden_words = self.execute_batch(pred_action, org_t, hidden_org)  #here we only give the word
 
                 t += 1
                 check = sum([x >= org_ids.size(1) for x in counter_for_keep_del])
                 if check:
                     break
-        return torch.cat(decoder_out, dim=1), hidden_edits
+        return torch.cat(decoder_out_action, dim=1), torch.cat(decoder_out, dim=1), hidden_edits
 
     def initHidden(self, hidden_encoder_cls):
         h_c = nn.functional.tanh(self.initial_hidden(hidden_encoder_cls))
@@ -301,7 +328,7 @@ class EditPlus(nn.Module):
         self.decoder = decoder
         self.hidden_annotation_alignment = nn.Linear(encoder.config.d_model, encoder.config.d_model, bias=False)
 
-    def forward(self, input_ids, decoder_input_ids, anno_position, hidden_annotation, input_edits, org_ids, force_ratio=1.0, eval=False):
+    def forward(self, input_ids, decoder_input_ids, anno_position, hidden_annotation, input_edits, input_actions, org_ids, force_ratio=1.0, eval=False):
         hidden_annotation = self.hidden_annotation_alignment(hidden_annotation)
         encoder_outputs = self.encoder(
             input_ids=input_ids,
@@ -310,7 +337,7 @@ class EditPlus(nn.Module):
         )
         h_0, c_0 = self.decoder.initHidden(encoder_outputs[0][:, 0])
         decoder_outputs = self.decoder(
-            input_edits=input_edits, hidden_org=(h_0,c_0), encoder_outputs_org=encoder_outputs[0][:, 1:], org_ids=input_ids[:, 1:],
+            input_edits=input_edits, input_actions=input_actions, hidden_org=(h_0,c_0), encoder_outputs_org=encoder_outputs[0][:, 1:], org_ids=input_ids[:, 1:],
             simp_sent=decoder_input_ids, teacher_forcing_ratio = force_ratio, eval=eval
         )
 
