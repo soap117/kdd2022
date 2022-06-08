@@ -131,16 +131,15 @@ class EditDecoderRNN(nn.Module):
             output_words, hidden_words = self.rnn_words(embedded_words, hidden_org)
 
 
-            key_org = self.attn_Projection_org(output_actions)  # bsz x nsteps x nhid MIGHT USE WORD HERE
-            logits_org = torch.bmm(key_org, encoder_outputs_org.transpose(1, 2))  # bsz x nsteps x encsteps
-            attn_weights_org = F.softmax(logits_org, dim=-1)  # bsz x nsteps x encsteps
-            attn_applied_org = torch.bmm(attn_weights_org, encoder_outputs_org)  # bsz x nsteps x nhid
+            #key_org = self.attn_Projection_org(output_actions)  # bsz x nsteps x nhid MIGHT USE WORD HERE
+            #logits_org = torch.bmm(key_org, encoder_outputs_org.transpose(1, 2))  # bsz x nsteps x encsteps
+            #attn_weights_org = F.softmax(logits_org, dim=-1)  # bsz x nsteps x encsteps
+            #attn_applied_org = torch.bmm(attn_weights_org, encoder_outputs_org)  # bsz x nsteps x nhid
             #print(org_ids[-1])
             for t in range(nsteps-1):
                 # print(t)
                 decoder_output_t = output_edits[:, t:t + 1, :]
                 decoder_action_t = output_actions[:, t:t + 1, :]
-                attn_applied_org_t = attn_applied_org[:, t:t + 1, :]
 
                 ## find current annotation word
                 inds = torch.LongTensor(counter_for_annos)
@@ -170,6 +169,11 @@ class EditDecoderRNN(nn.Module):
                 dummy = inds.view(-1, 1, 1)
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), output_words.size(2)).cuda()
                 c_word = output_words.gather(1, dummy)
+
+                key_org = self.attn_Projection_org(c_word)  # bsz x nsteps x nhid
+                logits_org = torch.bmm(key_org, encoder_outputs_org.transpose(1, 2))  # bsz x nsteps x encsteps
+                attn_weights_org_t = F.softmax(logits_org, dim=-1)  # bsz x nsteps x encsteps
+                attn_applied_org_t = torch.bmm(attn_weights_org_t, encoder_outputs_org)  # bsz x nsteps x nhid
 
                 output_action = torch.cat((decoder_action_t, attn_applied_org_t, c_action, c_word),
                                           2)  # bsz*nsteps x nhid*2
@@ -250,7 +254,7 @@ class EditDecoderRNN(nn.Module):
                     embedded_actions = self.embedding(decoder_input_action)
                     output_actions, hidden_actions = self.rnn_actions(embedded_actions, hidden_actions)
 
-                key_org = self.attn_Projection_org(output_actions)  # bsz x nsteps x nhid
+                key_org = self.attn_Projection_org(output_words)  # bsz x nsteps x nhid
                 logits_org = torch.bmm(key_org, encoder_outputs_org.transpose(1, 2))  # bsz x nsteps x encsteps
                 attn_weights_org_t = F.softmax(logits_org, dim=-1)  # bsz x nsteps x encsteps
                 attn_applied_org_t = torch.bmm(attn_weights_org_t, encoder_outputs_org)  # bsz x nsteps x nhid
