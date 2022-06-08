@@ -1,8 +1,8 @@
-import cuda
+import cuda2
 import torch
 import torch.nn as nn
 from config import Config
-config = Config(2)
+config = Config(16)
 from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref, read_clean_data, find_spot, restricted_decoding, operation2sentence
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -296,7 +296,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             print('New Test Loss D:%f' % (d_eval_loss))
             state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(), 'modele': modele.state_dict(), 'modeld': modeld.state_dict(),
                      'eval_rs': eval_ans}
-            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_edit.pkl').replace('data/', ''))
+            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_edit_dual.pkl').replace('data/', ''))
             min_loss_d = d_eval_loss
             for one, one_g in zip(eval_ans[0:5], grand_ans[0:5]):
                 print(one)
