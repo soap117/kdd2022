@@ -131,7 +131,7 @@ class EditDecoderRNN(nn.Module):
             output_words, hidden_words = self.rnn_words(embedded_words, hidden_org)
 
 
-            key_org = self.attn_Projection_org(output_words)  # bsz x nsteps x nhid MIGHT USE WORD HERE
+            key_org = self.attn_Projection_org(output_actions)  # bsz x nsteps x nhid MIGHT USE WORD HERE
             logits_org = torch.bmm(key_org, encoder_outputs_org.transpose(1, 2))  # bsz x nsteps x encsteps
             attn_weights_org = F.softmax(logits_org, dim=-1)  # bsz x nsteps x encsteps
             attn_applied_org = torch.bmm(attn_weights_org, encoder_outputs_org)  # bsz x nsteps x nhid
@@ -250,7 +250,7 @@ class EditDecoderRNN(nn.Module):
                     embedded_actions = self.embedding(decoder_input_action)
                     output_actions, hidden_actions = self.rnn_actions(embedded_actions, hidden_actions)
 
-                key_org = self.attn_Projection_org(output_words)  # bsz x nsteps x nhid
+                key_org = self.attn_Projection_org(output_actions)  # bsz x nsteps x nhid
                 logits_org = torch.bmm(key_org, encoder_outputs_org.transpose(1, 2))  # bsz x nsteps x encsteps
                 attn_weights_org_t = F.softmax(logits_org, dim=-1)  # bsz x nsteps x encsteps
                 attn_applied_org_t = torch.bmm(attn_weights_org_t, encoder_outputs_org)  # bsz x nsteps x nhid
