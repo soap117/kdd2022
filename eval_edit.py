@@ -1,4 +1,4 @@
-import cuda2
+import cuda
 from eval_units import *
 import pickle
 
