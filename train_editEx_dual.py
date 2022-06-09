@@ -272,7 +272,16 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 print('loss P:%f loss S:%f loss AC:%f loss ED:%f' %(lossp.mean().item(), losss.mean().item(), lossd_ac.item(), lossd_ed.item()))
                 print(results[0:2])
                 print('---------------------------')
-        test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
+        try:
+            test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
+        except:
+            state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(),
+                     'modele': modele.state_dict(), 'modeld': modeld.state_dict(),
+                     'eval_rs': eval_ans}
+            torch.save(state,
+                       './results/' + config.data_file.replace('.pkl', '_models_edit_dual.pkl').replace('data/', ''))
+            print(step)
+            exit(-)
         p_eval_loss = test_loss[0]
         s_eval_loss = test_loss[1]
         d_eval_loss = test_loss[2]

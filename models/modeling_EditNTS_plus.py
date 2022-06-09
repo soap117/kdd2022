@@ -246,7 +246,7 @@ class EditDecoderRNN(nn.Module):
                 output_t = F.log_softmax(self.out(output_t), dim=-1)
                 if eval:
                     c_inds = org_ids.gather(1, inds.view(-1, 1).cuda())
-                    if c_inds == 8020 or c_inds==109:
+                    if c_inds == 8020 or c_inds == 109:
                         output_t[:,:, 1] += 1e10
                 decoder_out.append(output_t)
                 decoder_input_edit=torch.argmax(output_t,dim=2)
