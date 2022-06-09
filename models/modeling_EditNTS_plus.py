@@ -216,7 +216,7 @@ class EditDecoderRNN(nn.Module):
             # dummy = inds.view(-1, 1, 1)
             # dummy = dummy.expand(dummy.size(0), dummy.size(1), output_words.size(2)).cuda()
             # c_word = output_words.gather(1, dummy)
-
+            ins_flag = 0
             while t < tt:
                 if t>0:
                     embedded_edits = self.embedding(decoder_input_edit)
@@ -245,6 +245,14 @@ class EditDecoderRNN(nn.Module):
                 output_t = self.attn_MLP(output_t)
                 output_t = F.log_softmax(self.out(output_t), dim=-1)
                 if eval:
+                    decoder_input_edit = torch.argmax(output_t, dim=2)
+                    if decoder_input_edit[0] != DEL_ID and  decoder_input_edit[0] != STOP_ID and decoder_input_edit[0] != PAD_ID and decoder_input_edit[0] != KEEP_ID:
+                        ins_flag += 1
+                    else:
+                        ins_flag = 0
+                    if ins_flag > 30:
+                        output_t[:, :, 1] += 1e10
+                        ins_flag = 0
                     c_inds = org_ids.gather(1, inds.view(-1, 1).cuda())
                     if c_inds == 8020 or c_inds == 109 or c_inds == 8021:
                         output_t[:,:, 1] += 1e10
