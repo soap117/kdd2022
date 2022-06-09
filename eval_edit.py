@@ -15,6 +15,26 @@ import requests
 import time
 from models.units import get_decoder_att_map
 from config import config
+def obtain_annotation(src, tar):
+    t_s = 0
+    annotations = []
+    while t_s < len(tar):
+        if tar[t_s] == '（':
+            t_e = t_s + 1
+            count = 1
+            while t_e < len(tar) and count > 0:
+                if tar[t_e] == '）':
+                    count -= 1
+                if tar[t_e] == '（':
+                    count += 1
+                t_e += 1
+            anno_posi = tar[t_s+1:t_e-1]
+            if len(anno_posi) > 0 and anno_posi not in src and tar[t_e-1] == '）':
+                annotations.append(anno_posi)
+            t_s = t_e
+        else:
+            t_s += 1
+    return annotations
 from models.retrieval import TitleEncoder, PageRanker, SectionRanker
 with open('./data/test/dataset-aligned-para.pkl', 'rb') as f:
     data_test = pickle.load(f)
@@ -324,14 +344,18 @@ def pipieline(path_from):
             predictions = operation2sentence(predictions, decoder_ids)
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
+            results.append(src)
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
             results = [x.replace('[CLS]', '') for x in results]
             results = [x.replace('[MASK]', '') for x in results]
             results = [x.split('[SEP]')[0] for x in results]
             results = [x.replace('（）', '') for x in results]
-            print(results[0])
             results = [x.replace('$', '') for x in results]
+            p_annos = obtain_annotation(results[1], results[0])
+            if len(p_annos)==0:
+                results[0] = results[1]
+                print("skip useless modify")
             # masks = torch.ones_like(targets)
             # masks[torch.where(targets == 0)] = 0
             batch_rs[context] = results[0]
