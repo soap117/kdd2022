@@ -272,7 +272,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 print('loss P:%f loss S:%f loss AC:%f loss ED:%f' %(lossp.mean().item(), losss.mean().item(), lossd_ac.item(), lossd_ed.item()))
                 print(results[0:2])
                 print('---------------------------')
-            if step%1000 == 0:
+            if step%1000 == 0 and step > 0:
                 try:
                     test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
                 except:
