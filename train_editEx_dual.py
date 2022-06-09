@@ -239,7 +239,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             lossd_ac = lossd_ac.mean()
 
             logits_edit = logits_edit.reshape(-1, logits_edit.shape[2])
-            tar_lens = ((targets_edit!=0)&(targets_edit!=1)&(targets_edit!=2)&(targets_edit!=101)&(targets_edit!=102)).sum(1).float()
+            tar_lens = ((targets_edit!=0)&(targets_edit!=1)&(targets_edit!=2)&(targets_edit!=101)&(targets_edit!=102)).sum(1).float()+1e-5
             targets_flat = targets_edit.reshape(-1).to(config.device)
             # masks = torch.ones_like(targets)
             # masks[torch.where(targets == 0)] = 0
@@ -268,7 +268,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 optimizer_s.step()
             optimizer_encoder.step()
             optimizer_decoder.step()
-            if step%1 == 0:
+            if step%400 == 0:
                 print('loss P:%f loss S:%f loss AC:%f loss ED:%f' %(lossp.mean().item(), losss.mean().item(), lossd_ac.item(), lossd_ed.item()))
                 print(results[0:2])
                 print('---------------------------')
