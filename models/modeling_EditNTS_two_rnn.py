@@ -303,6 +303,7 @@ class EditDecoderRNN(nn.Module):
                 pred_edit = torch.argmax(output_edit, dim=2)
                 pred_edit = torch.where(pred_action != INSERT_ID,  pred_action,
                                                  pred_edit)
+                inds = torch.LongTensor(counter_for_keep_del)
                 counter_for_keep_del = [i[0] + 1 if i[1] == KEEP_ID or i[1] == DEL_ID else i[0]
                                         for i in zip(counter_for_keep_del, pred_action)]
                 counter_for_annos = [
@@ -313,7 +314,6 @@ class EditDecoderRNN(nn.Module):
                 # update rnn_words
                 # find previous generated word
                 # give previous word from tgt simp_sent
-                inds = torch.LongTensor(counter_for_keep_del)
                 dummy_2 = inds.view(-1, 1).cuda()
                 org_t = org_ids.gather(1, dummy_2)
                 hidden_words = self.execute_batch(pred_action, pred_edit, org_t, hidden_words)  # we give the editted subsequence
