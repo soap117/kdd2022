@@ -283,25 +283,25 @@ class EditDecoderRNN(nn.Module):
                 output_action = self.attn_ACTION(output_action)
                 output_action = F.log_softmax(self.out_action(output_action), dim=-1)
 
-                output_t = torch.cat((output_edits, attn_applied_org_t, c_edit, hidden_words[0][-1].unsqueeze(1)),
+                output_edit = torch.cat((output_edits, attn_applied_org_t, c_edit, hidden_words[0][-1].unsqueeze(1)),
                                      2)  # bsz*nsteps x nhid*2
-                output_t = self.attn_MLP(output_t)
-                output_t = F.log_softmax(self.out(output_t), dim=-1)
+                output_edit = self.attn_MLP(output_edit)
+                output_edit = F.log_softmax(self.out(output_edit), dim=-1)
                 if eval:
                     if c_inds == 8020 or c_inds==109:
                         output_action[:,:, 1] += 1e10
-                decoder_out.append(output_t)
+                decoder_out.append(output_edit)
                 decoder_out_action.append(output_action)
                 decoder_input_action = torch.argmax(output_action, dim=2)
-                decoder_input_edit = torch.argmax(output_t, dim=2)
+                decoder_input_edit = torch.argmax(output_edit, dim=2)
                 decoder_input_edit = torch.where(decoder_input_action != INSERT_ID, decoder_input_action, decoder_input_edit)
 
 
 
                 # gold_action = input[:, t + 1].vocab_data.cpu().numpy()  # might need to realign here because start added
                 pred_action = torch.argmax(output_action, dim=2)
-                pred_edit = torch.argmax(output_t, dim=2)
-                pred_edit = torch.where( pred_action != INSERT_ID,  pred_action,
+                pred_edit = torch.argmax(output_edit, dim=2)
+                pred_edit = torch.where(pred_action != INSERT_ID,  pred_action,
                                                  pred_edit)
                 counter_for_keep_del = [i[0] + 1 if i[1] == KEEP_ID or i[1] == DEL_ID else i[0]
                                         for i in zip(counter_for_keep_del, pred_action)]
