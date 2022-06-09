@@ -228,7 +228,6 @@ class EditDecoderRNN(nn.Module):
                 attn_applied_org_t = torch.bmm(attn_weights_org_t, encoder_outputs_org)  # bsz x nsteps x nhid
 
                 ## find current word
-
                 inds = torch.LongTensor(counter_for_annos)
                 dummy = inds.view(-1, 1, 1)
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
@@ -245,7 +244,10 @@ class EditDecoderRNN(nn.Module):
                                      2)  # bsz*nsteps x nhid*2
                 output_t = self.attn_MLP(output_t)
                 output_t = F.log_softmax(self.out(output_t), dim=-1)
-
+                if eval:
+                    c_inds = org_ids.gather(1, inds.view(-1, 1).cuda())
+                    if c_inds == 8020 or c_inds==109:
+                        output_t[:,:, 1] += 1e10
                 decoder_out.append(output_t)
                 decoder_input_edit=torch.argmax(output_t,dim=2)
 
