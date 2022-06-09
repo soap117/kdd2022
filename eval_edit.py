@@ -356,6 +356,7 @@ def pipieline(path_from):
             if len(p_annos)==0:
                 results[0] = results[1]
                 print("skip useless modify")
+            print(results[0])
             # masks = torch.ones_like(targets)
             # masks[torch.where(targets == 0)] = 0
             batch_rs[context] = results[0]
