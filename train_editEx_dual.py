@@ -268,7 +268,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 optimizer_s.step()
             optimizer_encoder.step()
             optimizer_decoder.step()
-            if step%400 == 0:
+            if step%1 == 0:
                 print('loss P:%f loss S:%f loss AC:%f loss ED:%f' %(lossp.mean().item(), losss.mean().item(), lossd_ac.item(), lossd_ed.item()))
                 print(results[0:2])
                 print('---------------------------')
