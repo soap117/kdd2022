@@ -322,7 +322,8 @@ class EditDecoderRNN(nn.Module):
 
                 t += 1
                 check = sum([x >= org_ids.size(1) for x in counter_for_keep_del])
-                if check:
+                check2 = sum([x >= org_ids.size(1) for x in counter_for_annos])
+                if check or check2:
                     break
         return torch.cat(decoder_out_action, dim=1), torch.cat(decoder_out, dim=1), hidden_edits
 
