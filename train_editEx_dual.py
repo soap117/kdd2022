@@ -274,14 +274,14 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 print('---------------------------')
             if step%400 == 0 and step > 0:
                 try:
-                    test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
-                except:
                     state = {'epoch': epoch, 'config': config, 'models': models.state_dict(),
                              'modelp': modelp.state_dict(),
                              'modele': modele.state_dict(), 'modeld': modeld.state_dict()}
                     torch.save(state,
                                './results/' + config.data_file.replace('.pkl', '_models_edit_dual.pkl').replace('data/',
                                                                                                                 ''))
+                    test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
+                except:
                     exit(-1)
         try:
             test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
