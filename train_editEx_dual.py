@@ -280,7 +280,6 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                      'eval_rs': eval_ans}
             torch.save(state,
                        './results/' + config.data_file.replace('.pkl', '_models_edit_dual.pkl').replace('data/', ''))
-            print(step)
             exit(-1)
         p_eval_loss = test_loss[0]
         s_eval_loss = test_loss[1]
