@@ -232,13 +232,13 @@ class EditDecoderRNN(nn.Module):
 
             # initialize
             embedded_edits = self.embedding(decoder_input_edit)
-            output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_org)
+            output_edits_h, hidden_edits = self.rnn_edits(embedded_edits, hidden_org)
 
             embedded_actions = self.embedding(decoder_input_action)
-            output_actions, hidden_actions = self.rnn_edits(embedded_actions, hidden_org)
+            output_actions_h, hidden_actions = self.rnn_edits(embedded_actions, hidden_org)
 
             embedded_words = self.embedding(decoder_input_word)
-            output_words, hidden_words = self.rnn_words(embedded_words, hidden_org)
+            output_words_h, hidden_words = self.rnn_words(embedded_words, hidden_org)
             #
             # # give previous word from tgt simp_sent
             # inds = torch.LongTensor(counter_for_keep_ins)
@@ -249,12 +249,12 @@ class EditDecoderRNN(nn.Module):
             while t < tt:
                 if t>0:
                     embedded_edits = self.embedding(decoder_input_edit)
-                    output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_edits)
+                    output_edits_h, hidden_edits = self.rnn_edits(embedded_edits, hidden_edits)
 
                     embedded_actions = self.embedding(decoder_input_action)
-                    output_actions, hidden_actions = self.rnn_actions(embedded_actions, hidden_actions)
+                    output_actions_h, hidden_actions = self.rnn_actions(embedded_actions, hidden_actions)
 
-                key_org = self.attn_Projection_org(output_words)  # bsz x nsteps x nhid
+                key_org = self.attn_Projection_org(output_words_h)  # bsz x nsteps x nhid
                 logits_org = torch.bmm(key_org, encoder_outputs_org.transpose(1, 2))  # bsz x nsteps x encsteps
                 attn_weights_org_t = F.softmax(logits_org, dim=-1)  # bsz x nsteps x encsteps
                 attn_applied_org_t = torch.bmm(attn_weights_org_t, encoder_outputs_org)  # bsz x nsteps x nhid
@@ -273,17 +273,17 @@ class EditDecoderRNN(nn.Module):
                 c_input = encoder_outputs_org.gather(1, dummy)
 
                 c = torch.cat([c_input, c_anno], dim=1)
-                weight_ref = self.attn_REF(output_edits)
+                weight_ref = self.attn_REF(output_edits_h)
                 c_edit = torch.bmm(weight_ref, c)
-                weight_ref = self.attn_REF(output_actions)
+                weight_ref = self.attn_REF(output_actions_h)
                 c_action = torch.bmm(weight_ref, c)
 
-                output_action = torch.cat((output_actions, attn_applied_org_t, c_action, hidden_words[0][-1].unsqueeze(1)),
+                output_action = torch.cat((output_actions_h, attn_applied_org_t, c_action, hidden_words[0][-1].unsqueeze(1)),
                                      2)  # bsz*nsteps x nhid*2
                 output_action = self.attn_ACTION(output_action)
                 output_action = F.log_softmax(self.out_action(output_action), dim=-1)
 
-                output_edit = torch.cat((output_edits, attn_applied_org_t, c_edit, hidden_words[0][-1].unsqueeze(1)),
+                output_edit = torch.cat((output_edits_h, attn_applied_org_t, c_edit, hidden_words[0][-1].unsqueeze(1)),
                                      2)  # bsz*nsteps x nhid*2
                 output_edit = self.attn_MLP(output_edit)
                 output_edit = F.log_softmax(self.out(output_edit), dim=-1)
@@ -317,7 +317,7 @@ class EditDecoderRNN(nn.Module):
                 dummy_2 = inds.view(-1, 1).cuda()
                 org_t = org_ids.gather(1, dummy_2)
                 hidden_words = self.execute_batch(pred_action, pred_edit, org_t, hidden_words)  # we give the editted subsequence
-                output_words = hidden_words[0].permute(1,0,2)
+                output_words_h = hidden_words[0].permute(1,0,2)
                 # hidden_words = self.execute_batch(pred_action, org_t, hidden_org)  #here we only give the word
 
                 t += 1
