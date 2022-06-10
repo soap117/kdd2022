@@ -244,7 +244,7 @@ class EditDecoderRNN(nn.Module):
                                      2)  # bsz*nsteps x nhid*2
                 output_t = self.attn_MLP(output_t)
                 output_t = F.log_softmax(self.out(output_t), dim=-1)
-                if eval:
+                if eval and False:
                     decoder_input_edit = torch.argmax(output_t, dim=2)
                     if decoder_input_edit[0] != DEL_ID and  decoder_input_edit[0] != STOP_ID and decoder_input_edit[0] != PAD_ID and decoder_input_edit[0] != KEEP_ID:
                         ins_flag += 1
