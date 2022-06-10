@@ -358,8 +358,8 @@ def pipieline(path_from):
                 print(results[0])
                 print(results[1])
                 print('+++++++++++++++++++++++')
-                #results[0] = results[1]
-                #print("skip useless modify")
+                results[0] = results[1]
+                print("skip useless modify")
             print(results[0])
             # masks = torch.ones_like(targets)
             # masks[torch.where(targets == 0)] = 0
