@@ -1,4 +1,4 @@
-import cuda2
+import cuda3
 from eval_units import *
 import pickle
 
@@ -84,14 +84,12 @@ def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
         if pre_labels[c_id] == 1:
             l_k = c_id
             r_k = l_k+1
-            while r_k<len(pre_labels) and pre_labels[r_k] != 0 and pre_labels[r_k] != 4:
-                r_k += 1
-            if pre_labels[r_k] == 4:
+            while r_k < len(pre_labels) and pre_labels[r_k] == 3:
                 r_k += 1
             templete = src_ids[l_k:r_k]
             tokens = step1_tokenizer.convert_ids_to_tokens(templete)
             key = step1_tokenizer.convert_tokens_to_string(tokens).replace(' ', '')
-            context = step1_tokenizer.decode(src_ids[l:r+1]).replace(' ', '').replace('[CLS]', '').replace('[SEP]', '')
+            context = step1_tokenizer.decode(src_ids[l:r]).replace(' ', '').replace('[CLS]', '').replace('[SEP]', '')
             key_cut = jieba.lcut(key)
             infer_titles = bm25_title.get_top_n(key_cut, titles, config.infer_title_range)
             if len(key) > 0:
