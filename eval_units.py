@@ -46,7 +46,7 @@ def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
         r += 1
     for c_id in range(len(src_ids)):
         if src_ids[c_id] == step1_tokenizer.vocab['。']:
-            context = step1_tokenizer.decode(src_ids[l:r+1]).replace(' ', '').replace('[CLS]', '').replace('[SEP]', '')
+            context = step1_tokenizer.decode(src_ids[l:r]).replace(' ', '').replace('[CLS]', '').replace('[SEP]', '')
             input_list[4].append((False, context))
             l = r + 1
             r = l+1
