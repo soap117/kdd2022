@@ -594,6 +594,7 @@ class MyData(Dataset):
         tar_sens = []
         cut_list = []
         for sen_data in train_data:
+            src_sens.append(sen_data['src_sen'])
             tar_sens.append(sen_data['tar_sen'])
             c = 0
             for key_data in sen_data['key_data']:
