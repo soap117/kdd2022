@@ -101,6 +101,30 @@ def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
                 input_list[3].append((l_k, r_k))
     return input_list
 
+def check_seq(a, b):
+    for x_a, x_b in zip(a, b):
+        if x_a != x_b:
+            return False
+    return True
+
+def find_spot(input_ids, querys_ori, tokenizer):
+    positions = []
+    for ori_query in querys_ori:
+        flag = False
+        format = '${}$'.format(ori_query)
+        format_id = tokenizer(format)['input_ids'][1:-1]
+        for bid in range(input_ids.shape[0]):
+            l = 0
+            while input_ids[bid, l] != config.SEP and not check_seq(input_ids[bid, l:l+len(format_id)], format_id):
+               l += 1
+            if input_ids[bid, l] != config.SEP:
+                positions.append((bid, l+len(format_id), l+len(format_id)+10))
+                flag = True
+                break
+        if not flag:
+            positions.append((-1,-1,-1))
+    return positions
+
 def mark_sentence(input_list):
     context_dic = {}
     for key, context, infer_titles in zip(input_list[0], input_list[1], input_list[2]):
@@ -128,7 +152,7 @@ def mark_sentence(input_list):
             region = (0, 0)
         if region[0] != 0 or region[1] != 0:
             src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key) + ''.join(
-                [' [MASK] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
+                [' [MASK] ' for x in range(10)]) + src_sentence[region[1]:]
         region = re.search(key, tar_sentence)
         if region is not None:
             region = region.regs[0]

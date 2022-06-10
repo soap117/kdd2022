@@ -560,13 +560,11 @@ class MyData(Dataset):
         sections = []
         infer_titles = []
         src_sens = []
-        src_sens_ori = []
         tar_sens = []
         cut_list = []
         c = 0
         for sen_data in train_data:
             src_sens.append(sen_data['src_sen'])
-            src_sens_ori.append(sen_data['src_sen_ori'])
             tar_sens.append(sen_data['tar_sen'])
             for key_data in sen_data['key_data']:
                 c += 1
@@ -581,7 +579,7 @@ class MyData(Dataset):
                 sections.append(sample_section_candidates)
                 infer_titles.append(key_data['title_candidates'])
             cut_list.append(c)
-        return querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, src_sens_ori, tar_sens, cut_list
+        return querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list
 
     def collate_fn_test(self, train_data):
         pos_titles = []
@@ -593,12 +591,9 @@ class MyData(Dataset):
         sections = []
         infer_titles = []
         src_sens = []
-        src_sens_ori = []
         tar_sens = []
         cut_list = []
         for sen_data in train_data:
-            src_sens.append(sen_data['src_sen'])
-            src_sens_ori.append(sen_data['src_sen_ori'])
             tar_sens.append(sen_data['tar_sen'])
             c = 0
             for key_data in sen_data['key_data']:
@@ -620,7 +615,7 @@ class MyData(Dataset):
                 pos_titles.append(pos_title_all)
                 pos_sections.append(pos_section_all)
             cut_list.append(c)
-        return querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, src_sens_ori, tar_sens, cut_list, pos_titles, pos_sections
+        return querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list, pos_titles, pos_sections
 
 
 
