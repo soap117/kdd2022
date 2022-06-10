@@ -196,9 +196,10 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             results = [x.replace('[PAD]', '') for x in results]
             results = [x.replace('[CLS]', '') for x in results]
             results = [x.split('[SEP]')[0] for x in results]
+            targets = targets.to(config.device)
             logits = logits.reshape(-1, logits.shape[2])
             tar_lens = targets.ne(0).sum(1).float()
-            targets_flat = targets.reshape(-1).to(config.device)
+            targets_flat = targets.reshape(-1)
             #masks = torch.ones_like(targets)
             lossd = loss_func(logits, targets_flat)
             #masks[torch.where(targets == 0)] = 0
