@@ -197,10 +197,16 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             results = [x.replace('[CLS]', '') for x in results]
             results = [x.split('[SEP]')[0] for x in results]
             logits = logits.reshape(-1, logits.shape[2])
-            targets = targets.reshape(-1).to(config.device)
+            tar_lens = targets.ne(0).sum(1).float()
+            targets_flat = targets.reshape(-1).to(config.device)
             #masks = torch.ones_like(targets)
+            lossd = loss_func(logits, targets_flat)
             #masks[torch.where(targets == 0)] = 0
-            lossd = (loss_func(logits, targets)).sum()/config.batch_size
+            lossd[targets_flat == 0] = 0
+            lossd = lossd.view(targets.size())
+            lossd = lossd.sum(1).float()
+            lossd = lossd / tar_lens
+            lossd = lossd.mean()
             loss = lossd
             if count_p < 2:
                 loss += losss.mean()
