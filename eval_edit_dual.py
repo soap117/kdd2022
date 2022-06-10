@@ -384,6 +384,7 @@ def pipieline(path_from):
         section_rs += '。'
         eval_gt += [tar]
         eval_ans += [section_rs]
+        print(eval_ans[-1])
 
     result_final = {'srcs': srcs, 'prds': eval_ans, 'tars': eval_gt, 'scores': record_scores,
                     'reference': record_references}
