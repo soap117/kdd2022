@@ -182,45 +182,6 @@ def fix_stop(tar):
     tar = tar.replace('\n', '。')
     return tar
 import copy
-def pre_process_sentence(src, tar, keys):
-    src = '。'.join(src)
-    src = re.sub('\*\*', '', src)
-    src = src.replace('(', '（')
-    src = src.replace('$', '')
-    src = src.replace(')', '）')
-    src = src.replace('\n', '').replace('。。', '。')
-    src = fix_stop(src)
-    tar = re.sub('\*\*', '', tar)
-    tar = tar.replace('\n', '').replace('。。', '。')
-    tar = tar.replace('(', '（')
-    tar = tar.replace(')', '）')
-    tar = tar.replace('$', '')
-    tar = fix_stop(tar)
-    src_sentence = src.split('。')
-    tar_sentence = tar.split('。')
-    for key in keys:
-        region = re.search(key, src)
-        if region is not None:
-            region = region.regs[0]
-        else:
-            region = (0, 0)
-        if region[0] != 0 or region[1] != 0:
-            src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key) + ''.join(
-                [' [MASK] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
-        region = re.search(key, tar_sentence)
-        if region is not None:
-            region = region.regs[0]
-        else:
-            region = (0, 0)
-        if region[0] != 0 or region[1] != 0:
-            if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（' and region[1] + 1 < len(
-                    tar_sentence) and tar_sentence[region[1] + 1] != '（' and region[1] + 2 < len(tar_sentence) and \
-                    tar_sentence[region[1] + 2] != '（':
-                tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key) + tar_sentence[region[1]:]
-            else:
-                tar_sentence = tar_sentence[0:region[0]] + ' ${}$ '.format(key) + tar_sentence[region[1]:]
-    src = src_sentence
-    return src, tar_sentence, tar
 import json
 def pipieline(path_from):
     eval_ans = []
