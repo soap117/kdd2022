@@ -570,7 +570,7 @@ class MyData(Dataset):
                 c += 1
                 querys.append(key_data['key'])
                 querys_ori.append(key_data['ori_key'])
-                querys_context.append(sen_data['src_sen'])
+                querys_context.append(sen_data['src_sen_ori'])
                 pos_title = key_data['pos_ans'][1][np.random.randint(len(key_data['pos_ans'][1]))][-1]
                 pos_section = key_data['pos_ans'][0][np.random.randint(len(key_data['pos_ans'][0]))]
                 sample_title_candidates = [pos_title] + key_data['neg_title_candidates']
@@ -599,7 +599,7 @@ class MyData(Dataset):
             for key_data in sen_data['key_data']:
                 c += 1
                 querys.append(key_data['key'])
-                querys_context.append(sen_data['src_sen'])
+                querys_context.append(sen_data['src_sen_ori'])
                 querys_ori.append(key_data['ori_key'])
                 pos_title = key_data['pos_ans'][1][np.random.randint(len(key_data['pos_ans'][1]))][-1]
                 pos_section = key_data['pos_ans'][0][np.random.randint(len(key_data['pos_ans'][0]))]
