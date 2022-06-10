@@ -354,6 +354,8 @@ def pipieline(path_from):
             results = [x.replace('$', '') for x in results]
             p_annos = obtain_annotation(results[1], results[0])
             if len(p_annos)==0:
+                print(results[0])
+                print('+++++++++++++++++++++++')
                 results[0] = results[1]
                 print("skip useless modify")
             print(results[0])
