@@ -1,3 +1,5 @@
+import copy
+
 import torch
 import numpy as np
 import jieba
@@ -22,7 +24,7 @@ def find_spot(input_ids, querys_ori, tokenizer):
     positions = []
     for ori_query in querys_ori:
         flag = False
-        format = '${}$'.format(ori_query)
+        format = '${}$（'.format(ori_query)
         format_id = tokenizer(format)['input_ids'][1:-1]
         for bid in range(input_ids.shape[0]):
             l = 0
@@ -211,30 +213,134 @@ def check_useless_anno(key, src_sen, tar_sen):
         return False
     else:
         return True
+
+
+def operation2sentence(operations, input_sentences):
+    operations = operations.cpu().detach().numpy()
+    input_sentences = input_sentences.cpu().detach().numpy()
+    outputs = []
+    for operation, input_sentence in zip(operations, input_sentences):
+        read_index = 1
+        output = [101]
+        for op in operation:
+            if read_index < len(input_sentence):
+                if op == config.tokenizer.vocab['[unused1]']:
+                    output.append(input_sentence[read_index])
+                    read_index += 1
+                elif op != config.tokenizer.vocab['[SEP]'] and op != config.tokenizer.vocab['[unused2]']:
+                    output.append(op)
+                elif op == config.tokenizer.vocab['[unused2]']:
+                    read_index += 1
+                    # del do nothing
+                    continue
+                elif op == 102:
+                    break
+        if read_index < len(input_sentence)-1:
+            try:
+                temp = list(input_sentence)[read_index:]
+                output += temp
+            except:
+                print(output)
+                print(input_sentence)
+        outputs.append(output)
+    return outputs
+
+def obtain_annotation(tar , t_s):
+    t_e = t_s + 1
+    count = 1
+    while t_e < len(tar) and count > 0:
+        if tar[t_e] == '）':
+            count -= 1
+        if tar[t_e] == '（':
+            count += 1
+        t_e += 1
+    annotations = tar[t_s+1:t_e-1]
+
+    return annotations
+def is_in_annotation(pos, src):
+    s = 0
+    count_left = 0
+    while s < pos:
+        if src[s] == '（':
+            count_left += 1
+        elif src[s] == '）':
+            count_left -= 1
+        s += 1
+    if count_left > 0:
+        return True
+    else:
+        return False
+
+def obtain_annotations(tar):
+    t_s = 0
+    annotations = []
+    while t_s < len(tar):
+        if tar[t_s] == '（':
+            t_e = t_s + 1
+            count = 1
+            while t_e < len(tar) and count > 0:
+                if tar[t_e] == '）':
+                    count -= 1
+                if tar[t_e] == '（':
+                    count += 1
+                t_e += 1
+            anno_posi = tar[t_s:t_e]
+            annotations.append(anno_posi)
+            t_s = t_e
+        else:
+            t_s += 1
+    return annotations
+
 def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_section):
     sentences_data = []
     for sentence in tqdm(sentences):
         src_sentence = sentence['src_st']
+        src_sentence_ori = copy.copy(src_sentence)
         tar_sentence = sentence['tar_st']
         key_list = []
-        for key in sentence['data']:
+        temp_keys = sentence['data']
+        temp_keys = sorted(temp_keys, key=lambda x: len(x['origin']), reverse=True)
+        used = []
+        for key in temp_keys:
+            flag = False
+            for key_used in used:
+                if key['origin'] in key_used:
+                    flag = True
+                    break
+            if flag:
+                continue
             region = re.search(key['origin'], src_sentence)
             if region is not None:
                 region = region.regs[0]
             else:
                 region = (0, 0)
             if region[0] != 0 or region[1] != 0:
-                src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key['origin']) + ''.join([' [MASK] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
-            region = re.search(key['origin'], tar_sentence)
+                src_sentence = src_sentence[0:region[0]] + '${}$'.format(key['origin']) + '（' + ''.join([' [unused3] ']+[' [MASK] ' for x in range(config.hidden_anno_len-2)] + [' [unused4] ']) + '）' + src_sentence[region[1]:]
+            regions = [x for x in re.finditer(key['origin'], tar_sentence)]
+            region = None
+            for one in regions:
+                if is_in_annotation(one.regs[0][0], tar_sentence):
+                    continue
+                region = one.regs[0]
+                break
+            if region is None and len(regions) == 1:
+                region = regions[0].regs[0]
             if region is not None:
-                region = region.regs[0]
+                region = region
             else:
                 region = (0, 0)
             if region[0] != 0 or region[1] != 0:
-                if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（' and region[1]+1 < len(tar_sentence) and tar_sentence[region[1]+1] != '（' and region[1]+2 < len(tar_sentence) and tar_sentence[region[1]+2] != '（':
-                    tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key['origin']) + tar_sentence[region[1]:]
+                if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（':
+                    tar_sentence = tar_sentence[0:region[0]] + '${}$（）'.format(key['origin']) + tar_sentence[region[1]:]
+                elif region[1] < len(tar_sentence) and tar_sentence[region[1]] == '（':
+                    annotation = obtain_annotation(tar_sentence, region[1])
+                    if annotation in src_sentence:
+                        tar_sentence = tar_sentence[0:region[0]] + '${}$（）'.format(key['origin']) + tar_sentence[
+                                                                                                      region[1]:]
+                    else:
+                        tar_sentence = tar_sentence[0:region[0]] + '${}$'.format(key['origin']) + tar_sentence[region[1]:]
                 else:
-                    tar_sentence = tar_sentence[0:region[0]] + ' ${}$ '.format(key['origin']) + tar_sentence[region[1]:]
+                    tar_sentence = tar_sentence[0:region[0]] + '${}$'.format(key['origin']) + tar_sentence[region[1]:]
 
             data_filed = {}
             data_filed['context'] = sentence['src_st']
@@ -266,11 +372,34 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             data_filed['neg_title_candidates'] = neg_titles
             data_filed['neg_section_candidates'] = neg_sections
             data_filed['sneg_section_candidates'] = neg_sections_strong
+            used.append(key['origin'])
             e = time.time()
             if e-s > 5:
                 print(key['key'])
             key_list.append(data_filed)
-        sentences_data.append({'src_sen': src_sentence, 'tar_sen': tar_sentence, 'textid': sentence['textid'], 'key_data':key_list})
+        src_tokens = config.tokenizer.tokenize(src_sentence)
+        src_tokens_ori = config.tokenizer.tokenize(src_sentence_ori)
+        tar_tokens = config.tokenizer.tokenize(tar_sentence)
+        # check
+        '''
+        tar_ids = config.tokenizer.convert_tokens_to_ids(tar_tokens)
+        tar_ids_2 = config.tokenizer(tar_sentence)['input_ids'][1:-1]
+        if tar_ids != tar_ids_2:
+            print('here')
+         '''
+        tar_sentence_clean = tar_sentence.replace('$', '')
+        tar_annos = obtain_annotations(tar_sentence_clean)
+        for tar_anno in tar_annos:
+            tar_sentence_clean = tar_sentence_clean.replace(tar_anno, '')
+        src_sentence_clean = src_sentence_ori.replace('$', '')
+        src_annos = obtain_annotations(src_sentence_clean)
+        for src_anno in src_annos:
+            src_sentence_clean = src_sentence_clean.replace(src_anno, '')
+        if len(tar_sentence_clean)>2*len(src_sentence_clean) or len(src_sentence_clean)>2*len(tar_sentence_clean):
+            print('Not a good match')
+            continue
+        sentences_data.append({'src_sen': src_sentence, 'src_sen_ori': src_sentence_ori,
+                               'tar_sen': tar_sentence, 'textid': sentence['textid'], 'key_data':key_list})
     return sentences_data
 
 
@@ -431,11 +560,13 @@ class MyData(Dataset):
         sections = []
         infer_titles = []
         src_sens = []
+        src_sens_ori = []
         tar_sens = []
         cut_list = []
         c = 0
         for sen_data in train_data:
             src_sens.append(sen_data['src_sen'])
+            src_sens_ori.append(sen_data['src_sen_ori'])
             tar_sens.append(sen_data['tar_sen'])
             for key_data in sen_data['key_data']:
                 c += 1
@@ -450,7 +581,7 @@ class MyData(Dataset):
                 sections.append(sample_section_candidates)
                 infer_titles.append(key_data['title_candidates'])
             cut_list.append(c)
-        return querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list
+        return querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, src_sens_ori, tar_sens, cut_list
 
     def collate_fn_test(self, train_data):
         pos_titles = []
@@ -462,10 +593,12 @@ class MyData(Dataset):
         sections = []
         infer_titles = []
         src_sens = []
+        src_sens_ori = []
         tar_sens = []
         cut_list = []
         for sen_data in train_data:
             src_sens.append(sen_data['src_sen'])
+            src_sens_ori.append(sen_data['src_sen_ori'])
             tar_sens.append(sen_data['tar_sen'])
             c = 0
             for key_data in sen_data['key_data']:
@@ -487,7 +620,7 @@ class MyData(Dataset):
                 pos_titles.append(pos_title_all)
                 pos_sections.append(pos_section_all)
             cut_list.append(c)
-        return querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list, pos_titles, pos_sections
+        return querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, src_sens_ori, tar_sens, cut_list, pos_titles, pos_sections
 
 
 

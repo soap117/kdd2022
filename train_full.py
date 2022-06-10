@@ -55,7 +55,8 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    if os.path.exists(config.data_file.replace('.pkl', '_train_dataset.pkl')):
+    debug_flag = True
+    if not debug_flag and os.path.exists(config.data_file.replace('.pkl', '_train_dataset.pkl')):
         train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset.pkl'))
         valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset.pkl'))
         test_dataset = torch.load(config.data_file.replace('.pkl', '_test_dataset.pkl'))
@@ -111,12 +112,6 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
     count_p = -1
     data_size = len(train_dataloader)
     #test_loss, eval_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
-    if config.multi_gpu:
-        modele_p = nn.DataParallel(modele, device_ids=[0, 1, 2, 3], output_device=0)
-        modeld_p = nn.DataParallel(modeld, device_ids=[0, 1, 2, 3], output_device=0)
-    else:
-        modele_p = None
-        modeld_p = None
     for epoch in range(config.train_epoch*4):
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list) in zip(
                 tqdm(range(data_size)), train_dataloader):
