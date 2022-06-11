@@ -150,7 +150,7 @@ def pre_process_sentence(src, tar, keys):
             region = (0, 0)
         if region[0] != 0 or region[1] != 0:
             src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key) + ''.join(
-                [' [MASK] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
+                [' [MASK] ' for x in range(config.hidden_anno_len_rnn)]) + src_sentence[region[1]:]
         region = re.search(key, tar_sentence)
         if region is not None:
             region = region.regs[0]
@@ -209,7 +209,7 @@ def pipieline(path_from):
         logits = outputs.logits
         pre_label_f = np.argmax(logits.detach().cpu().numpy(), axis=2)
         step2_input = obtain_step2_input(pre_label_f[0], src, x_ids[0], step1_tokenizer)
-        context_dic, order_context = mark_sentence(step2_input)
+        context_dic, order_context = mark_sentence_rnn(step2_input)
         batch_rs = {}
         for context in context_dic.keys():
             querys = context_dic[context][2]
@@ -338,7 +338,7 @@ def pipieline(path_from):
 
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix,
                                         decoder_input_ids=an_decoder_inputs_ids)
-            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
+            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len_rnn]
 
             logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
                                                               anno_position=decoder_anno_position,

@@ -70,6 +70,50 @@ def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
                 input_list[3].append((l_k, r_k))
     return input_list
 
+def mark_sentence_rnn(input_list):
+    context_dic = {}
+    for key, context, infer_titles in zip(input_list[0], input_list[1], input_list[2]):
+        if context not in context_dic:
+            src = context
+            src = re.sub('\*\*', '', src)
+            src = src.replace('(', '（')
+            src = src.replace('$', '')
+            src = src.replace(')', '）')
+            src = src.replace('\n', '').replace('。。', '。')
+            src = fix_stop(src)
+            context_dic[context] = [src, src, [], []]
+            src_sentence = context_dic[context][0]
+            tar_sentence = context_dic[context][1]
+
+        else:
+            src_sentence = context_dic[context][0]
+            tar_sentence = context_dic[context][1]
+        context_dic[context][2].append(key)
+        context_dic[context][3].append(infer_titles)
+        region = re.search(key, src_sentence)
+        if region is not None:
+            region = region.regs[0]
+        else:
+            region = (0, 0)
+        if region[0] != 0 or region[1] != 0:
+            src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key) + '（' + ''.join(
+                [' [unused3] ']+[' [MASK] ' for x in range(config.hidden_anno_len_rnn-2)] + [' [unused4] ']) + '）' + src_sentence[region[1]:]
+        region = re.search(key, tar_sentence)
+        if region is not None:
+            region = region.regs[0]
+        else:
+            region = (0, 0)
+        if region[0] != 0 or region[1] != 0:
+            tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key) + tar_sentence[region[1]:]
+
+        context_dic[context][0] = src_sentence
+        context_dic[context][1] = tar_sentence
+    order_context = []
+    for context in input_list[4]:
+        if context[1] not in order_context:
+            order_context.append(context[1])
+    return context_dic, order_context
+
 def mark_sentence(input_list):
     context_dic = {}
     for key, context, infer_titles in zip(input_list[0], input_list[1], input_list[2]):

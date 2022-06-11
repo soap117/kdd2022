@@ -31,7 +31,7 @@ def find_spot(input_ids, querys_ori, tokenizer):
             while input_ids[bid, l] != config.SEP and not check_seq(input_ids[bid, l:l+len(format_id)], format_id):
                l += 1
             if input_ids[bid, l] != config.SEP:
-                positions.append((bid, l+len(format_id), l+len(format_id)+config.hidden_anno_len))
+                positions.append((bid, l+len(format_id), l+len(format_id)+config.hidden_anno_len_rnn))
                 flag = True
                 break
         if not flag:
@@ -406,7 +406,7 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             else:
                 region = (0, 0)
             if region[0] != 0 or region[1] != 0:
-                src_sentence = src_sentence[0:region[0]] + '${}$'.format(key['origin']) + '（' + ''.join([' [unused3] ']+[' [MASK] ' for x in range(config.hidden_anno_len-2)] + [' [unused4] ']) + '）' + src_sentence[region[1]:]
+                src_sentence = src_sentence[0:region[0]] + '${}$'.format(key['origin']) + '（' + ''.join([' [unused3] ']+[' [MASK] ' for x in range(config.hidden_anno_len_rnn-2)] + [' [unused4] ']) + '）' + src_sentence[region[1]:]
             regions = [x for x in re.finditer(key['origin'], tar_sentence)]
             region = None
             for one in regions:
