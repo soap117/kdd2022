@@ -692,8 +692,6 @@ class MyData(Dataset):
             for key_data in sen_data['key_data']:
                 c += 1
                 query_count += 1
-                if query_count > config.max_query:
-                    continue
                 querys.append(key_data['key'])
                 querys_ori.append(key_data['ori_key'])
                 querys_context.append(key_data['context'])
