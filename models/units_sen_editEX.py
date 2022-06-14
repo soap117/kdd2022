@@ -22,6 +22,7 @@ def check_seq(a, b):
     return True
 def find_spot(input_ids, querys_ori, tokenizer):
     positions = []
+    used_set = set()
     for ori_query in querys_ori:
         flag = False
         format = '${}$（'.format(ori_query)
@@ -30,8 +31,10 @@ def find_spot(input_ids, querys_ori, tokenizer):
             l = 0
             while input_ids[bid, l] != config.SEP and not check_seq(input_ids[bid, l:l+len(format_id)], format_id):
                l += 1
-            if input_ids[bid, l] != config.SEP:
-                positions.append((bid, l+len(format_id), l+len(format_id)+config.hidden_anno_len_rnn))
+            found_spot = (bid, l+len(format_id), l+len(format_id)+config.hidden_anno_len_rnn)
+            if input_ids[bid, l] != config.SEP and found_spot not in used_set:
+                positions.append(found_spot)
+                used_set.add(found_spot)
                 flag = True
                 break
         if not flag:
@@ -681,12 +684,16 @@ class MyData(Dataset):
         cut_list = []
         c = 0
         for sen_data in train_data:
+            query_count = 0
             src_sens.append(sen_data['src_sen'])
             src_sens_ori.append(sen_data['src_sen_ori'])
             tar_sens.append(sen_data['tar_sen'])
             edit_sens.append(sen_data['edit_sen'])
             for key_data in sen_data['key_data']:
                 c += 1
+                query_count += 1
+                if query_count > config.max_query:
+                    continue
                 querys.append(key_data['key'])
                 querys_ori.append(key_data['ori_key'])
                 querys_context.append(key_data['context'])
