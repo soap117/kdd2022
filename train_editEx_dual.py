@@ -2,7 +2,7 @@ import cuda3
 import torch
 import torch.nn as nn
 from config import Config
-config = Config(6)
+config = Config(8)
 from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref, read_clean_data, find_spot, restricted_decoding, operation2sentence
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -54,7 +54,7 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    debug_flag = True
+    debug_flag = False
     if not debug_flag and os.path.exists(config.data_file.replace('.pkl', '_train_dataset_edit.pkl')):
         train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset_edit.pkl'))
         valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset_edit.pkl'))
@@ -94,13 +94,13 @@ def build(config):
     bert_model = config.bert_model
     encoder = BartModel.from_pretrained(bert_model).encoder
     tokenizer = config.tokenizer
-    decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 256, n_layers=1, embedding=encoder.embed_tokens)
+    decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 400, n_layers=1, embedding=encoder.embed_tokens)
     edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
     modeld = edit_nts_ex
     modeld.cuda()
     modelp.cuda()
     models.cuda()
-    modele.cuda()
+    modele.to("cuda:1")
     modelp.train()
     models.train()
     modele.train()
@@ -201,8 +201,8 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
-            outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
-            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
+            outputs_annotation = modele(input_ids=reference_ids.to("cuda:1"), attention_adjust=adj_matrix.to("cuda:1"), decoder_input_ids=an_decoder_inputs_ids.to("cuda:1"))
+            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len].to("cuda:0")
 
             logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
                              anno_position=decoder_anno_position, hidden_annotation=hidden_annotation, input_edits=edit_sens_token_ids, input_actions=input_actions, org_ids=decoder_ids_ori)
