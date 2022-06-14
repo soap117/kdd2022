@@ -369,7 +369,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
                 infer_title_candidates_pured.append(temp)
                 infer_section_candidates_pured.append(temp2_pured)
 
-            mapping = torch.FloatTensor(mapping_title).to(config.device)
+            mapping = torch.FloatTensor(mapping_title).to("cuda:1")
             scores_title = scores_title.unsqueeze(1)
             scores_title = scores_title.matmul(mapping).squeeze(1)
             rs_scores = models(query_embedding, infer_section_candidates_pured, is_infer=True)
