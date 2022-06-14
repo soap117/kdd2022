@@ -53,7 +53,7 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    debug_flag = True
+    debug_flag = False
     if not debug_flag and os.path.exists(config.data_file.replace('.pkl', '_train_dataset_edit.pkl')):
         train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset_edit.pkl'))
         valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset_edit.pkl'))
@@ -96,9 +96,9 @@ def build(config):
     decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 400, n_layers=1, embedding=encoder.embed_tokens)
     edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
     modeld = edit_nts_ex
-    modelp.to("cuda:1")
-    models.to("cuda:1")
-    modele.to("cuda:1")
+    modelp.to("cuda:0")
+    models.to("cuda:0")
+    modele.to("cuda:0")
     modeld.cuda()
     modelp.train()
     models.train()

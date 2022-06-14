@@ -684,14 +684,15 @@ class MyData(Dataset):
         cut_list = []
         c = 0
         for sen_data in train_data:
-            query_count = 0
             src_sens.append(sen_data['src_sen'])
             src_sens_ori.append(sen_data['src_sen_ori'])
             tar_sens.append(sen_data['tar_sen'])
             edit_sens.append(sen_data['edit_sen'])
-            for key_data in sen_data['key_data']:
+            index_key = np.arange(0, len(sen_data['key_data']))
+            index_key_filtered = np.sort(np.random.choice(index_key, min(len(index_key), config.max_query), replace=False))
+            for key_index in index_key_filtered:
+                key_data = sen_data['key_data'][key_index]
                 c += 1
-                query_count += 1
                 querys.append(key_data['key'])
                 querys_ori.append(key_data['ori_key'])
                 querys_context.append(key_data['context'])
