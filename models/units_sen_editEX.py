@@ -452,6 +452,8 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             else:
                 region_ori = (0, 0)
                 context_key = '        '
+            if len(context_key) > 100:
+                context_key = context_key[0:100]
             if len(key['anno']) == 0:
                 continue
             s = time.time()
