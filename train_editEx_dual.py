@@ -2,7 +2,7 @@ import cuda3
 import torch
 import torch.nn as nn
 from config import Config
-config = Config(8)
+config = Config(6)
 from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref, read_clean_data, find_spot, restricted_decoding, operation2sentence
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -94,7 +94,7 @@ def build(config):
     bert_model = config.bert_model
     encoder = BartModel.from_pretrained(bert_model).encoder
     tokenizer = config.tokenizer
-    decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 400, n_layers=1, embedding=encoder.embed_tokens)
+    decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 256, n_layers=1, embedding=encoder.embed_tokens)
     edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
     modeld = edit_nts_ex
     modeld.cuda()
