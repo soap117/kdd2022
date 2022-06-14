@@ -139,6 +139,7 @@ class SecEncoder(nn.Module):
         for one in title:
             title_new += one
         es = self.tokenizer(title_new, return_tensors='pt', padding=True, truncation=True).to(self.trans_layer.weight.device)
+        x_ = es['input_ids']
         x = self.embed(x_)
         x = x.transpose(1, 2)
         tmp = x
