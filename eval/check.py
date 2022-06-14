@@ -134,7 +134,7 @@ def count_bleu_score(candidate, reference):
             print(reference[k])
     return avg_score
 results = pickle.load(open('../data/test/my_results_edit_sec_dual.pkl', 'rb'))
-results_temp = pickle.load(open('../data/test/my_results_edit_sec_limited.pkl', 'rb'))
+results_temp = pickle.load(open('../data/test/my_results_EditNTS.pkl', 'rb'))
 if 'srcs' not in results:
     results['srcs'] = results_temp['srcs']
     results['tars'] = results_temp['tars']
@@ -150,7 +150,7 @@ for one in results['prds']:
     one = one.replace('。。', '。')
     temp.append(one)
 results['prds'] = temp
-for pr, tr in zip(results['prds'], results['tars']):
+for pr, tr in zip(results['prds'], results_temp['prds']):
     print(pr)
     print(tr)
     print('--------------------------------------------------')

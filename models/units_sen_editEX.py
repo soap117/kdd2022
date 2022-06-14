@@ -382,6 +382,16 @@ def obtain_annotations(tar):
             t_s += 1
     return annotations
 
+def find_context_sentence(r, para):
+    l = r-1
+    r = r+1
+    while l > 0 and para[l] != '。':
+        l -= 1
+    while r < len(para) and para[r] != '。':
+        r += 1
+    context = para[l+1:r]
+    return context
+
 def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_section):
     sentences_data = []
     for sentence in tqdm(sentences):
@@ -435,6 +445,13 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
 
             data_filed = {}
             data_filed['context'] = sentence['src_st']
+            region_ori = re.search(key['origin'], src_sentence_ori)
+            if region_ori is not None:
+                region_ori = region_ori.regs[0]
+                context_key = find_context_sentence(region_ori[0], src_sentence_ori)
+            else:
+                region_ori = (0, 0)
+                context_key = '        '
             if len(key['anno']) == 0:
                 continue
             s = time.time()
@@ -443,6 +460,8 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             data_filed['key'] = key['key']
             data_filed['ori_key'] = key['origin']
             data_filed['anno'] = key['anno']
+            data_filed['context'] = context_key
+
             key_cut = jieba.lcut(key['key'])
             infer_titles = bm25_title.get_top_n(key_cut, titles, config.infer_title_range)
             data_filed['title_candidates'] = infer_titles
@@ -489,6 +508,8 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
             src_sentence_clean = src_sentence_clean.replace(src_anno, '')
         if len(tar_sentence_clean)>2*len(src_sentence_clean) or len(src_sentence_clean)>2*len(tar_sentence_clean):
             print('Not a good match')
+            print(src_sentence_clean)
+            print(tar_sentence_clean)
             continue
         sentences_data.append({'src_sen': src_sentence, 'src_sen_ori': src_sentence_ori,
                                'tar_sen': tar_sentence, 'textid': sentence['textid'], 'key_data':key_list, 'edit_sen':edit_tokens})
@@ -666,7 +687,7 @@ class MyData(Dataset):
                 c += 1
                 querys.append(key_data['key'])
                 querys_ori.append(key_data['ori_key'])
-                querys_context.append(sen_data['src_sen_ori'])
+                querys_context.append(key_data['context'])
                 pos_title = key_data['pos_ans'][1][np.random.randint(len(key_data['pos_ans'][1]))][-1]
                 pos_section = key_data['pos_ans'][0][np.random.randint(len(key_data['pos_ans'][0]))]
                 sample_title_candidates = [pos_title] + key_data['neg_title_candidates']

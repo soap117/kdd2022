@@ -76,8 +76,8 @@ def creat_sentence(data_new):
             else:
                 sentence_format[file_sen] = {}
                 sentence_format[file_sen]['data'] = [data_key]
-                sentence_format[file_sen]['src'] = src
-                sentence_format[file_sen]['tar'] = tar
+                sentence_format[file_sen]['src_st'] = src
+                sentence_format[file_sen]['tar_st'] = tar
                 sentence_format[file_sen]['textid'] = file['file']['textid']
         else:
             failed += 1
@@ -87,5 +87,5 @@ with open('mydata_v5_anno.pkl', 'rb') as f:
 sentence_format, failed = creat_sentence(data_new)
 print(len(sentence_format))
 print(failed)
-with open('mydata_v5_sec.pkl', 'wb') as f:
+with open('mydata_v5_para.pkl', 'wb') as f:
     pickle.dump(sentence_format, f)
