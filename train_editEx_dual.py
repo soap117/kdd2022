@@ -97,10 +97,10 @@ def build(config):
     decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 400, n_layers=1, embedding=encoder.embed_tokens)
     edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
     modeld = edit_nts_ex
-    modeld.cuda()
-    modelp.cuda()
-    models.cuda()
+    modelp.to("cuda:1")
+    models.to("cuda:1")
     modele.to("cuda:1")
+    modeld.cuda()
     modelp.train()
     models.train()
     modele.train()
@@ -201,7 +201,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
-            outputs_annotation = modele(input_ids=reference_ids.to("cuda:1"), attention_adjust=adj_matrix.to("cuda:1"), decoder_input_ids=an_decoder_inputs_ids.to("cuda:1"))
+            outputs_annotation = modele(input_ids=reference_ids.to("cuda:1"), attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids.to("cuda:1"))
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len].to("cuda:0")
 
             logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
@@ -414,8 +414,8 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
                 config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
-            outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
-            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
+            outputs_annotation = modele(input_ids=reference_ids.to("cuda:1"), attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids.to("cuda:1"))
+            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len].to("cuda:0")
 
             logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
                                           anno_position=decoder_anno_position, hidden_annotation=hidden_annotation,

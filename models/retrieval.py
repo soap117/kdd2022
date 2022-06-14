@@ -31,7 +31,7 @@ class TitleEncoder(nn.Module):
             self.conv.add_module('ReLU_%d' % l, tmp)
     def forward(self, key, is_query=False):
         if is_query:
-            es = self.tokenizer(key, return_tensors='pt', padding=True, truncation=True).to(self.device)
+            es = self.tokenizer(key, return_tensors='pt', padding=True, truncation=True).to(self.trans_layer.weight.device)
             x = es['input_ids']
             x = self.embed(x)
             x = x.transpose(1, 2)
@@ -49,7 +49,7 @@ class TitleEncoder(nn.Module):
             title_new = []
             for one in key:
                 title_new += one
-            es = self.tokenizer(title_new, return_tensors='pt', padding=True, truncation=True).to(self.device)
+            es = self.tokenizer(title_new, return_tensors='pt', padding=True, truncation=True).to(self.trans_layer.weight.device)
             x = es['input_ids']
             x = self.embed(x)
             x = x.transpose(1, 2)
@@ -98,7 +98,7 @@ class ContextEncoder(nn.Module):
                 self.conv.add_module('maxpool_%d' % l, tmp)
 
     def forward(self, title):
-        es = self.tokenizer(title, return_tensors='pt', padding=True, truncation=True).to(self.device)
+        es = self.tokenizer(title, return_tensors='pt', padding=True, truncation=True).to(self.trans_layer.weight.device)
         x_ = es['input_ids']
         x = self.embed(x_)
         x = x.transpose(1, 2)
@@ -138,8 +138,7 @@ class SecEncoder(nn.Module):
         title_new = []
         for one in title:
             title_new += one
-        es = self.tokenizer(title_new, return_tensors='pt', padding=True, truncation=True).to(self.device)
-        x_ = es['input_ids']
+        es = self.tokenizer(title_new, return_tensors='pt', padding=True, truncation=True).to(self.trans_layer.weight.device)
         x = self.embed(x_)
         x = x.transpose(1, 2)
         tmp = x
