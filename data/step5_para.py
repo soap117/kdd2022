@@ -76,8 +76,8 @@ def creat_sentence(data_new):
             else:
                 sentence_format[file_sen] = {}
                 sentence_format[file_sen]['data'] = [data_key]
-                sentence_format[file_sen]['src_st'] = src
-                sentence_format[file_sen]['tar_st'] = tar
+                sentence_format[file_sen]['src_st'] = src[0:512]
+                sentence_format[file_sen]['tar_st'] = tar[0:512]
                 sentence_format[file_sen]['textid'] = file['file']['textid']
         else:
             failed += 1
