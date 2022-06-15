@@ -370,7 +370,6 @@ def pipieline(path_from):
                 print('+++++++++++++++++++++++')
                 print(results[0])
                 print('+++++++++++++++++++++++')
-            print(results[0])
             # masks = torch.ones_like(targets)
             # masks[torch.where(targets == 0)] = 0
             eval_ans += [results[0]]
