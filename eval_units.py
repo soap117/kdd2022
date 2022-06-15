@@ -114,6 +114,50 @@ def mark_sentence_rnn(input_list):
             order_context.append(context[1])
     return context_dic, order_context
 
+def mark_sentence_rnn_para(input_list, src):
+    context_dic = {}
+    src = re.sub('\*\*', '', src)
+    src = src.replace('(', '（')
+    src = src.replace('$', '')
+    src = src.replace(')', '）')
+    src = src.replace('\n', '').replace('。。', '。')
+    src = fix_stop(src)
+    for key, context, infer_titles in zip(input_list[0], input_list[1], input_list[2]):
+        if src not in context_dic:
+            context_dic[src] = [src, src, [], [], []]
+            src_sentence = context_dic[src][0]
+            tar_sentence = context_dic[src][1]
+
+        else:
+            src_sentence = context_dic[src][0]
+            tar_sentence = context_dic[src][1]
+        context_dic[src][2].append(key)
+        context_dic[src][3].append(infer_titles)
+        context_dic[src][4].append(context)
+        region = re.search(key, src_sentence)
+        if region is not None:
+            region = region.regs[0]
+        else:
+            region = (0, 0)
+        if region[0] != 0 or region[1] != 0:
+            src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key) + '（' + ''.join(
+                [' [unused3] ']+[' [MASK] ' for x in range(config.hidden_anno_len_rnn-2)] + [' [unused4] ']) + '）' + src_sentence[region[1]:]
+        region = re.search(key, tar_sentence)
+        if region is not None:
+            region = region.regs[0]
+        else:
+            region = (0, 0)
+        if region[0] != 0 or region[1] != 0:
+            tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key) + tar_sentence[region[1]:]
+
+        context_dic[src][0] = src_sentence
+        context_dic[src][1] = tar_sentence
+    order_context = []
+    for context in input_list[4]:
+        if context[1] not in order_context:
+            order_context.append(context[1])
+    return context_dic, order_context
+
 def mark_sentence(input_list):
     context_dic = {}
     for key, context, infer_titles in zip(input_list[0], input_list[1], input_list[2]):
