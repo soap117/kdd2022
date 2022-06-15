@@ -14,7 +14,7 @@ class Config(object):
         self.CLS = self.tokenizer.cls_token_id
         self.SEP = self.tokenizer.sep_token_id
         self.title_tokenizer = self.tokenizer
-        self.title_tokenizer.model_max_length = 700
+        self.title_tokenizer.model_max_length = 768
         self.key_tokenizer = self.title_tokenizer
         self.modeld = BartAN
         self.modeld_sen = BartEX
