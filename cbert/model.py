@@ -117,7 +117,7 @@ def train(model, optimizer, scheduler, train_dataloader, val_dataloader, test_da
             save_file['epoch'] = e + 1
             save_file['para'] = model.state_dict()
             save_file['best_acc'] = f1
-            torch.save(save_file, './cache/best_save.data')
+            torch.save(save_file, './cache/best_save_new.data')
             shutil.copy('result/label_test.txt', 'result/label_test_best.txt')
 
         print(save_file['epoch'] - 1)
@@ -141,5 +141,5 @@ def main():
 
 if __name__ == '__main__':
     import os
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '3'
     main()
