@@ -21,7 +21,32 @@ CLS = '[CLS]'
 SEP = '[SEP]'
 bert_model = 'hfl/chinese-bert-wwm-ext'
 tokenizer = BertTokenizer.from_pretrained(bert_model)
+def is_in_annotation(pos, src):
+    s = 0
+    count_left = 0
+    while s < pos:
+        if src[s] == '（':
+            count_left += 1
+        elif src[s] == '）':
+            count_left -= 1
+        s += 1
+    if count_left > 0:
+        return True
+    else:
+        return False
 
+def obtain_annotation(tar , t_s):
+    t_e = t_s + 1
+    count = 1
+    while t_e < len(tar) and count > 0:
+        if tar[t_e] == '）':
+            count -= 1
+        if tar[t_e] == '（':
+            count += 1
+        t_e += 1
+    annotations = tar[t_s+1:t_e-1]
+
+    return annotations
 def preprocess(dataset, path_to):
     src_all, src_ids, src_tokens = [], [], []
     tar_masks = []
@@ -32,14 +57,36 @@ def preprocess(dataset, path_to):
         tokens = [CLS]
         masks = [0]
         _keywords = []
-
+        para_tar = deal_one(data['tar'])
         for content in contents:
-            src = deal_anno(content['text'])
-            _src_tokens = tokenizer.tokenize(re.sub('\*\*', '', src).lower())
+            src = deal_one(content['text'])
+            _src_tokens = tokenizer.tokenize(re.sub('\*\*', '', src))
             src_masks = np.array([0 for _ in range(len(_src_tokens))])
             for tooltip in content['tooltips']:
                 key = tooltip['origin']
                 key = deal_anno(key)
+                if key not in para_tar:
+                    continue
+                regions = [x for x in re.finditer(key, para_tar)]
+                region = None
+                for one in regions:
+                    if is_in_annotation(one.regs[0][0], para_tar):
+                        continue
+                    region = one.regs[0]
+                    break
+                if region is None and len(regions) == 1:
+                    region = regions[0].regs[0]
+                if region is not None:
+                    region = region
+                if region is None:
+                    continue
+
+                if region[1] < len(para_tar) and para_tar[region[1]] == '（':
+                    annotation = obtain_annotation(para_tar, region[1])
+                    if annotation in src:
+                        continue
+                else:
+                    continue
                 keyword_tokens = tokenizer.tokenize(key)
                 i = kmp.kmp(_src_tokens, keyword_tokens)
                 l = len(keyword_tokens)
