@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from config import Config
-config = Config(7)
+config = Config(6)
 from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref, read_clean_data, find_spot, restricted_decoding, operation2sentence
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
