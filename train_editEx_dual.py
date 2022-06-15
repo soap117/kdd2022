@@ -53,7 +53,7 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    debug_flag = False
+    debug_flag = True
     if not debug_flag and os.path.exists(config.data_file.replace('.pkl', '_train_dataset_edit.pkl')):
         train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset_edit.pkl'))
         valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset_edit.pkl'))
@@ -421,7 +421,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
 
             logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
                                           anno_position=decoder_anno_position, hidden_annotation=hidden_annotation,
-                                          input_edits=edit_sens_token_ids, input_actions=input_actions, org_ids=decoder_ids_ori, force_ratio=0.0)
+                                          input_edits=edit_sens_token_ids, input_actions=input_actions, org_ids=decoder_ids_ori, force_ratio=0.0, eval=True)
 
             targets = target_ids[:, 1:]
             _, action_predictions = torch.max(logits_action, dim=-1)

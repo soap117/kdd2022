@@ -345,7 +345,7 @@ def pipieline(path_from):
                                                               hidden_annotation=hidden_annotation,
                                                               input_edits=edit_sens_token_ids,
                                                               input_actions=input_actions, org_ids=None,
-                                                              force_ratio=0.0)
+                                                              force_ratio=0.0, eval=True)
 
             _, action_predictions = torch.max(logits_action, dim=-1)
             _, edit_predictions = torch.max(logits_edit, dim=-1)
