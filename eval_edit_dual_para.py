@@ -364,18 +364,18 @@ def pipieline(path_from):
             results = [x.replace('$', '') for x in results]
             p_annos = obtain_annotation(results[1], results[0])
             if len(p_annos)==0:
-                print('+++++++++++++++++++++++')
-                print(results[0])
-                print(results[1])
-                print('+++++++++++++++++++++++')
                 results[0] = results[1]
                 print("skip useless modify")
+            else:
+                print('+++++++++++++++++++++++')
+                print(results[0])
+                print('+++++++++++++++++++++++')
             print(results[0])
             # masks = torch.ones_like(targets)
             # masks[torch.where(targets == 0)] = 0
             eval_ans += [results[0]]
         eval_gt += [tar]
-        print(eval_ans[-1])
+        #print(eval_ans[-1])
 
     result_final = {'srcs': srcs, 'prds': eval_ans, 'tars': eval_gt, 'scores': record_scores,
                     'reference': record_references}
