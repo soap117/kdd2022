@@ -41,27 +41,6 @@ def find_spot(input_ids, querys_ori, tokenizer):
             positions.append((-1,-1,-1))
     return positions
 
-def find_spot_pure(input_ids, querys_ori, tokenizer):
-    positions = []
-    used_set = set()
-    for ori_query in querys_ori:
-        flag = False
-        format = '${}$（[unused3]'.format(ori_query)
-        format_id = tokenizer(format)['input_ids'][1:-1]
-        for bid in range(input_ids.shape[0]):
-            l = 0
-            while input_ids[bid, l] != config.SEP and not check_seq(input_ids[bid, l:l+len(format_id)], format_id):
-               l += 1
-            found_spot = (bid, l+len(format_id), l+len(format_id)+config.hidden_anno_len_rnn-1)
-            if input_ids[bid, l] != config.SEP and found_spot not in used_set:
-                positions.append(found_spot)
-                used_set.add(found_spot)
-                flag = True
-                break
-        if not flag:
-            positions.append((-1,-1,-1))
-    return positions
-
 def batch_pointer_decode(source, pointers):
     temp = []
     source = source.cpu().numpy()

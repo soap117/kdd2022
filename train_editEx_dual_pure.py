@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from config import Config
 config = Config(4)
-from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref, read_clean_data, find_spot_pure, restricted_decoding, operation2sentence
+from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref, read_clean_data, find_spot, restricted_decoding, operation2sentence
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
 from tqdm import tqdm
@@ -199,7 +199,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             #decoder_edits= tokenizer(edit_sens, return_tensors="pt", padding=True, truncation=True)
             #decoder_ids_edits = decoder_edits['input_ids'].to(config.device)
 
-            decoder_anno_position = find_spot_pure(decoder_ids, querys_ori, tokenizer)
+            decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             decoder_ids = decoder_ids.to(config.device)
             target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
@@ -413,7 +413,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             #decoder_edits = tokenizer(edit_sens.replace(' ', ''), return_tensors="pt", padding=True, truncation=True)
             #decoder_ids_edits = decoder_edits['input_ids'].to(config.device)
 
-            decoder_anno_position = find_spot_pure(decoder_ids, querys_ori, tokenizer)
+            decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             decoder_ids = decoder_ids.to(config.device)
             target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(
                 config.device)
