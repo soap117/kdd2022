@@ -70,7 +70,7 @@ modele.eval()
 from models.modeling_bart_ex import BartModel
 from models.modeling_EditNTS_two_rnn import EditDecoderRNN, EditPlus
 bert_model = config.bert_model
-encoder = BartModel.from_pretrained(bert_model).encoder
+encoder = BartModel.from_pretrained(config.bert_model, encoder_layers=3).encoder
 tokenizer = config.tokenizer
 decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 400, n_layers=1, embedding=encoder.embed_tokens)
 edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
