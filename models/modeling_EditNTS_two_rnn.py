@@ -288,8 +288,8 @@ class EditDecoderRNN(nn.Module):
                 output_edit = self.attn_MLP(output_edit)
                 output_edit = F.log_softmax(self.out(output_edit), dim=-1)
                 if eval:
-                    #if c_inds == 8020 or c_inds == 8021 or c_inds==109:
-                    #    output_action[:,:, 1] += 1e10
+                    if c_inds == 8020 or c_inds == 8021 or c_inds==109:
+                        output_action[:,:, 1] += 1e10
                     pred_action = torch.argmax(output_action, dim=2)
                     if pred_action == 5:
                         inserts += 1
