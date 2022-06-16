@@ -245,7 +245,7 @@ class EditDecoderRNN(nn.Module):
             # dummy = inds.view(-1, 1, 1)
             # dummy = dummy.expand(dummy.size(0), dummy.size(1), output_words.size(2)).cuda()
             # c_word = output_words.gather(1, dummy)
-
+            inserts = 0
             while t < tt:
                 if t>0:
                     embedded_edits = self.embedding(decoder_input_edit)
@@ -288,8 +288,14 @@ class EditDecoderRNN(nn.Module):
                 output_edit = self.attn_MLP(output_edit)
                 output_edit = F.log_softmax(self.out(output_edit), dim=-1)
                 if eval:
-                    if c_inds == 8020 or c_inds == 8021 or c_inds==109:
-                        output_action[:,:, 1] += 1e10
+                    #if c_inds == 8020 or c_inds == 8021 or c_inds==109:
+                    #    output_action[:,:, 1] += 1e10
+                    pred_action = torch.argmax(output_action, dim=2)
+                    if pred_action == 5:
+                        inserts += 1
+                    if inserts > 20:
+                        inserts = 0
+                        output_action[:, :, 5] += 1e10
                 decoder_out.append(output_edit)
                 decoder_out_action.append(output_action)
                 decoder_input_action = torch.argmax(output_action, dim=2)
