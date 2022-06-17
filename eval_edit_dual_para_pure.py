@@ -171,14 +171,18 @@ import json
 def obatin_clean_sentence(decoder_input_ids):
     s = 0
     r = s+1
-    clen_indication =
+    clean_indication = torch.zeros_like(decoder_input_ids)
     while r < decoder_input_ids.shape[1]:
         flag = True
         while decoder_input_ids[0, r] != tokenizer.vocab['。'] and r < decoder_input_ids.shape[1]:
             if decoder_input_ids[0, r] == tokenizer.vocab['$']:
                 flag = False
             r += 1
-        if flag
+        if flag:
+            clean_indication[0, s:r+1] = 0
+        else:
+            clean_indication[0, s:r + 1] = 1
+    return clean_indication
 
 def pipieline(path_from):
     eval_ans = []
