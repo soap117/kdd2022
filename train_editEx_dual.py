@@ -54,7 +54,7 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    debug_flag = True
+    debug_flag = False
     if not debug_flag and os.path.exists(config.data_file_old.replace('.pkl', '_train_dataset_edit.pkl')):
         train_dataset = torch.load(config.data_file_old.replace('.pkl', '_train_dataset_edit.pkl'))
         valid_dataset = torch.load(config.data_file_old.replace('.pkl', '_valid_dataset_edit.pkl'))
@@ -116,7 +116,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
     count_s = -1
     count_p = -1
     data_size = len(train_dataloader)
-    #test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
+    test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
     for epoch in range(config.train_epoch*4):
         torch.cuda.empty_cache()
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, src_sens_ori, tar_sens, cut_list, edit_sens) in zip(

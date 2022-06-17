@@ -338,7 +338,7 @@ class EditDecoderRNN(nn.Module):
                 dummy_2 = inds.view(-1, 1).cuda()
                 org_t = org_ids.gather(1, dummy_2)
                 hidden_words = self.execute_batch(pred_action, pred_edit, org_t, hidden_words)  # we give the editted subsequence
-                output_words_h = hidden_words[0].permute(1,0,2)
+                output_words_h = hidden_words[0][0:1].permute(1,0,2)
                 # hidden_words = self.execute_batch(pred_action, org_t, hidden_org)  #here we only give the word
 
                 t += 1
