@@ -175,10 +175,8 @@ def pipieline(path_from):
         pre_label_f = np.argmax(logits.detach().cpu().numpy(), axis=2)
         step2_input = obtain_step2_input(pre_label_f[0], src, x_ids[0], step1_tokenizer)
         context_dic, order_context = mark_sentence_rnn_para(step2_input, src)
-        decoder_inputs = tokenizer([src], return_tensors="pt", padding=True, truncation=True)
-        decoder_ids = decoder_inputs['input_ids']
-        decoder_anno_position = None
         hidden_annotation = None
+        querys_ori = None
         for context in context_dic.keys():
             querys = context_dic[context][2]
             querys_ori = copy.copy(querys)
@@ -286,8 +284,6 @@ def pipieline(path_from):
 
             # decoder_edits = tokenizer(edit_sens.replace(' ', ''), return_tensors="pt", padding=True, truncation=True)
             # decoder_ids_edits = decoder_edits['input_ids'].to(config.device)
-
-            decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix,
@@ -295,7 +291,13 @@ def pipieline(path_from):
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len_rnn]
 
             #clean_indication = obatin_clean_sentence(decoder_ids, tokenizer)
-
+        decoder_inputs = tokenizer([src], return_tensors="pt", padding=True, truncation=True)
+        decoder_ids = decoder_inputs['input_ids']
+        if querys_ori is not None:
+            decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
+        else:
+            decoder_anno_position = []
+        decoder_ids = decoder_inputs['input_ids']
         edit_sens = [['[SEP]']]
         edit_sens_token = [['[CLS]'] + x + ['[SEP]'] for x in edit_sens]
         edit_sens_token_ids = [torch.LongTensor(tokenizer.convert_tokens_to_ids(x)) for x in edit_sens_token]
