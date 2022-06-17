@@ -49,6 +49,7 @@ def build(config):
     corpus = sections
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_section = BM25Okapi(tokenized_corpus)
+    config.tokenizer.model_max_length = 512
     tokenizer = config.tokenizer
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
@@ -89,9 +90,7 @@ def build(config):
     print('Load pretrained E')
     from models.modeling_bart_ex import BartModel, BartLearnedPositionalEmbedding
     from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus
-    pos_embed = BartLearnedPositionalEmbedding(1024, 768)
     encoder = BartModel.from_pretrained(config.bert_model, encoder_layers=3).encoder
-    encoder.embed_positions = pos_embed
     tokenizer = config.tokenizer
     decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 256, n_layers=2, embedding=encoder.embed_tokens)
     edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
