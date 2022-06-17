@@ -89,10 +89,10 @@ def build(config):
     modele.load_state_dict(save_data['model'])
     print('Load pretrained E')
     from models.modeling_bart_ex import BartModel, BartLearnedPositionalEmbedding
-    from models.modeling_EditNTS_two_rnn import EditDecoderRNN, EditPlus
+    from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus
     encoder = BartModel.from_pretrained(config.bert_model, encoder_layers=3).encoder
     tokenizer = config.tokenizer
-    decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 400, n_layers=1, embedding=encoder.embed_tokens)
+    decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 256, n_layers=2, embedding=encoder.embed_tokens)
     edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
     modeld = edit_nts_ex
     modelp.cuda()
@@ -155,7 +155,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 infer_title_candidates_pured.append(temp)
                 infer_section_candidates_pured.append(temp2_pured)
 
-            mapping = torch.FloatTensor(mapping_title).to("cuda:0")
+            mapping = torch.FloatTensor(mapping_title).to(config.device)
             scores_title = scores_title.unsqueeze(1)
             scores_title = scores_title.matmul(mapping).squeeze(1)
             rs_scores = models(query_embedding, infer_section_candidates_pured, is_infer=True)
@@ -172,7 +172,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 reference.append(temp[0:config.maxium_sec])
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
             reference_ids = inputs_ref['input_ids']
-            reference_ids = mask_ref(reference_ids, tokenizer).to("cuda:0")
+            reference_ids = mask_ref(reference_ids, tokenizer).to(config.device)
 
             an_decoder_input = ' '.join(['[MASK]' for x in range(config.hidden_anno_len_rnn)])
             an_decoder_inputs = [an_decoder_input for x in reference_ids]
@@ -200,8 +200,8 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
-            outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids.to("cuda:0"))
-            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len].to("cuda:0")
+            outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
+            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
 
             logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
                              anno_position=decoder_anno_position, hidden_annotation=hidden_annotation, input_edits=edit_sens_token_ids, input_actions=input_actions, org_ids=decoder_ids_ori)
@@ -243,27 +243,26 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             # masks = torch.ones_like(targets)
             # masks[torch.where(targets == 0)] = 0
             lossd_ed = loss_func(logits_edit, targets_flat)
-            lossd_ed[(targets_flat==0)|(targets_flat==1)|(targets_flat==2)|(targets_flat==101)|(targets_flat==102)] = 0
+            lossd_ed[(targets_flat == 0) | (targets_flat == 1) | (targets_flat == 2) | (targets_flat == 101) | (
+                        targets_flat == 102)] = 0
             lossd_ed = lossd_ed.view(targets_edit.size())
             lossd_ed = lossd_ed.sum(1).float()
             lossd_ed = lossd_ed / tar_lens
             lossd_ed = lossd_ed.mean()
             loss = lossd_ac + lossd_ed
-            loss_ori = 0
             if count_p < 2:
-                loss_ori += losss.mean()
+                loss += losss.mean()
             else:
-                loss_ori += 0.1*losss.mean()
+                loss += 0.1 * losss.mean()
             if count_s < 2:
-                loss_ori += lossp.mean()
+                loss += lossp.mean()
             else:
-                loss_ori += 0.1*lossp.mean()
+                loss += 0.1 * lossp.mean()
             optimizer_p.zero_grad()
             optimizer_s.zero_grad()
             optimizer_encoder.zero_grad()
             optimizer_decoder.zero_grad()
-            loss.backward(retain_graph=True)
-            loss_ori.backward()
+            loss.backward()
             if epoch > 3:
                 optimizer_p.step()
                 optimizer_s.step()
@@ -368,7 +367,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
                 infer_title_candidates_pured.append(temp)
                 infer_section_candidates_pured.append(temp2_pured)
 
-            mapping = torch.FloatTensor(mapping_title).to("cuda:0")
+            mapping = torch.FloatTensor(mapping_title).to(config.device)
             scores_title = scores_title.unsqueeze(1)
             scores_title = scores_title.matmul(mapping).squeeze(1)
             rs_scores = models(query_embedding, infer_section_candidates_pured, is_infer=True)
@@ -387,7 +386,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
                 temp = ' [SEP] '.join(temp)
                 reference.append(temp[0:config.maxium_sec])
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
-            reference_ids = inputs_ref['input_ids'].to("cuda:0")
+            reference_ids = inputs_ref['input_ids'].to(config.device)
 
             an_decoder_input = ' '.join(['[MASK]' for x in range(100)])
             an_decoder_inputs = [an_decoder_input for x in reference_ids]
@@ -416,7 +415,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids.to("cuda:0"))
-            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len].to("cuda:0")
+            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
 
             logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
                                           anno_position=decoder_anno_position, hidden_annotation=hidden_annotation,
