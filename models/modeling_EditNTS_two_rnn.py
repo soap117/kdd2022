@@ -20,7 +20,7 @@ tokenizer = BertTokenizer.from_pretrained(bert_model)
 KEEP_ID = tokenizer.vocab['[unused1]']
 DEL_ID = tokenizer.vocab['[unused2]']
 INSERT_ID = tokenizer.vocab['[unused5]']
-MAX_LEN = 512
+MAX_LEN = 768
 STOP_ID = tokenizer.vocab['[SEP]']
 PAD_ID = tokenizer.vocab['[PAD]']
 class EditDecoderRNN(nn.Module):
@@ -101,7 +101,7 @@ class EditDecoderRNN(nn.Module):
         return (new_batch_lm_h,new_batch_lm_c)
 
 
-    def forward(self, input_edits, input_actions, hidden_org, encoder_outputs_org, org_ids, simp_sent, teacher_forcing_ratio=1., eval=False):
+    def forward(self, input_edits, input_actions, hidden_org, encoder_outputs_org, org_ids, simp_sent, teacher_forcing_ratio=1., eval=False, clean_indication=None):
         #input_edits: desired output
         #hidden_org initial state
         #simp_sent: desired output with out special marking
@@ -290,6 +290,10 @@ class EditDecoderRNN(nn.Module):
                 if eval:
                     if c_inds == 8020 or c_inds == 8021 or c_inds==109:
                         output_action[:,:, 1] += 1e10
+                    if clean_indication is not None:
+                        clean_inds = clean_indication.gather(1, inds.view(-1, 1).cuda())
+                        if clean_inds == 0:
+                            output_action[:, :, 1] += 1e10
                     pred_action = torch.argmax(output_action, dim=2)
                     if pred_action == 5:
                         inserts += 1
@@ -348,7 +352,7 @@ class EditPlus(nn.Module):
         self.decoder = decoder
         self.hidden_annotation_alignment = nn.Linear(encoder.config.d_model, encoder.config.d_model, bias=False)
 
-    def forward(self, input_ids, decoder_input_ids, anno_position, hidden_annotation, input_edits, input_actions, org_ids, force_ratio=1.0, eval=False):
+    def forward(self, input_ids, decoder_input_ids, anno_position, hidden_annotation, input_edits, input_actions, org_ids, force_ratio=1.0, eval=False, clean_indication=None):
         hidden_annotation = self.hidden_annotation_alignment(hidden_annotation)
         encoder_outputs = self.encoder(
             input_ids=input_ids,
@@ -358,7 +362,7 @@ class EditPlus(nn.Module):
         h_0, c_0 = self.decoder.initHidden(encoder_outputs[0][:, 0])
         decoder_outputs = self.decoder(
             input_edits=input_edits, input_actions=input_actions, hidden_org=(h_0,c_0), encoder_outputs_org=encoder_outputs[0][:, 1:], org_ids=input_ids[:, 1:],
-            simp_sent=decoder_input_ids, teacher_forcing_ratio = force_ratio, eval=eval
+            simp_sent=decoder_input_ids, teacher_forcing_ratio = force_ratio, eval=eval, clean_indication=clean_indication
         )
 
         return decoder_outputs

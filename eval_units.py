@@ -157,7 +157,25 @@ def mark_sentence_rnn_para(input_list, src):
         if context[1] not in order_context:
             order_context.append(context[1])
     return context_dic, order_context
-
+import torch
+def obatin_clean_sentence(decoder_input_ids, tokenizer):
+    s = 0
+    r = s+1
+    clean_indication = torch.zeros_like(decoder_input_ids)
+    while r < decoder_input_ids.shape[1]:
+        flag = True
+        while decoder_input_ids[0, r] != tokenizer.vocab['。'] and r < decoder_input_ids.shape[1]:
+            if decoder_input_ids[0, r] == tokenizer.vocab['$']:
+                flag = False
+            r += 1
+        r = min(r, decoder_input_ids.shape[1])
+        if flag:
+            clean_indication[0, s:r + 1] = 0
+        else:
+            clean_indication[0, s:r + 1] = 1
+        s = r + 1
+        r = s + 1
+    return clean_indication
 def mark_sentence(input_list):
     context_dic = {}
     for key, context, infer_titles in zip(input_list[0], input_list[1], input_list[2]):
