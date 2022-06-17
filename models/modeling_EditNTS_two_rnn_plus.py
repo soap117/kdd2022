@@ -181,8 +181,8 @@ class EditDecoderRNN(nn.Module):
 
                 output_action = torch.cat((decoder_action_t, decoder_output_t, attn_applied_org_t, c_action, c_word),
                                           2)  # bsz*nsteps x nhid*2
-                output_action = self.attn_ACTION(output_action) + self.action_mask
-                output_action = F.log_softmax(self.out_action(output_action), dim=-1)
+                output_action = self.attn_ACTION(output_action)
+                output_action = F.log_softmax(self.out_action(output_action) + self.action_mask, dim=-1)
                 decoder_out_action.append(output_action)
 
                 output_t = torch.cat((decoder_output_t, decoder_action_t, attn_applied_org_t, c_edit, c_word),
@@ -284,8 +284,8 @@ class EditDecoderRNN(nn.Module):
 
                 output_action = torch.cat((output_actions_h, output_edits_h, attn_applied_org_t, c_action, hidden_words[0][-1].unsqueeze(1)),
                                      2)  # bsz*nsteps x nhid*2
-                output_action = self.attn_ACTION(output_action) + self.action_mask
-                output_action = F.log_softmax(self.out_action(output_action), dim=-1)
+                output_action = self.attn_ACTION(output_action)
+                output_action = F.log_softmax(self.out_action(output_action) + self.action_mask, dim=-1)
 
                 output_edit = torch.cat((output_edits_h, output_actions_h, attn_applied_org_t, c_edit, hidden_words[0][-1].unsqueeze(1)),
                                      2)  # bsz*nsteps x nhid*2
