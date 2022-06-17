@@ -90,7 +90,7 @@ def build(config):
     print('Load pretrained E')
     from transformers import BertTokenizer
     from models.modeling_bart_ex import BartModel
-    from models.modeling_EditNTS_two_rnn import EditDecoderRNN, EditPlus
+    from models.modeling_EditNTS_two_rnn_old import EditDecoderRNN, EditPlus
     bert_model = config.bert_model
     encoder = BartModel.from_pretrained(bert_model).encoder
     tokenizer = config.tokenizer
