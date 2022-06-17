@@ -168,6 +168,18 @@ def pre_process_sentence(src, tar, keys):
     src = src_sentence
     return src, tar_sentence, tar
 import json
+def obatin_clean_sentence(decoder_input_ids):
+    s = 0
+    r = s+1
+    clen_indication =
+    while r < decoder_input_ids.shape[1]:
+        flag = True
+        while decoder_input_ids[0, r] != tokenizer.vocab['。'] and r < decoder_input_ids.shape[1]:
+            if decoder_input_ids[0, r] == tokenizer.vocab['$']:
+                flag = False
+            r += 1
+        if flag
+
 def pipieline(path_from):
     eval_ans = []
     eval_gt = []
@@ -353,6 +365,8 @@ def pipieline(path_from):
             _, edit_predictions = torch.max(logits_edit, dim=-1)
             predictions = torch.where(action_predictions != 5, action_predictions, edit_predictions)
 
+            decoder_inputs = tokenizer([src], return_tensors="pt", padding=True)
+            decoder_ids = decoder_inputs['input_ids']
             predictions = operation2sentence(predictions, decoder_ids)
             results = tokenizer.batch_decode(predictions)
             results = [tokenizer.convert_tokens_to_string(x) for x in results]
