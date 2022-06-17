@@ -44,14 +44,18 @@ class EditDecoderRNN(nn.Module):
         # self.attn_Projection_scpn = nn.Linear(hidden_size, hidden_size, bias=False) #hard attention here
 
 
-        self.attn_MLP = nn.Sequential(nn.Linear(hidden_size * 4, embedding_dim),
+        self.attn_MLP = nn.Sequential(nn.Linear(hidden_size * 5, embedding_dim),
                                           nn.Tanh())
-        self.attn_ACTION = nn.Sequential(nn.Linear(hidden_size * 4, embedding_dim),
+        self.attn_ACTION = nn.Sequential(nn.Linear(hidden_size * 5, embedding_dim),
                                       nn.Tanh())
         self.attn_REF = nn.Sequential(nn.Linear(hidden_size, 2),
                                       nn.Softmax(dim=-1))
         self.out = nn.Linear(embedding_dim, self.vocab_size)
         self.out_action = nn.Linear(embedding_dim, 200)
+        self.action_mask = torch.ones([1, 200], dtype=torch.float64)
+        self.action_mask[0, [0, 1, 2, 5, 101, 102]] = 0
+        self.action_mask = self.action_mask * -1e5
+        self.action_mask = torch.nn.Parameter(self.action_mask)
         self.out.weight.data = self.embedding.weight.data[:self.vocab_size]
         self.out_action.weight.data = self.embedding.weight.data[:200]
 
@@ -175,13 +179,13 @@ class EditDecoderRNN(nn.Module):
                 attn_weights_org_t = F.softmax(logits_org, dim=-1)  # bsz x nsteps x encsteps
                 attn_applied_org_t = torch.bmm(attn_weights_org_t, encoder_outputs_org)  # bsz x nsteps x nhid
 
-                output_action = torch.cat((decoder_action_t, attn_applied_org_t, c_action, c_word),
+                output_action = torch.cat((decoder_action_t, decoder_output_t, attn_applied_org_t, c_action, c_word),
                                           2)  # bsz*nsteps x nhid*2
-                output_action = self.attn_ACTION(output_action)
+                output_action = self.attn_ACTION(output_action) + self.action_mask
                 output_action = F.log_softmax(self.out_action(output_action), dim=-1)
                 decoder_out_action.append(output_action)
 
-                output_t = torch.cat((decoder_output_t, attn_applied_org_t, c_edit, c_word),
+                output_t = torch.cat((decoder_output_t, decoder_action_t, attn_applied_org_t, c_edit, c_word),
                                      2)  # bsz*nsteps x nhid*2
                 output_t = self.attn_MLP(output_t)
                 output_t = F.log_softmax(self.out(output_t), dim=-1)
@@ -278,12 +282,12 @@ class EditDecoderRNN(nn.Module):
                 weight_ref = self.attn_REF(output_actions_h)
                 c_action = torch.bmm(weight_ref, c)
 
-                output_action = torch.cat((output_actions_h, attn_applied_org_t, c_action, hidden_words[0][-1].unsqueeze(1)),
+                output_action = torch.cat((output_actions_h, output_edits_h, attn_applied_org_t, c_action, hidden_words[0][-1].unsqueeze(1)),
                                      2)  # bsz*nsteps x nhid*2
-                output_action = self.attn_ACTION(output_action)
+                output_action = self.attn_ACTION(output_action) + self.action_mask
                 output_action = F.log_softmax(self.out_action(output_action), dim=-1)
 
-                output_edit = torch.cat((output_edits_h, attn_applied_org_t, c_edit, hidden_words[0][-1].unsqueeze(1)),
+                output_edit = torch.cat((output_edits_h, output_actions_h, attn_applied_org_t, c_edit, hidden_words[0][-1].unsqueeze(1)),
                                      2)  # bsz*nsteps x nhid*2
                 output_edit = self.attn_MLP(output_edit)
                 output_edit = F.log_softmax(self.out(output_edit), dim=-1)
@@ -296,17 +300,10 @@ class EditDecoderRNN(nn.Module):
                             output_action[:, :, 1] += 1e10
                     pred_action = torch.argmax(output_action, dim=2)
                     if pred_action == 5:
-                        pred_word = torch.argmax(output_edit, dim=2)
                         inserts += 1
-                        if inserts > 20:
-                            inserts = 0
-                            output_action[:, :, 2] += 1e10
-                        if inserts == 1:
-                            old_pred_word = -1
-                        if pred_word == old_pred_word:
-                            inserts = 0
-                            output_action[:, :, 2] += 1e10
-                        old_pred_word = pred_word
+                    if inserts > 20:
+                        inserts = 0
+                        output_action[:, :, 2] += 1e10
                 decoder_out.append(output_edit)
                 decoder_out_action.append(output_action)
                 decoder_input_action = torch.argmax(output_action, dim=2)
