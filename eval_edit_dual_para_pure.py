@@ -304,7 +304,8 @@ def pipieline(path_from):
                                         decoder_input_ids=an_decoder_inputs_ids)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len_rnn]
 
-            clean_indication = obatin_clean_sentence(decoder_ids, tokenizer)
+            #clean_indication = obatin_clean_sentence(decoder_ids, tokenizer)
+            clean_indication = None
             logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
                                                               anno_position=decoder_anno_position,
                                                               hidden_annotation=hidden_annotation,
