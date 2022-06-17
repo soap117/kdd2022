@@ -38,7 +38,7 @@ class Config(object):
         self.multi_gpu = False
         self.full_gpu_id = 0
         self.max_query = 12
-        self.data_file_old = 'data/mydata_v5_para.pkl'
+        self.data_file_old = 'data/mydata_v5.pkl'
         self.data_file_anno_old = 'data/mydata_v5_anno.pkl'
         self.data_file = 'data/mydata_v5_para.pkl'
         self.data_file_anno = 'data/mydata_v5_anno.pkl'
