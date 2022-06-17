@@ -174,7 +174,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             reference_ids = inputs_ref['input_ids']
             reference_ids = mask_ref(reference_ids, tokenizer).to("cuda:0")
 
-            an_decoder_input = ' '.join(['[MASK]' for x in range(100)])
+            an_decoder_input = ' '.join(['[MASK]' for x in range(config.hidden_anno_len_rnn)])
             an_decoder_inputs = [an_decoder_input for x in reference_ids]
             an_decoder_inputs = tokenizer(an_decoder_inputs, return_tensors="pt", padding=True)
             an_decoder_inputs_ids = an_decoder_inputs['input_ids'].to(config.device)
