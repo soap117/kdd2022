@@ -56,6 +56,24 @@ def get_pari_bert_f1_score(xs_pre, xs_grd):
     recall /= len(xs_grd)
     return recall, precision, 2*recall*precision/(recall+precision)
 
+def get_pair_bleu_score(xs_pre, xs_grd):
+    recall = 0.0
+    precision = 0.0
+    for x_pre in xs_pre:
+        max_match = -1e10
+        for x_grd in xs_grd:
+            max_match = max(max_match, gr)
+        precision += max_match
+    precision /= len(xs_pre)
+
+    for x_grd in xs_grd:
+        max_match = -1e10
+        for x_pre in xs_pre:
+            max_match = max(max_match, cos(x_pre, x_grd))
+        recall += max_match
+    recall /= len(xs_grd)
+    return recall, precision, 2*recall*precision/(recall+precision)
+
 def get_x_list(embeddings, ids):
     xs = []
     for bid in range(len(ids)):
