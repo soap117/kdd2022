@@ -72,9 +72,9 @@ def build(config):
 
     train_dataloader = DataLoader(dataset=train_dataset, batch_size=config.batch_size
                                   , collate_fn=train_dataset.collate_fn)
-    valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=1
+    valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=config.batch_size
                                   , collate_fn=train_dataset.collate_fn_test)
-    test_dataloader = DataLoader(dataset=test_dataset, batch_size=1
+    test_dataloader = DataLoader(dataset=test_dataset, batch_size=config.batch_size
                                   , collate_fn=train_dataset.collate_fn_test)
 
     title_encoder = TitleEncoder(config)
@@ -116,7 +116,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
     count_s = -1
     count_p = -1
     data_size = len(train_dataloader)
-    test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
+    #test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
     for epoch in range(config.train_epoch*4):
         torch.cuda.empty_cache()
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, src_sens_ori, tar_sens, cut_list, edit_sens) in zip(
@@ -432,7 +432,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
 
             logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
                                           anno_position=decoder_anno_position, hidden_annotation=hidden_annotation,
-                                          input_edits=edit_sens_token_ids, input_actions=input_actions, org_ids=decoder_ids_ori, force_ratio=0.0, eval=True)
+                                          input_edits=edit_sens_token_ids, input_actions=input_actions, org_ids=decoder_ids_ori, force_ratio=0.0, eval=False)
 
             targets = target_ids[:, 1:]
             _, action_predictions = torch.max(logits_action, dim=-1)
