@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from config import Config
 config = Config(4)
-from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref, read_clean_data, find_spot_para, restricted_decoding, operation2sentence
+from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref, read_clean_data, find_spot_para, mask_actions, operation2sentence
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
 from tqdm import tqdm
@@ -192,7 +192,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             edit_sens_token_ids = pad_sequence(edit_sens_token_ids, batch_first=True, padding_value=0).to(config.device)
 
             # noisy edits
-            edit_sens_token_ids_rd = mask_ref(edit_sens_token_ids, tokenizer)
+            edit_sens_token_ids_rd = mask_actions(edit_sens_token_ids, tokenizer)
 
             # Clean actions
             input_actions = torch.zeros_like(edit_sens_token_ids) + 5

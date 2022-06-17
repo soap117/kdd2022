@@ -19,9 +19,9 @@ def mask_ref(input_ids, tokenizer):
 def mask_actions(input_ids, tokenizer):
     mask = np.random.choice([True, False], size=input_ids.shape, p=[0.15, 0.85])
     replace = np.random.choice(np.arange(tokenizer.vocab_size), size=input_ids.shape)
-    input_ids_new = input_ids.numpy().copy()
+    input_ids_new = input_ids.cpu().numpy().copy()
     input_ids_new[mask] = replace[mask]
-    return torch.LongTensor(input_ids_new)
+    return torch.LongTensor(input_ids_new).to(input_ids.device)
 
 def check_seq(a, b):
     for x_a, x_b in zip(a, b):
