@@ -360,7 +360,8 @@ class EditPlus(nn.Module):
         self.hidden_annotation_alignment = nn.Linear(encoder.config.d_model, encoder.config.d_model, bias=False)
 
     def forward(self, input_ids, decoder_input_ids, anno_position, hidden_annotation, input_edits, input_actions, org_ids, force_ratio=1.0, eval=False, clean_indication=None):
-        hidden_annotation = self.hidden_annotation_alignment(hidden_annotation)
+        if hidden_annotation is not None:
+            hidden_annotation = self.hidden_annotation_alignment(hidden_annotation)
         encoder_outputs = self.encoder(
             input_ids=input_ids,
             anno_position=anno_position,
