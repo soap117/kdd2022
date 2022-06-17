@@ -300,10 +300,17 @@ class EditDecoderRNN(nn.Module):
                             output_action[:, :, 1] += 1e10
                     pred_action = torch.argmax(output_action, dim=2)
                     if pred_action == 5:
+                        pred_word = torch.argmax(output_edit, dim=2)
                         inserts += 1
-                    if inserts > 20:
-                        inserts = 0
-                        output_action[:, :, 2] += 1e10
+                        if inserts > 20:
+                            inserts = 0
+                            output_action[:, :, 2] += 1e10
+                        if inserts == 1:
+                            old_pred_word = -1
+                        if pred_word == old_pred_word:
+                            inserts = 0
+                            output_action[:, :, 2] += 1e10
+                        old_pred_word = pred_word
                 decoder_out.append(output_edit)
                 decoder_out_action.append(output_action)
                 decoder_input_action = torch.argmax(output_action, dim=2)

@@ -198,6 +198,7 @@ def pipieline(path_from):
         tars.append(tar)
 
     for src, tar in zip(srcs, tars):
+        src_ori = copy.copy(src)
         src_ = step1_tokenizer([src], return_tensors="pt", padding=True, truncation=True)
         x_ids = src_['input_ids']
         x_mask = src_['attention_mask']
@@ -375,6 +376,8 @@ def pipieline(path_from):
             # masks = torch.ones_like(targets)
             # masks[torch.where(targets == 0)] = 0
             eval_ans += [results[0]]
+        if len(context_dic) == 0:
+            eval_ans += [src_ori]
         eval_gt += [tar]
         #print(eval_ans[-1])
 
