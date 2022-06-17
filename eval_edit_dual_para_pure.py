@@ -175,7 +175,10 @@ def pipieline(path_from):
         pre_label_f = np.argmax(logits.detach().cpu().numpy(), axis=2)
         step2_input = obtain_step2_input(pre_label_f[0], src, x_ids[0], step1_tokenizer)
         context_dic, order_context = mark_sentence_rnn_para(step2_input, src)
-        batch_rs = {}
+        decoder_inputs = tokenizer([src], return_tensors="pt", padding=True, truncation=True)
+        decoder_ids = decoder_inputs['input_ids']
+        decoder_anno_position = None
+        hidden_annotation = None
         for context in context_dic.keys():
             querys = context_dic[context][2]
             querys_ori = copy.copy(querys)
@@ -280,25 +283,11 @@ def pipieline(path_from):
             an_decoder_inputs = tokenizer(an_decoder_inputs, return_tensors="pt", padding=True)
             an_decoder_inputs_ids = an_decoder_inputs['input_ids'].to(config.device)
 
-            decoder_inputs = tokenizer([src], return_tensors="pt", padding=True, truncation=True)
-            decoder_ids = decoder_inputs['input_ids']
 
-            edit_sens = [['[SEP]']]
-            edit_sens_token = [['[CLS]'] + x + ['[SEP]'] for x in edit_sens]
-            edit_sens_token_ids = [torch.LongTensor(tokenizer.convert_tokens_to_ids(x)) for x in edit_sens_token]
-            edit_sens_token_ids = pad_sequence(edit_sens_token_ids, batch_first=True, padding_value=0).to(config.device)
-            input_actions = torch.zeros_like(edit_sens_token_ids) + 5
-            input_actions = torch.where(
-                (edit_sens_token_ids == 1) | (edit_sens_token_ids == 2) | (edit_sens_token_ids == 101) | (
-                            edit_sens_token_ids == 102), edit_sens_token_ids,
-                input_actions)
             # decoder_edits = tokenizer(edit_sens.replace(' ', ''), return_tensors="pt", padding=True, truncation=True)
             # decoder_ids_edits = decoder_edits['input_ids'].to(config.device)
 
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
-            decoder_ids = decoder_ids.to(config.device)
-            target_ids = tokenizer([src_tar], return_tensors="pt", padding=True, truncation=True)['input_ids'].to(
-                config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix,
@@ -306,44 +295,55 @@ def pipieline(path_from):
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len_rnn]
 
             #clean_indication = obatin_clean_sentence(decoder_ids, tokenizer)
-            clean_indication = None
-            logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
-                                                              anno_position=decoder_anno_position,
-                                                              hidden_annotation=hidden_annotation,
-                                                              input_edits=edit_sens_token_ids,
-                                                              input_actions=input_actions, org_ids=None,
-                                                              force_ratio=0.0, eval=True, clean_indication=clean_indication)
 
-            _, action_predictions = torch.max(logits_action, dim=-1)
-            _, edit_predictions = torch.max(logits_edit, dim=-1)
-            predictions = torch.where(action_predictions != 5, action_predictions, edit_predictions)
+        edit_sens = [['[SEP]']]
+        edit_sens_token = [['[CLS]'] + x + ['[SEP]'] for x in edit_sens]
+        edit_sens_token_ids = [torch.LongTensor(tokenizer.convert_tokens_to_ids(x)) for x in edit_sens_token]
+        edit_sens_token_ids = pad_sequence(edit_sens_token_ids, batch_first=True, padding_value=0).to(config.device)
+        input_actions = torch.zeros_like(edit_sens_token_ids) + 5
+        input_actions = torch.where(
+            (edit_sens_token_ids == 1) | (edit_sens_token_ids == 2) | (edit_sens_token_ids == 101) | (
+                    edit_sens_token_ids == 102), edit_sens_token_ids,
+            input_actions)
+        clean_indication = None
+        decoder_ids = decoder_ids.to(config.device)
+        target_ids = tokenizer([src_tar], return_tensors="pt", padding=True, truncation=True)['input_ids'].to(
+            config.device)
+        logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
+                                                          anno_position=decoder_anno_position,
+                                                          hidden_annotation=hidden_annotation,
+                                                          input_edits=edit_sens_token_ids,
+                                                          input_actions=input_actions, org_ids=None,
+                                                          force_ratio=0.0, eval=True, clean_indication=clean_indication)
 
-            decoder_inputs = tokenizer([src], return_tensors="pt", padding=True)
-            decoder_ids = decoder_inputs['input_ids']
-            predictions = operation2sentence(predictions, decoder_ids)
-            results = tokenizer.batch_decode(predictions)
-            results = [tokenizer.convert_tokens_to_string(x) for x in results]
-            results.append(src)
-            results = [x.replace(' ', '') for x in results]
-            results = [x.replace('[PAD]', '') for x in results]
-            results = [x.replace('[CLS]', '') for x in results]
-            results = [x.replace('[MASK]', '').replace('[unused3]', '').replace('[unused4]', '') for x in results]
-            results = [x.split('[SEP]')[0] for x in results]
-            results = [x.replace('（）', '') for x in results]
-            results = [x.replace('$', '') for x in results]
-            p_annos = obtain_annotation(results[1], results[0])
-            if len(p_annos)==0:
-                results[0] = results[1]
-                print("skip useless modify")
-            else:
-                print('+++++++++++++++++++++++')
-                print(results[0])
-                print('+++++++++++++++++++++++')
-            # masks = torch.ones_like(targets)
-            # masks[torch.where(targets == 0)] = 0
-            eval_ans += [results[0]]
-        if len(context_dic) == 0:
-            eval_ans += [src_ori]
+        _, action_predictions = torch.max(logits_action, dim=-1)
+        _, edit_predictions = torch.max(logits_edit, dim=-1)
+        predictions = torch.where(action_predictions != 5, action_predictions, edit_predictions)
+
+        decoder_inputs = tokenizer([src], return_tensors="pt", padding=True)
+        decoder_ids = decoder_inputs['input_ids']
+        predictions = operation2sentence(predictions, decoder_ids)
+        results = tokenizer.batch_decode(predictions)
+        results = [tokenizer.convert_tokens_to_string(x) for x in results]
+        results.append(src)
+        results = [x.replace(' ', '') for x in results]
+        results = [x.replace('[PAD]', '') for x in results]
+        results = [x.replace('[CLS]', '') for x in results]
+        results = [x.replace('[MASK]', '').replace('[unused3]', '').replace('[unused4]', '') for x in results]
+        results = [x.split('[SEP]')[0] for x in results]
+        results = [x.replace('（）', '') for x in results]
+        results = [x.replace('$', '') for x in results]
+        p_annos = obtain_annotation(results[1], results[0])
+        if len(p_annos)==0:
+            results[0] = results[1]
+            print("skip useless modify")
+        else:
+            print('+++++++++++++++++++++++')
+            print(results[0])
+            print('+++++++++++++++++++++++')
+        # masks = torch.ones_like(targets)
+        # masks[torch.where(targets == 0)] = 0
+        eval_ans += [results[0]]
         eval_gt += [tar]
         #print(eval_ans[-1])
 
