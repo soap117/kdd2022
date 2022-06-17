@@ -58,7 +58,7 @@ def build(config):
     debug_flag = True
     if not debug_flag and os.path.exists(config.data_file.replace('.pkl', '_train_dataset_edit_pure.pkl')):
         train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset_edit_pure.pkl'))
-        valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset_edit_purepkl'))
+        valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset_edit_pure.pkl'))
         test_dataset = torch.load(config.data_file.replace('.pkl', '_test_dataset_edit_pure.pkl'))
     else:
         train_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_train_dataset_raw.pkl'), titles, sections, title2sections, sec2id,
