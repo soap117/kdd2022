@@ -206,7 +206,8 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             edit_sens_token_ids = pad_sequence(edit_sens_token_ids, batch_first=True, padding_value=0).to(config.device)
 
             # noisy edits
-            edit_sens_token_ids_rd = mask_actions(edit_sens_token_ids, tokenizer)
+            #edit_sens_token_ids_rd = mask_actions(edit_sens_token_ids, tokenizer)
+            edit_sens_token_ids_rd = edit_sens_token_ids
 
             # Clean actions
             input_actions = torch.zeros_like(edit_sens_token_ids) + 5
