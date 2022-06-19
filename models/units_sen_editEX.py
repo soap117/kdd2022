@@ -424,7 +424,7 @@ def find_context_sentence(r, para):
     context = para[l+1:r]
     return context
 
-def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_section):
+def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_section, wo_re=False):
     sentences_data = []
     for sentence in tqdm(sentences):
         src_sentence = sentence['src_st']
@@ -434,6 +434,8 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
         temp_keys = sentence['data']
         temp_keys = sorted(temp_keys, key=lambda x: len(x['origin']), reverse=True)
         used = []
+        if wo_re:
+            temp_keys = []
         for key in temp_keys:
             flag = False
             for key_used in used:
@@ -548,7 +550,7 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
                                'tar_sen': tar_sentence, 'textid': sentence['textid'], 'key_data':key_list, 'edit_sen':edit_tokens})
     return sentences_data
 
-def get_retrieval_train_batch_pure(sentences, titles, sections, bm25_title, bm25_section):
+def get_retrieval_train_batch_pure(sentences, titles, sections, bm25_title, bm25_section, wo_re=False):
     sentences_data = []
     for sentence in tqdm(sentences):
         src_sentence = sentence['src_st']
@@ -558,6 +560,8 @@ def get_retrieval_train_batch_pure(sentences, titles, sections, bm25_title, bm25
         temp_keys = sentence['data']
         temp_keys = sorted(temp_keys, key=lambda x: len(x['origin']), reverse=True)
         used = []
+        if wo_re:
+            temp_keys = []
         for key in temp_keys:
             flag = False
             for key_used in used:
@@ -801,15 +805,15 @@ def read_data(path):
 
 
 class MyData(Dataset):
-    def __init__(self, config, tokenizer, data_path, titles, sections, title2sections, sec2id, bm25_title, bm25_section, is_pure=False):
+    def __init__(self, config, tokenizer, data_path, titles, sections, title2sections, sec2id, bm25_title, bm25_section, is_pure=False, wo_re=False):
         self.config = config
         sentences = read_data(data_path)
         self.title2sections = title2sections
         self.sec2id = sec2id
         if is_pure:
-            self.sen_level_data = get_retrieval_train_batch_pure(sentences, titles, sections, bm25_title, bm25_section)
+            self.sen_level_data = get_retrieval_train_batch_pure(sentences, titles, sections, bm25_title, bm25_section, wo_re)
         else:
-            self.sen_level_data = get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_section)
+            self.sen_level_data = get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_section, wo_re)
         self.bm25_title = bm25_title
         self.bm25_section = bm25_section
         self.tokenizer = tokenizer
