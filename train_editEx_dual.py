@@ -92,7 +92,7 @@ def build(config):
     from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus
     encoder = BartModel.from_pretrained(config.bert_model, encoder_layers=3).encoder
     tokenizer = config.tokenizer
-    decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 512, n_layers=2, embedding=encoder.embed_tokens)
+    decoder = EditDecoderRNN(tokenizer.vocab_size, 768, config.rnn_dim, n_layers=config.rnn_layer, embedding=encoder.embed_tokens)
     edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
     modeld = edit_nts_ex
     modelp.cuda()
@@ -309,7 +309,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             print('New Test Loss D:%f' % (d_eval_loss))
             state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(), 'modele': modele.state_dict(), 'modeld': modeld.state_dict(),
                      'eval_rs': eval_ans}
-            torch.save(state, './results/' + config.data_file_old.replace('.pkl', '_models_edit_dual_new.pkl').replace('data/', ''))
+            torch.save(state, './results/' + config.data_file_old.replace('.pkl', '_models_edit_dual_new_%d_%d.pkl' %(config.rnn_dim, config.rnn_layer)).replace('data/', ''))
             min_loss_d = d_eval_loss
             for one, one_g in zip(eval_ans[0:5], grand_ans[0:5]):
                 print(one)
