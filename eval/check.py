@@ -62,14 +62,14 @@ def get_pair_bleu_score(xs_pre, xs_grd):
     for x_pre in xs_pre:
         max_match = -1e10
         for x_grd in xs_grd:
-            max_match = max(max_match, gr)
+            max_match = max(max_match, get_sentence_bleu(x_pre, [x_grd]))
         precision += max_match
     precision /= len(xs_pre)
 
     for x_grd in xs_grd:
         max_match = -1e10
         for x_pre in xs_pre:
-            max_match = max(max_match, cos(x_pre, x_grd))
+            max_match = max(max_match, get_sentence_bleu(x_grd, [x_pre]))
         recall += max_match
     recall /= len(xs_grd)
     return recall, precision, 2*recall*precision/(recall+precision)
@@ -151,7 +151,7 @@ def count_bleu_score(candidate, reference):
             print(candidate[k])
             print(reference[k])
     return avg_score
-results = pickle.load(open('../data/test/my_results_edit_para_dual_pure.pkl', 'rb'))
+results = pickle.load(open('../data/test/my_results_edit_para_dual_pure_plus.pkl', 'rb'))
 results_temp = pickle.load(open('../data/test/my_results_bart.pkl', 'rb'))
 if 'srcs' not in results:
     results['srcs'] = results_temp['srcs']
