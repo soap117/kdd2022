@@ -91,7 +91,7 @@ def build(config):
     modele.load_state_dict(save_data['model'])
     print('Load pretrained E')
     from models.modeling_bart_ex import BartModel, BartLearnedPositionalEmbedding
-    from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus
+    from models.modeling_EditNTS_two_rnn import EditDecoderRNN, EditPlus
     pos_embed = BartLearnedPositionalEmbedding(1024, 768)
     encoder = BartModel.from_pretrained(config.bert_model, encoder_layers=3).encoder
     encoder.embed_positions = pos_embed
@@ -126,7 +126,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, src_sens_ori, tar_sens, cut_list, edit_sens) in zip(
                 tqdm(range(data_size)), train_dataloader):
             decoder_inputs = tokenizer(src_sens, return_tensors="pt", padding=True, truncation=True)
-            decoder_ids = decoder_inputs['input_ids']
+            decoder_ids = decoder_inputs['input_ids'].cuda()
 
             decoder_anno_position = []
             hidden_annotation = None
@@ -206,28 +206,18 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             lossd_ed = lossd_ed / tar_lens
             lossd_ed = lossd_ed.mean()
             loss = lossd_ac + lossd_ed
-            loss_ori = 0
-            if count_p < 2:
-                loss_ori += losss.mean()
-            else:
-                loss_ori += 0.1*losss.mean()
-            if count_s < 2:
-                loss_ori += lossp.mean()
-            else:
-                loss_ori += 0.1*lossp.mean()
             optimizer_p.zero_grad()
             optimizer_s.zero_grad()
             optimizer_encoder.zero_grad()
             optimizer_decoder.zero_grad()
-            loss.backward(retain_graph=True)
-            loss_ori.backward()
+            loss.backward()
             if epoch > 3:
                 optimizer_p.step()
                 optimizer_s.step()
             optimizer_encoder.step()
             optimizer_decoder.step()
             if step%400 == 0:
-                print('loss P:%f loss S:%f loss AC:%f loss ED:%f' %(lossp.mean().item(), losss.mean().item(), lossd_ac.item(), lossd_ed.item()))
+                print('loss P:%f loss S:%f loss AC:%f loss ED:%f' %(0, 0, lossd_ac.item(), lossd_ed.item()))
                 print(results[0:2])
                 print('---------------------------')
         test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
@@ -254,7 +244,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             print('New Test Loss D:%f' % (d_eval_loss))
             state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(), 'modele': modele.state_dict(), 'modeld': modeld.state_dict(),
                      'eval_rs': eval_ans}
-            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_edit_dual_pure_plus_wore.pkl').replace('data/', ''))
+            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_edit_dual_pure_wore.pkl').replace('data/', ''))
             min_loss_d = d_eval_loss
             for one, one_g in zip(eval_ans[0:5], grand_ans[0:5]):
                 print(one)
@@ -287,94 +277,40 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
         data_size = len(dataloader)
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, src_sens_ori, tar_sens, cut_list, pos_titles, pos_sections, edit_sens) in zip(
                 tqdm(range(data_size)), dataloader):
-            dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
-            rs2 = modelp(query_embedding=query_embedding, candidates=infer_titles, is_infer=True)
-            rs2 = torch.topk(rs2, config.infer_title_select, dim=1)
-            scores_title = rs2[0]
-            inds = rs2[1].cpu().numpy()
-            infer_title_candidates_pured = []
-            infer_section_candidates_pured = []
-            mapping_title = np.zeros([len(querys), config.infer_title_select, config.infer_section_range])
-            for query, bid in zip(querys, range(len(inds))):
-                total += 1
-                temp = []
-                temp2 = []
-                temp3 = []
-                count = 0
-                for nid, cid in enumerate(inds[bid]):
-                    temp.append(infer_titles[bid][cid])
-                    temp2 += title2sections[infer_titles[bid][cid]]
-                    temp3 += [nid for x in title2sections[infer_titles[bid][cid]]]
-                if check(query, temp, pos_titles[bid]):
-                    count += 1
-                temp2_id = []
-                tp += count
-                for t_sec in temp2:
-                    if t_sec in sec2id:
-                        temp2_id.append(sec2id[t_sec])
-                key_cut = jieba.lcut(query)
-                ls_scores = bm25_section.get_batch_scores(key_cut, temp2_id)
-                cindex = np.argsort(ls_scores)[::-1][0:config.infer_section_range]
-                temp2_pured = []
-                for oid, one in enumerate(cindex):
-                    temp2_pured.append(temp2[one])
-                    mapping_title[bid, temp3[one], oid] = 1
-                while len(temp2_pured) < config.infer_section_range:
-                    temp2_pured.append('')
-
-                infer_title_candidates_pured.append(temp)
-                infer_section_candidates_pured.append(temp2_pured)
-
-            mapping = torch.FloatTensor(mapping_title).cuda()
-            scores_title = scores_title.unsqueeze(1)
-            scores_title = scores_title.matmul(mapping).squeeze(1)
-            rs_scores = models(query_embedding, infer_section_candidates_pured, is_infer=True)
-            scores = scores_title * rs_scores
-            rs2 = torch.topk(scores, config.infer_section_select, dim=1)
-            scores = rs2[0]
-            reference = []
-            inds_sec = rs2[1].cpu().numpy()
-            for bid in range(len(inds_sec)):
-                total_s += 1
-                temp = [querys[bid]]
-                for indc in inds_sec[bid]:
-                    temp.append(infer_section_candidates_pured[bid][indc][0:100])
-                if check(query, temp, pos_sections[bid], secs=True):
-                    tp_s += 1
-                temp = ' [SEP] '.join(temp)
-                reference.append(temp[0:config.maxium_sec])
-            inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
-            reference_ids = inputs_ref['input_ids'].cuda()
-
-            an_decoder_input = ' '.join(['[MASK]' for x in range(100)])
-            an_decoder_inputs = [an_decoder_input for x in reference_ids]
-            an_decoder_inputs = tokenizer(an_decoder_inputs, return_tensors="pt", padding=True)
-            an_decoder_inputs_ids = an_decoder_inputs['input_ids'].to(config.device)
-
             decoder_inputs = tokenizer(src_sens, return_tensors="pt", padding=True, truncation=True)
-            decoder_ids = decoder_inputs['input_ids']
+            decoder_ids = decoder_inputs['input_ids'].cuda()
+
+            decoder_anno_position = []
+            hidden_annotation = None
+
+            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(
+                config.device)
             decoder_inputs_ori = tokenizer(src_sens_ori, return_tensors="pt", padding=True, truncation=True)
             decoder_ids_ori = decoder_inputs_ori['input_ids'].to(config.device)
-
             edit_sens_token = [['[CLS]'] + x + ['[SEP]'] for x in edit_sens]
             edit_sens_token_ids = [torch.LongTensor(tokenizer.convert_tokens_to_ids(x)) for x in edit_sens_token]
             edit_sens_token_ids = pad_sequence(edit_sens_token_ids, batch_first=True, padding_value=0).to(config.device)
+
+            # noisy edits
+            edit_sens_token_ids_rd = mask_actions(edit_sens_token_ids, tokenizer)
+
+            # Clean actions
             input_actions = torch.zeros_like(edit_sens_token_ids) + 5
             input_actions = torch.where(
-                (edit_sens_token_ids == 1) | (edit_sens_token_ids == 2) | (edit_sens_token_ids == 101) | (edit_sens_token_ids == 102), edit_sens_token_ids,
+                (edit_sens_token_ids == 1) | (edit_sens_token_ids == 2) | (edit_sens_token_ids == 101) | (
+                        edit_sens_token_ids == 102) | (
+                        edit_sens_token_ids == 0), edit_sens_token_ids,
                 input_actions)
-            #decoder_edits = tokenizer(edit_sens.replace(' ', ''), return_tensors="pt", padding=True, truncation=True)
-            #decoder_ids_edits = decoder_edits['input_ids'].to(config.device)
+            # noisy actions
+            input_actions_rd = torch.zeros_like(edit_sens_token_ids_rd) + 5
+            input_actions_rd = torch.where(
+                (edit_sens_token_ids_rd == 1) | (edit_sens_token_ids_rd == 2) | (edit_sens_token_ids_rd == 101) | (
+                        edit_sens_token_ids_rd == 102) | (
+                        edit_sens_token_ids_rd == 0), edit_sens_token_ids_rd,
+                input_actions_rd)
 
-            decoder_anno_position = find_spot_para(decoder_ids, querys_ori, tokenizer)
-            decoder_ids = decoder_ids.to(config.device)
-            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(
-                config.device)
-            adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
-
-            outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids.cuda())
-            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len].to("cuda:0")
-
+            # decoder_edits= tokenizer(edit_sens, return_tensors="pt", padding=True, truncation=True)
+            # decoder_ids_edits = decoder_edits['input_ids'].to(config.device)
             logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
                                           anno_position=decoder_anno_position, hidden_annotation=hidden_annotation,
                                           input_edits=edit_sens_token_ids, input_actions=input_actions, org_ids=decoder_ids_ori, force_ratio=0.0, eval=True)
