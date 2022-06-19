@@ -127,75 +127,71 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 tqdm(range(data_size)), train_dataloader):
             decoder_inputs = tokenizer(src_sens, return_tensors="pt", padding=True, truncation=True)
             decoder_ids = decoder_inputs['input_ids']
-            if config.retrieval_flag:
-                dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
-                dis_final, losss = models(query_embedding, sections)
-                rs2 = modelp(query_embedding=query_embedding, candidates=infer_titles, is_infer=True)
-                rs2 = torch.topk(rs2, config.infer_title_select, dim=1)
-                scores_title = rs2[0]
-                inds = rs2[1].cpu().numpy()
-                infer_title_candidates_pured = []
-                infer_section_candidates_pured = []
-                mapping_title = np.zeros([len(querys), config.infer_title_select, config.infer_section_range])
-                for query, bid in zip(querys, range(len(inds))):
-                    temp = []
-                    temp2 = []
-                    temp3 = []
-                    for nid, cid in enumerate(inds[bid]):
-                        temp.append(infer_titles[bid][cid])
-                        temp2 += title2sections[infer_titles[bid][cid]]
-                        temp3 += [nid for x in title2sections[infer_titles[bid][cid]]]
-                    temp2_id = []
-                    for t_sec in temp2:
-                        if t_sec in sec2id:
-                            temp2_id.append(sec2id[t_sec])
-                    key_cut = jieba.lcut(query)
-                    ls_scores = bm25_section.get_batch_scores(key_cut, temp2_id)
-                    cindex = np.argsort(ls_scores)[::-1][0:config.infer_section_range]
-                    temp2_pured = []
-                    for oid, one in enumerate(cindex):
-                        temp2_pured.append(temp2[one])
-                        mapping_title[bid, temp3[one], oid] = 1
-                    while len(temp2_pured) < config.infer_section_range:
-                        temp2_pured.append('')
+            dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
+            dis_final, losss = models(query_embedding, sections)
+            rs2 = modelp(query_embedding=query_embedding, candidates=infer_titles, is_infer=True)
+            rs2 = torch.topk(rs2, config.infer_title_select, dim=1)
+            scores_title = rs2[0]
+            inds = rs2[1].cpu().numpy()
+            infer_title_candidates_pured = []
+            infer_section_candidates_pured = []
+            mapping_title = np.zeros([len(querys), config.infer_title_select, config.infer_section_range])
+            for query, bid in zip(querys, range(len(inds))):
+                temp = []
+                temp2 = []
+                temp3 = []
+                for nid, cid in enumerate(inds[bid]):
+                    temp.append(infer_titles[bid][cid])
+                    temp2 += title2sections[infer_titles[bid][cid]]
+                    temp3 += [nid for x in title2sections[infer_titles[bid][cid]]]
+                temp2_id = []
+                for t_sec in temp2:
+                    if t_sec in sec2id:
+                        temp2_id.append(sec2id[t_sec])
+                key_cut = jieba.lcut(query)
+                ls_scores = bm25_section.get_batch_scores(key_cut, temp2_id)
+                cindex = np.argsort(ls_scores)[::-1][0:config.infer_section_range]
+                temp2_pured = []
+                for oid, one in enumerate(cindex):
+                    temp2_pured.append(temp2[one])
+                    mapping_title[bid, temp3[one], oid] = 1
+                while len(temp2_pured) < config.infer_section_range:
+                    temp2_pured.append('')
 
-                    infer_title_candidates_pured.append(temp)
-                    infer_section_candidates_pured.append(temp2_pured)
+                infer_title_candidates_pured.append(temp)
+                infer_section_candidates_pured.append(temp2_pured)
 
-                mapping = torch.FloatTensor(mapping_title).to("cuda:1")
-                scores_title = scores_title.unsqueeze(1)
-                scores_title = scores_title.matmul(mapping).squeeze(1)
-                rs_scores = models(query_embedding, infer_section_candidates_pured, is_infer=True)
-                scores = scores_title * rs_scores
-                rs2 = torch.topk(scores, config.infer_section_select, dim=1)
-                scores = rs2[0]
-                reference = []
-                inds_sec = rs2[1].cpu().numpy()
-                for bid in range(len(inds_sec)):
-                    temp = [querys[bid]]
-                    for indc in inds_sec[bid]:
-                        temp.append(infer_section_candidates_pured[bid][indc][0:100])
-                    temp = ' [SEP] '.join(temp)
-                    reference.append(temp[0:config.maxium_sec])
-                inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
-                reference_ids = inputs_ref['input_ids']
-                reference_ids = mask_ref(reference_ids, tokenizer).to("cuda:1")
+            mapping = torch.FloatTensor(mapping_title).to("cuda:1")
+            scores_title = scores_title.unsqueeze(1)
+            scores_title = scores_title.matmul(mapping).squeeze(1)
+            rs_scores = models(query_embedding, infer_section_candidates_pured, is_infer=True)
+            scores = scores_title * rs_scores
+            rs2 = torch.topk(scores, config.infer_section_select, dim=1)
+            scores = rs2[0]
+            reference = []
+            inds_sec = rs2[1].cpu().numpy()
+            for bid in range(len(inds_sec)):
+                temp = [querys[bid]]
+                for indc in inds_sec[bid]:
+                    temp.append(infer_section_candidates_pured[bid][indc][0:100])
+                temp = ' [SEP] '.join(temp)
+                reference.append(temp[0:config.maxium_sec])
+            inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
+            reference_ids = inputs_ref['input_ids']
+            reference_ids = mask_ref(reference_ids, tokenizer).to("cuda:1")
 
-                an_decoder_input = ' '.join(['[MASK]' for x in range(config.para_hidden_len)])
-                an_decoder_inputs = [an_decoder_input for x in reference_ids]
-                an_decoder_inputs = tokenizer(an_decoder_inputs, return_tensors="pt", padding=True)
-                an_decoder_inputs_ids = an_decoder_inputs['input_ids'].to(config.device)
+            an_decoder_input = ' '.join(['[MASK]' for x in range(config.para_hidden_len)])
+            an_decoder_inputs = [an_decoder_input for x in reference_ids]
+            an_decoder_inputs = tokenizer(an_decoder_inputs, return_tensors="pt", padding=True)
+            an_decoder_inputs_ids = an_decoder_inputs['input_ids'].to(config.device)
 
-                decoder_anno_position = find_spot_para(decoder_ids, querys_ori, tokenizer)
-                decoder_ids = decoder_ids.to(config.device)
-                adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
+            decoder_anno_position = find_spot_para(decoder_ids, querys_ori, tokenizer)
+            decoder_ids = decoder_ids.to(config.device)
+            adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
-                outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix,
-                                            decoder_input_ids=an_decoder_inputs_ids.to("cuda:1"))
-                hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len].to("cuda:0")
-            else:
-                decoder_anno_position = []
-                hidden_annotation = None
+            outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix,
+                                        decoder_input_ids=an_decoder_inputs_ids.to("cuda:1"))
+            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len].to("cuda:0")
 
             target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(
                 config.device)
