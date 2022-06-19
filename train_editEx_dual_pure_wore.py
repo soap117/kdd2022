@@ -221,23 +221,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 print(results[0:2])
                 print('---------------------------')
         test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
-        p_eval_loss = test_loss[0]
-        s_eval_loss = test_loss[1]
-        d_eval_loss = test_loss[2]
-        if p_eval_loss <= min_loss_p:
-            print('update-p')
-            state['modelp'] = modelp.state_dict()
-            min_loss_p = p_eval_loss
-            count_p = min(0, epoch-2)
-        else:
-            count_p += 1
-        if s_eval_loss <= min_loss_s:
-            print('update-s')
-            state['models'] = models.state_dict()
-            min_loss_s = s_eval_loss
-            count_s = min(0, epoch-2)
-        else:
-            count_s += 1
+        d_eval_loss = test_loss
         if d_eval_loss <= min_loss_d:
             print(count_p, count_s)
             print('update-all')
@@ -345,8 +329,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
         models.train()
         modele.train()
         modeld.train()
-        print('accuracy title: %f accuracy section: %f' % (tp / total, tp_s / total_s))
-        return (-tp / total, -tp_s / total_s, -bleu_scores), eval_ans, eval_gt
+        return -bleu_scores, eval_ans, eval_gt
 
 modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer = build(config)
 state = train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, loss_func)
