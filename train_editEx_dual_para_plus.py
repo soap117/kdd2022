@@ -92,7 +92,7 @@ def build(config):
     print('Load pretrained E')
     from models.modeling_bart_ex import BartModel, BartLearnedPositionalEmbedding
     from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus
-    pos_embed = BartLearnedPositionalEmbedding(1024, 1024)
+    pos_embed = BartLearnedPositionalEmbedding(1024, 768)
     config.tokenizer.model_max_length = 1024
     encoder = BartModel.from_pretrained(config.bert_model, encoder_layers=3).encoder
     encoder.embed_positions = pos_embed
