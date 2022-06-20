@@ -74,7 +74,7 @@ pos_embed = BartLearnedPositionalEmbedding(1024, 768)
 encoder = BartModel.from_pretrained(config.bert_model, encoder_layers=3).encoder
 encoder.embed_positions = pos_embed
 tokenizer = config.tokenizer
-decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 256, n_layers=1, embedding=encoder.embed_tokens)
+decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 400, n_layers=1, embedding=encoder.embed_tokens)
 edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
 modeld = edit_nts_ex
 modeld.load_state_dict(save_data['modeld'])
