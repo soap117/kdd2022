@@ -3,7 +3,7 @@ import cuda
 import torch
 import torch.nn as nn
 from config import Config
-config = Config(4)
+config = Config(8)
 from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref, read_clean_data, find_spot_para, mask_actions, operation2sentence
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -91,7 +91,7 @@ def build(config):
     modele.load_state_dict(save_data['model'])
     print('Load pretrained E')
     from models.modeling_bart_ex import BartModel, BartLearnedPositionalEmbedding
-    from models.modeling_EditNTS_two_rnn import EditDecoderRNN, EditPlus
+    from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus
     pos_embed = BartLearnedPositionalEmbedding(1024, 768)
     encoder = BartModel.from_pretrained(config.bert_model, encoder_layers=3).encoder
     encoder.embed_positions = pos_embed
@@ -269,9 +269,6 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             edit_sens_token_ids = [torch.LongTensor(tokenizer.convert_tokens_to_ids(x)) for x in edit_sens_token]
             edit_sens_token_ids = pad_sequence(edit_sens_token_ids, batch_first=True, padding_value=0).to(config.device)
 
-            # noisy edits
-            edit_sens_token_ids_rd = mask_actions(edit_sens_token_ids, tokenizer)
-
             # Clean actions
             input_actions = torch.zeros_like(edit_sens_token_ids) + 5
             input_actions = torch.where(
@@ -279,19 +276,12 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
                         edit_sens_token_ids == 102) | (
                         edit_sens_token_ids == 0), edit_sens_token_ids,
                 input_actions)
-            # noisy actions
-            input_actions_rd = torch.zeros_like(edit_sens_token_ids_rd) + 5
-            input_actions_rd = torch.where(
-                (edit_sens_token_ids_rd == 1) | (edit_sens_token_ids_rd == 2) | (edit_sens_token_ids_rd == 101) | (
-                        edit_sens_token_ids_rd == 102) | (
-                        edit_sens_token_ids_rd == 0), edit_sens_token_ids_rd,
-                input_actions_rd)
 
             # decoder_edits= tokenizer(edit_sens, return_tensors="pt", padding=True, truncation=True)
             # decoder_ids_edits = decoder_edits['input_ids'].to(config.device)
             logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
                                           anno_position=decoder_anno_position, hidden_annotation=hidden_annotation,
-                                          input_edits=edit_sens_token_ids, input_actions=input_actions, org_ids=decoder_ids_ori, force_ratio=0.0)
+                                          input_edits=edit_sens_token_ids, input_actions=input_actions, org_ids=decoder_ids_ori, force_ratio=0.0, eval=True)
 
             targets = target_ids[:, 1:]
             _, action_predictions = torch.max(logits_action, dim=-1)
