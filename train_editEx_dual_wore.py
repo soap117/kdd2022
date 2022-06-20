@@ -1,5 +1,5 @@
 import os
-import cuda2
+import cuda
 import torch
 import torch.nn as nn
 from config import Config
@@ -141,7 +141,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
 
             # noisy edits
             #edit_sens_token_ids_rd = mask_actions(edit_sens_token_ids, tokenizer)
-            edit_sens_token_ids_rd = edit_sens_token_ids
+            edit_sens_token_ids
 
             # Clean actions
             input_actions = torch.zeros_like(edit_sens_token_ids) + 5
@@ -150,19 +150,12 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                             edit_sens_token_ids == 102) | (
                             edit_sens_token_ids == 0), edit_sens_token_ids,
                 input_actions)
-            # noisy actions
-            input_actions_rd = torch.zeros_like(edit_sens_token_ids_rd) + 5
-            input_actions_rd = torch.where(
-                (edit_sens_token_ids_rd == 1) | (edit_sens_token_ids_rd == 2) | (edit_sens_token_ids_rd == 101) | (
-                        edit_sens_token_ids_rd == 102) | (
-                        edit_sens_token_ids_rd == 0), edit_sens_token_ids_rd,
-                input_actions_rd)
 
             #decoder_edits= tokenizer(edit_sens, return_tensors="pt", padding=True, truncation=True)
             #decoder_ids_edits = decoder_edits['input_ids'].to(config.device)
 
             logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
-                             anno_position=decoder_anno_position, hidden_annotation=hidden_annotation, input_edits=edit_sens_token_ids_rd, input_actions=input_actions_rd, org_ids=decoder_ids_ori)
+                             anno_position=decoder_anno_position, hidden_annotation=hidden_annotation, input_edits=edit_sens_token_ids, input_actions=input_actions, org_ids=decoder_ids_ori)
             targets_edit = edit_sens_token_ids[:, 1:]
             min_len = min(targets_edit.shape[1], logits_edit.shape[1])
             targets_edit = targets_edit[:, 0:min_len]
@@ -229,7 +222,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             print('New Test Loss D:%f' % (d_eval_loss))
             state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(), 'modele': modele.state_dict(), 'modeld': modeld.state_dict(),
                      'eval_rs': eval_ans}
-            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_edit_dual_pure_wore.pkl').replace('data/', ''))
+            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_edit_dual_wore.pkl').replace('data/', ''))
             min_loss_d = d_eval_loss
             for one, one_g in zip(eval_ans[0:5], grand_ans[0:5]):
                 print(one)
@@ -298,7 +291,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             # decoder_ids_edits = decoder_edits['input_ids'].to(config.device)
             logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
                                           anno_position=decoder_anno_position, hidden_annotation=hidden_annotation,
-                                          input_edits=edit_sens_token_ids, input_actions=input_actions, org_ids=decoder_ids_ori, force_ratio=0.0, eval=True)
+                                          input_edits=edit_sens_token_ids, input_actions=input_actions, org_ids=decoder_ids_ori, force_ratio=0.0)
 
             targets = target_ids[:, 1:]
             _, action_predictions = torch.max(logits_action, dim=-1)
