@@ -43,7 +43,7 @@ tars_ = []
 for point in data_test:
     srcs_.append(point[0])
     tars_.append(point[1])
-save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models_edit_dual.pkl').replace('data/', ''))
+save_data = torch.load('./results/' + config.data_file_old.replace('.pkl', '_models_edit_dual_new_%d_%d.pkl' %(config.rnn_dim, config.rnn_layer)).replace('data/', ''))
 save_step1_data = torch.load('./cbert/cache/' + 'best_save.data')
 
 
@@ -68,7 +68,7 @@ modele.load_state_dict(save_data['modele'])
 modele.cuda()
 modele.eval()
 from models.modeling_bart_ex import BartModel
-from models.modeling_EditNTS_two_rnn import EditDecoderRNN, EditPlus
+from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus
 bert_model = config.bert_model
 encoder = BartModel.from_pretrained(bert_model).encoder
 tokenizer = config.tokenizer
