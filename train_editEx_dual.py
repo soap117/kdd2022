@@ -182,15 +182,10 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
 
             decoder_inputs = tokenizer(src_sens, return_tensors="pt", padding=True, truncation=True)
             decoder_ids = decoder_inputs['input_ids']
-            decoder_inputs_ori = tokenizer(src_sens_ori, return_tensors="pt", padding=True, truncation=True)
-            decoder_ids_ori = mask_ref(decoder_inputs_ori['input_ids'], tokenizer).to(config.device)
             edit_sens_token = [['[CLS]'] + x + ['[SEP]'] for x in edit_sens]
             edit_sens_token_ids = [torch.LongTensor(tokenizer.convert_tokens_to_ids(x)) for x in edit_sens_token]
             edit_sens_token_ids = pad_sequence(edit_sens_token_ids, batch_first=True, padding_value=0).to(config.device)
 
-            # noisy edits
-            #edit_sens_token_ids_rd = mask_actions(edit_sens_token_ids, tokenizer)
-            edit_sens_token_ids_rd = edit_sens_token_ids
 
             # Clean actions
             input_actions = torch.zeros_like(edit_sens_token_ids) + 5
@@ -199,27 +194,21 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                         edit_sens_token_ids == 102) | (
                         edit_sens_token_ids == 0), edit_sens_token_ids,
                 input_actions)
-            # noisy actions
-            input_actions_rd = torch.zeros_like(edit_sens_token_ids_rd) + 5
-            input_actions_rd = torch.where(
-                (edit_sens_token_ids_rd == 1) | (edit_sens_token_ids_rd == 2) | (edit_sens_token_ids_rd == 101) | (
-                        edit_sens_token_ids_rd == 102) | (
-                        edit_sens_token_ids_rd == 0), edit_sens_token_ids_rd,
-                input_actions_rd)
 
             #decoder_edits= tokenizer(edit_sens, return_tensors="pt", padding=True, truncation=True)
             #decoder_ids_edits = decoder_edits['input_ids'].to(config.device)
 
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             decoder_ids = decoder_ids.to(config.device)
-            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(config.device)
+            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids']
+            target_ids_rn = mask_ref(target_ids, tokenizer).to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
 
-            logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
-                             anno_position=decoder_anno_position, hidden_annotation=hidden_annotation, input_edits=edit_sens_token_ids_rd, input_actions=input_actions_rd, org_ids=decoder_ids_ori)
+            logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_rn,
+                             anno_position=decoder_anno_position, hidden_annotation=hidden_annotation, input_edits=edit_sens_token_ids, input_actions=input_actions)
             targets_edit = edit_sens_token_ids[:, 1:]
             min_len = min(targets_edit.shape[1], logits_edit.shape[1])
             targets_edit = targets_edit[:, 0:min_len]
@@ -410,8 +399,6 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
 
             decoder_inputs = tokenizer(src_sens, return_tensors="pt", padding=True, truncation=True)
             decoder_ids = decoder_inputs['input_ids']
-            decoder_inputs_ori = tokenizer(src_sens_ori, return_tensors="pt", padding=True, truncation=True)
-            decoder_ids_ori = decoder_inputs_ori['input_ids'].to(config.device)
 
             edit_sens_token = [['[CLS]'] + x + ['[SEP]'] for x in edit_sens]
             edit_sens_token_ids = [torch.LongTensor(tokenizer.convert_tokens_to_ids(x)) for x in edit_sens_token]
@@ -434,7 +421,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
 
             logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
                                           anno_position=decoder_anno_position, hidden_annotation=hidden_annotation,
-                                          input_edits=edit_sens_token_ids, input_actions=input_actions, org_ids=decoder_ids_ori, force_ratio=0.0, eval=False)
+                                          input_edits=edit_sens_token_ids, input_actions=input_actions, force_ratio=0.0, eval=False)
 
             targets = target_ids[:, 1:]
             _, action_predictions = torch.max(logits_action, dim=-1)

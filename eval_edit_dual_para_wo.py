@@ -68,7 +68,7 @@ modele.load_state_dict(save_data['modele'])
 modele.cuda()
 modele.eval()
 from models.modeling_bart_ex import BartModel, BartLearnedPositionalEmbedding
-from models.modeling_EditNTS_two_rnn import EditDecoderRNN, EditPlus
+from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus
 bert_model = config.bert_model
 pos_embed = BartLearnedPositionalEmbedding(1024, 768)
 encoder = BartModel.from_pretrained(config.bert_model, encoder_layers=3).encoder
