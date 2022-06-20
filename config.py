@@ -21,7 +21,7 @@ class Config(object):
         self.modeld_ann = BartAN
         self.title_emb_dim = 128
         self.key_emb_dim = 128
-        self.rnn_layer = 1
+        self.rnn_layer = 2
         self.rnn_dim = 400
         self.context_emb_dim = 256
         self.lr = 1e-3
