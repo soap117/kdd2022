@@ -33,7 +33,7 @@ class Config(object):
         self.batch_size = batch_size
         self.infer_section_range = 10
         self.infer_section_select = 3
-        self.maxium_sec = 512
+        self.maxium_sec = 100
         self.hidden_anno_len = 10
         self.hidden_anno_len_rnn = 10
         self.para_hidden_len = 10
