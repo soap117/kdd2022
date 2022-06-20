@@ -388,7 +388,7 @@ def pipieline(path_from):
 
     result_final = {'srcs': srcs, 'prds': eval_ans, 'tars': eval_gt, 'scores': record_scores,
                     'reference': record_references}
-    with open('./data/test/my_results_edit_sec_dual.pkl', 'wb') as f:
+    with open('./data/test/my_results_edit_sec_dual_%d_%d.pkl' %(config.rnn_dim, config.rnn_layer), 'wb') as f:
         pickle.dump(result_final, f)
 
 
