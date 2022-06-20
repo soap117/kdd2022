@@ -374,7 +374,7 @@ class EditPlus(nn.Module):
         h_0, c_0 = self.decoder.initHidden(encoder_outputs[0][:, 0])
         decoder_outputs = self.decoder(
             input_edits=input_edits, input_actions=input_actions, hidden_org=(h_0,c_0), encoder_outputs_org=encoder_outputs[0][:, 1:], org_ids=input_ids[:, 1:],
-            simp_sent=decoder_input_ids, teacher_forcing_ratio = force_ratio, eval=eval, clean_indication=clean_indication
+            simp_sent=decoder_input_ids, teacher_forcing_ratio=force_ratio, eval=eval, clean_indication=clean_indication
         )
 
         return decoder_outputs
