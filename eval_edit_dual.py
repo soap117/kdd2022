@@ -43,7 +43,7 @@ tars_ = []
 for point in data_test:
     srcs_.append(point[0])
     tars_.append(point[1])
-save_data = torch.load('./results/' + config.data_file_old.replace('.pkl', '_models_edit_dual_new_%d_%d.pkl' %(config.rnn_dim, config.rnn_layer)).replace('data/', ''))
+save_data = torch.load('./results/' + config.data_file_old.replace('.pkl', '_models_edit_dual_plus_rn_%d_%d.pkl' %(config.rnn_dim, config.rnn_layer)).replace('data/', ''))
 save_step1_data = torch.load('./cbert/cache/' + 'best_save.data')
 
 
