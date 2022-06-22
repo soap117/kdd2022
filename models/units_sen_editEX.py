@@ -649,8 +649,8 @@ def get_retrieval_train_batch_word(sentences, titles, sections, bm25_title, bm25
             if e-s > 5:
                 print(key['key'])
             key_list.append(data_filed)
-        src_tokens = config.tokenizer_editplus.tokenize(src_sentence)
-        tar_tokens = config.tokenizer_editplus.tokenize(tar_sentence)
+        src_tokens = config.tokenizer_editplus.tokenize(config.pre_cut(src_sentence))
+        tar_tokens = config.tokenizer_editplus.tokenize(config.pre_cut(tar_sentence))
         # check
         '''
         tar_ids = config.tokenizer.convert_tokens_to_ids(tar_tokens)
@@ -672,8 +672,8 @@ def get_retrieval_train_batch_word(sentences, titles, sections, bm25_title, bm25
             print(src_sentence_clean)
             print(tar_sentence_clean)
             continue
-        sentences_data.append({'src_sen': src_sentence, 'src_sen_ori': src_sentence_ori,
-                               'tar_sen': tar_sentence, 'textid': sentence['textid'], 'key_data':key_list, 'edit_sen':edit_tokens})
+        sentences_data.append({'src_sen': config.pre_cut(src_sentence), 'src_sen_ori': src_sentence_ori,
+                               'tar_sen': config.pre_cut(tar_sentence), 'textid': sentence['textid'], 'key_data':key_list, 'edit_sen':edit_tokens})
     return sentences_data
 
 def get_retrieval_train_batch_pure(sentences, titles, sections, bm25_title, bm25_section, wo_re=False):
