@@ -3,6 +3,34 @@ from transformers import BertTokenizer,BartTokenizer
 from models.modeling_gpt2_att import GPT2LMHeadModel
 from models.modeling_bart_ex import BartForConditionalGeneration as BartEX
 from models.modeling_bart_ex import BartForAnnotation as BartAN
+import jieba
+def modify_tokenizer():
+    tokenizer = BertTokenizer.from_pretrained('fnlp/bart-base-chinese')
+    tokenizer.save_pretrained('../tokenizer')
+    original_vocabs = open('../tokenizer/vocab.txt', 'r', encoding='utf-8').readlines()
+    original_vocabs = [x.replace('\n', '') for x in original_vocabs]
+    target_vocabs = open('../tokenizer/vocab_ch.txt', 'r', encoding='utf-8').readlines()
+    target_vocabs = [x.split()[0] for x in target_vocabs if x !='\n']
+    function_vocabs = original_vocabs[0:106]
+    wait_list = original_vocabs[106:]
+    new_vocabs = function_vocabs+target_vocabs[0:14697]
+    c = 0
+    while len(new_vocabs)<30000:
+        temp = wait_list[c].replace('\n', '')
+        if temp in new_vocabs:
+            c += 1
+        else:
+            new_vocabs.append(temp)
+    with open('../tokenizer/vocab.txt', 'w', encoding='utf-8') as f:
+        f.writelines([x+'\n' for x in new_vocabs])
+    tokenizer = BertTokenizer.from_pretrained('../tokenizer')
+    tokenizer.is_pretokenized = True
+    tokenizer.tokenize_chinese_chars = True
+    tokenizer.do_basic_tokenize = False
+    print(tokenizer.tokenize(' '.join(jieba.lcut('肿瘤已经成为老年人群的主要死亡原因34dw52erwe。'))))
+    print(tokenizer.encode(tokenizer.tokenize(' '.join(jieba.lcut('肿瘤已经成为老年人群的主要死亡原因34dw52erwe。')))))
+    return tokenizer
+
 class Config(object):
 
     """配置参数"""
@@ -16,6 +44,9 @@ class Config(object):
         self.title_tokenizer = self.tokenizer
         self.title_tokenizer.model_max_length = 768
         self.key_tokenizer = self.title_tokenizer
+        self.tokenizer_editplus = modify_tokenizer()
+        self.tokenizer_editplus.add_special_tokens(
+            {'additional_special_tokens': ['[unused1]', '[unused2]', '[unused3]', '[unused4]']})
         self.modeld = BartAN
         self.modeld_sen = BartEX
         self.modeld_ann = BartAN
