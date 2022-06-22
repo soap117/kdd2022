@@ -93,9 +93,9 @@ def build(config):
     from models.modeling_bart_ex import BartModel, nn
     from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus
     encoder = BartModel.from_pretrained(config.bert_model).encoder
-    encoder.embed_tokens = nn.Embedding(config.vocab_size, 768, encoder.padding_idx)
+    encoder.embed_tokens = nn.Embedding(config.tokenizer_editplus.vocab_size, 768, encoder.padding_idx)
     tokenizer = config.tokenizer
-    decoder = EditDecoderRNN(tokenizer.vocab_size, 768, config.rnn_dim, n_layers=config.rnn_layer, embedding=encoder.embed_tokens)
+    decoder = EditDecoderRNN(config.tokenizer_editplus.vocab_size, 768, config.rnn_dim, n_layers=config.rnn_layer, embedding=encoder.embed_tokens)
     edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
     modeld = edit_nts_ex
     modelp.cuda()
