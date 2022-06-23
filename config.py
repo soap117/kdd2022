@@ -29,7 +29,7 @@ def modify_tokenizer():
     wait_list = original_vocabs[106:]
     new_vocabs = function_vocabs+target_vocabs[0:14697]
     c = 0
-    while len(new_vocabs)<40000:
+    while len(new_vocabs)<35000:
         temp = wait_list[c].replace('\n', '')
         if temp in new_vocabs:
             c += 1
