@@ -33,10 +33,11 @@ def modify_tokenizer():
         temp = wait_list[c].replace('\n', '')
         if temp in new_vocabs:
             c += 1
-            if c>=len(wait_list):
-                break
         else:
             new_vocabs.append(temp)
+            c+=1
+        if c >= len(wait_list):
+            break
     with open('./tokenizer/vocab.txt', 'w', encoding='utf-8') as f:
         f.writelines([x+'\n' for x in new_vocabs])
     tokenizer = BertTokenizer.from_pretrained('./tokenizer', do_lower_case=False)
