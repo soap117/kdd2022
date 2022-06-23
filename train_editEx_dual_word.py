@@ -2,7 +2,7 @@ import cuda3
 import torch
 import torch.nn as nn
 from config import Config
-config = Config(12)
+config = Config(16)
 from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref, read_clean_data, find_spot, mask_actions, operation2sentence
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -124,8 +124,6 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
         torch.cuda.empty_cache()
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, src_sens_ori, tar_sens, cut_list, edit_sens) in zip(
                 tqdm(range(data_size)), train_dataloader):
-            if step < 1590:
-                continue
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
             rs2 = modelp(query_embedding=query_embedding, candidates=infer_titles, is_infer=True)
