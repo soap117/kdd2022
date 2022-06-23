@@ -33,6 +33,8 @@ def modify_tokenizer():
         temp = wait_list[c].replace('\n', '')
         if temp in new_vocabs:
             c += 1
+            if c>=len(wait_list):
+                break
         else:
             new_vocabs.append(temp)
     with open('./tokenizer/vocab.txt', 'w', encoding='utf-8') as f:
