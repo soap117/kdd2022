@@ -62,6 +62,7 @@ class Config(object):
         self.tokenizer_editplus = modify_tokenizer()
         self.tokenizer_editplus.add_special_tokens(
             {'additional_special_tokens': ['[unused1]', '[unused2]', '[unused3]', '[unused4]']})
+        self.tokenizer_editplus.model_max_length = 512
         self.pre_cut = pre_cut
         self.modeld = BartAN
         self.modeld_sen = BartEX
