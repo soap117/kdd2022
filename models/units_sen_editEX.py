@@ -551,7 +551,7 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
                                'tar_sen': tar_sentence, 'textid': sentence['textid'], 'key_data':key_list, 'edit_sen':edit_tokens})
     return sentences_data
 
-def get_retrieval_train_batch_word(sentences, titles, sections, bm25_title, bm25_section, wo_re=False):
+def get_retrieval_train_batch_word(sentences, titles, sections, bm25_title, bm25_section, wo_re=False, is_pure=False):
     if is_pure:
         sentences_data = []
         for sentence in tqdm(sentences):
@@ -1064,7 +1064,7 @@ class MyData(Dataset):
         self.sec2id = sec2id
         if word:
             self.sen_level_data = get_retrieval_train_batch_word(sentences, titles, sections, bm25_title, bm25_section,
-                                                            wo_re)
+                                                            wo_re, is_pure=is_pure)
         elif is_pure:
             self.sen_level_data = get_retrieval_train_batch_pure(sentences, titles, sections, bm25_title, bm25_section, wo_re)
         else:
