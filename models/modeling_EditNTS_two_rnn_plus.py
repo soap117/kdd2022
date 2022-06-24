@@ -24,14 +24,12 @@ MAX_LEN = 768
 STOP_ID = tokenizer.vocab['[SEP]']
 PAD_ID = tokenizer.vocab['[PAD]']
 class EditDecoderRNN(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_size, n_layers=1, embedding=None, output_dim=None):
+    def __init__(self, vocab_size, embedding_dim, hidden_size, n_layers=1, embedding=None, encoder_dim):
         super(EditDecoderRNN, self).__init__()
         self.hidden_size = hidden_size
         self.embedding_dim = embedding_dim
         self.vocab_size = vocab_size
         self.n_layers = n_layers
-        if output_dim is None:
-            output_dim = embedding_dim
         if embedding is None:
             self.embedding = nn.Embedding(vocab_size, embedding_dim)
         else:
@@ -41,13 +39,13 @@ class EditDecoderRNN(nn.Module):
         self.rnn_words = nn.LSTM(embedding_dim, hidden_size, num_layers=n_layers, batch_first=True)
         self.attn_Projection_org = nn.Linear(hidden_size, hidden_size, bias=False)
         self.initial_hidden = nn.Linear(embedding_dim, 2*hidden_size)
-        self.output_hidden_alignment = nn.Linear(embedding_dim, hidden_size, bias=False)
+        self.output_hidden_alignment = nn.Linear(encoder_dim, hidden_size, bias=False)
         # self.attn_Projection_scpn = nn.Linear(hidden_size, hidden_size, bias=False) #hard attention here
 
 
-        self.attn_MLP = nn.Sequential(nn.Linear(hidden_size * 5, output_dim),
+        self.attn_MLP = nn.Sequential(nn.Linear(hidden_size * 5, embedding_dim),
                                           nn.Tanh())
-        self.attn_ACTION = nn.Sequential(nn.Linear(hidden_size * 5, output_dim),
+        self.attn_ACTION = nn.Sequential(nn.Linear(hidden_size * 5, embedding_dim),
                                       nn.Tanh())
         self.attn_REF = nn.Sequential(nn.Linear(hidden_size, 2),
                                       nn.Softmax(dim=-1))
