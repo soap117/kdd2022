@@ -24,7 +24,7 @@ MAX_LEN = 768
 STOP_ID = tokenizer.vocab['[SEP]']
 PAD_ID = tokenizer.vocab['[PAD]']
 class EditDecoderRNN(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_size, n_layers=1, embedding=None, encoder_dim):
+    def __init__(self, vocab_size, embedding_dim, hidden_size, n_layers=1, embedding=None, encoder_dim=768):
         super(EditDecoderRNN, self).__init__()
         self.hidden_size = hidden_size
         self.embedding_dim = embedding_dim
