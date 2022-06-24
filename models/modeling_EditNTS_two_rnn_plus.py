@@ -38,7 +38,7 @@ class EditDecoderRNN(nn.Module):
         self.rnn_actions = nn.LSTM(embedding_dim, hidden_size, num_layers=n_layers, batch_first=True)
         self.rnn_words = nn.LSTM(embedding_dim, hidden_size, num_layers=n_layers, batch_first=True)
         self.attn_Projection_org = nn.Linear(hidden_size, hidden_size, bias=False)
-        self.initial_hidden = nn.Linear(embedding_dim, 2*hidden_size)
+        self.initial_hidden = nn.Linear(hidden_size, 2*hidden_size)
         self.output_hidden_alignment = nn.Linear(encoder_dim, hidden_size, bias=False)
         # self.attn_Projection_scpn = nn.Linear(hidden_size, hidden_size, bias=False) #hard attention here
 
