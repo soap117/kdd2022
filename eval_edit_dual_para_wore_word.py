@@ -3,7 +3,7 @@ from eval_units import *
 import pickle
 
 import torch
-from models.units_sen_editEX import find_spot, operation2sentence
+from models.units_sen_editEX import find_spot, operation2sentence_word
 from torch.nn.utils.rnn import pad_sequence
 from cbert.modeling_cbert import BertForTokenClassification
 from transformers import BertTokenizer
@@ -67,14 +67,26 @@ modele = config.modeld_ann.from_pretrained(config.bert_model)
 modele.load_state_dict(save_data['modele'])
 modele.cuda()
 modele.eval()
-from models.modeling_bart_ex import BartModel, BartLearnedPositionalEmbedding
+KEEP_ID = config.tokenizer_editplus.vocab['[unused1]']
+DEL_ID = config.tokenizer_editplus.vocab['[unused2]']
+INSERT_ID = config.tokenizer_editplus.vocab['[unused5]']
+STOP_ID = config.tokenizer_editplus.vocab['[SEP]']
+PAD_ID = config.tokenizer_editplus.vocab['[PAD]']
+LEFT_ID = config.tokenizer_editplus.vocab['（']
+RIGHT_ID = config.tokenizer_editplus.vocab['）']
+MARK_ID = config.tokenizer_editplus.vocab['$']
+SP_IDS = [KEEP_ID, DEL_ID, INSERT_ID, STOP_ID, PAD_ID, LEFT_ID, RIGHT_ID, MARK_ID]
+
+from models.modeling_bart_ex import BartModel, nn, BartLearnedPositionalEmbedding
 from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus
-bert_model = config.bert_model
 pos_embed = BartLearnedPositionalEmbedding(1024, 768)
-encoder = BartModel.from_pretrained(config.bert_model, encoder_layers=3).encoder
+encoder = BartModel.from_pretrained(config.bert_model).encoder
 encoder.embed_positions = pos_embed
-tokenizer = config.tokenizer
-decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 400, n_layers=1, embedding=encoder.embed_tokens)
+encoder.embed_tokens = nn.Embedding(config.tokenizer_editplus.vocab_size, config.embedding_new.shape[1], encoder.padding_idx)
+encoder.embed_tokens.weight.data[106:] = config.embedding_new[106:]
+tokenizer = config.tokenizer_editplus
+decoder = EditDecoderRNN(config.tokenizer_editplus.vocab_size, 300, config.rnn_dim, n_layers=config.rnn_layer,
+                         embedding=encoder.embed_tokens, SP_IDS=SP_IDS)
 edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
 modeld = edit_nts_ex
 modeld.load_state_dict(save_data['modeld'])
@@ -128,52 +140,12 @@ def fix_stop(tar):
     tar = tar.replace('\n', '。')
     return tar
 import copy
-def pre_process_sentence(src, tar, keys):
-    src = '。'.join(src)
-    src = re.sub('\*\*', '', src)
-    src = src.replace('(', '（')
-    src = src.replace('$', '')
-    src = src.replace(')', '）')
-    src = src.replace('\n', '').replace('。。', '。')
-    src = fix_stop(src)
-    tar = re.sub('\*\*', '', tar)
-    tar = tar.replace('\n', '').replace('。。', '。')
-    tar = tar.replace('(', '（')
-    tar = tar.replace(')', '）')
-    tar = tar.replace('$', '')
-    tar = fix_stop(tar)
-    src_sentence = src.split('。')
-    tar_sentence = tar.split('。')
-    for key in keys:
-        region = re.search(key, src)
-        if region is not None:
-            region = region.regs[0]
-        else:
-            region = (0, 0)
-        if region[0] != 0 or region[1] != 0:
-            src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key) + ''.join(
-                [' [MASK] ' for x in range(config.hidden_anno_len_rnn)]) + src_sentence[region[1]:]
-        region = re.search(key, tar_sentence)
-        if region is not None:
-            region = region.regs[0]
-        else:
-            region = (0, 0)
-        if region[0] != 0 or region[1] != 0:
-            if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（' and region[1] + 1 < len(
-                    tar_sentence) and tar_sentence[region[1] + 1] != '（' and region[1] + 2 < len(tar_sentence) and \
-                    tar_sentence[region[1] + 2] != '（':
-                tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key) + tar_sentence[region[1]:]
-            else:
-                tar_sentence = tar_sentence[0:region[0]] + ' ${}$ '.format(key) + tar_sentence[region[1]:]
-    src = src_sentence
-    return src, tar_sentence, tar
 import json
 def pipieline(path_from):
     eval_ans = []
     eval_gt = []
     record_scores = []
     record_references = []
-    tokenizer = config.tokenizer
 
     srcs = []
     tars = []
@@ -229,10 +201,8 @@ def pipieline(path_from):
 
         decoder_inputs = tokenizer([src], return_tensors="pt", padding=True)
         decoder_ids = decoder_inputs['input_ids']
-        predictions = operation2sentence(predictions, decoder_ids)
-        results = tokenizer.batch_decode(predictions)
-        results = [tokenizer.convert_tokens_to_string(x) for x in results]
-        results.append(src)
+        predictions, predictions_text = operation2sentence_word(predictions, decoder_ids, tokenizer.tokenize([src]), tokenizer)
+        results = predictions_text
         results = [x.replace(' ', '') for x in results]
         results = [x.replace('[PAD]', '') for x in results]
         results = [x.replace('[CLS]', '') for x in results]

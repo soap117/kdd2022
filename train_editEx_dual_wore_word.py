@@ -296,7 +296,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             _, action_predictions = torch.max(logits_action, dim=-1)
             _, edit_predictions = torch.max(logits_edit, dim=-1)
             predictions = torch.where(action_predictions != 5, action_predictions, edit_predictions)
-            predictions, predictions_text = operation2sentence_word(predictions, decoder_ids, [x.split() for x in src_sens], tokenizer)
+            predictions, predictions_text = operation2sentence_word(predictions, decoder_ids, tokenizer.tokenize(src_sens), tokenizer)
             results = predictions_text
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
