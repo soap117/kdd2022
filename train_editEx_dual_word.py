@@ -207,7 +207,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             decoder_anno_position = find_spot(decoder_ids, querys_ori, config.tokenizer_editplus)
             decoder_ids = decoder_ids.to(config.device)
             target_ids = config.tokenizer_editplus(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids']
-            target_ids_rn = mask_ref(target_ids, config.tokenizer_editplus).to(config.device)
+            target_ids_rn = target_ids.to(config.device)
 
 
             logits_action, logits_edit, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_rn,
@@ -303,7 +303,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             print('New Test Loss D:%f' % (d_eval_loss))
             state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(), 'modele': modele.state_dict(), 'modeld': modeld.state_dict(),
                      'eval_rs': eval_ans}
-            torch.save(state, './results/' + config.data_file_old.replace('.pkl', '_models_edit_dual_plus_rn_%d_%d.pkl' %(config.rnn_dim, config.rnn_layer)).replace('data/', ''))
+            torch.save(state, './results/' + config.data_file_old.replace('.pkl', '_models_edit_dual_plus_word_%d_%d.pkl' %(config.rnn_dim, config.rnn_layer)).replace('data/', ''))
             min_loss_d = d_eval_loss
             for one, one_g in zip(eval_ans[0:5], grand_ans[0:5]):
                 print(one)
