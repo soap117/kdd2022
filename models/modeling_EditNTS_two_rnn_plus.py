@@ -106,7 +106,7 @@ class EditDecoderRNN(nn.Module):
         return (new_batch_lm_h,new_batch_lm_c)
 
 
-    def forward(self, input_edits, input_actions, hidden_org, encoder_outputs_org, org_ids, simp_sent, teacher_forcing_ratio=1., eval=False, clean_indication=None):
+    def forward(self, input_edits, input_actions, encoder_outputs_org, org_ids, simp_sent, teacher_forcing_ratio=1., eval=False, clean_indication=None):
         #input_edits: desired output
         #hidden_org initial state
         #simp_sent: desired output with out special marking
@@ -121,6 +121,9 @@ class EditDecoderRNN(nn.Module):
         counter_for_keep_ins =np.zeros(bsz, dtype=int)
         counter_for_annos = np.zeros(bsz, dtype=int)
         encoder_outputs_org = F.tanh(self.output_hidden_alignment(encoder_outputs_org))
+        h_0, c_0 = self.decoder.initHidden(encoder_outputs_org[:, 0])
+        hidden_org = (h_0, c_0)
+        encoder_outputs_org = encoder_outputs_org[:, 1:]
         # decoder in the training:
 
         if use_teacher_forcing:
@@ -407,9 +410,8 @@ class EditPlus(nn.Module):
             anno_position=anno_position,
             hidden_annotations=hidden_annotation,
         )
-        h_0, c_0 = self.decoder.initHidden(encoder_outputs[0][:, 0])
         decoder_outputs = self.decoder(
-            input_edits=input_edits, input_actions=input_actions, hidden_org=(h_0,c_0), encoder_outputs_org=encoder_outputs[0][:, 1:], org_ids=input_ids[:, 1:],
+            input_edits=input_edits, input_actions=input_actions, encoder_outputs_org=encoder_outputs[0], org_ids=input_ids[:, 1:],
             simp_sent=decoder_input_ids, teacher_forcing_ratio=force_ratio, eval=eval, clean_indication=clean_indication
         )
 
