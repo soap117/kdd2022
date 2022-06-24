@@ -4,6 +4,7 @@ from models.modeling_gpt2_att import GPT2LMHeadModel
 from models.modeling_bart_ex import BartForConditionalGeneration as BartEX
 from models.modeling_bart_ex import BartForAnnotation as BartAN
 import jieba as sjieba
+import numpy as np
 
 def pre_cut(text):
     temp = ' '.join(sjieba.lcut(text))
@@ -26,25 +27,35 @@ def modify_tokenizer():
     function_vocabs = original_vocabs[0:106]
     for fv in function_vocabs:
         sjieba.add_word(fv)
-    wait_list = original_vocabs[106:]
-    new_vocabs = function_vocabs+target_vocabs[0:14697]
+    new_vocabs = function_vocabs+target_vocabs[0:30000]
+    new_vocabs = list(set(new_vocabs))
     c = 0
-    while len(new_vocabs)<35000:
-        temp = wait_list[c].replace('\n', '')
-        if temp in new_vocabs:
-            c += 1
-        else:
-            new_vocabs.append(temp)
-            c+=1
-        if c >= len(wait_list):
-            break
     with open('./tokenizer/vocab.txt', 'w', encoding='utf-8') as f:
         f.writelines([x+'\n' for x in new_vocabs])
     tokenizer = BertTokenizer.from_pretrained('./tokenizer', do_lower_case=False)
     tokenizer.is_pretokenized = True
     tokenizer.tokenize_chinese_chars = True
     tokenizer.do_basic_tokenize = False
-    return tokenizer
+    print("Loading Glove embeddings")
+    embed_size = 300
+    with open('./tokenizer/sgns.wiki.word', 'r', encoding='UTF-8') as f:
+        lines = f.readlines()
+        model = {}
+        w_set = set(tokenizer.vocab)
+        embedding_matrix = np.zeros(shape=(len(tokenizer.vocab), embed_size))
+
+        for line in lines:
+            splitLine = line.split()
+            word = splitLine[0]
+            if word in w_set:  # only extract embeddings in the word_list
+                embedding = np.array([float(val) for val in splitLine[1:]])
+                model[word] = embedding
+                embedding_matrix[tokenizer.vocab[word]] = embedding
+                # if len(model) % 1000 == 0:
+                    # print("processed %d vocab_data" % len(model))
+    print("%d words out of %d has embeddings in the glove file" % (len(model), len(tokenizer.vocab)))
+    embedding_matrix = torch.FloatTensor(embedding_matrix)
+    return tokenizer, embedding_matrix
 
 class Config(object):
 
@@ -59,7 +70,9 @@ class Config(object):
         self.title_tokenizer = self.tokenizer
         self.title_tokenizer.model_max_length = 768
         self.key_tokenizer = self.title_tokenizer
-        self.tokenizer_editplus = modify_tokenizer()
+        tokenizer_editplus, embedding_new = modify_tokenizer()
+        self.tokenizer_editplus = tokenizer_editplus
+        self.embedding_new = embedding_new
         self.tokenizer_editplus.add_special_tokens(
             {'additional_special_tokens': ['[unused1]', '[unused2]', '[unused3]', '[unused4]']})
         self.tokenizer_editplus.model_max_length = 512
@@ -86,6 +99,7 @@ class Config(object):
         self.hidden_anno_len_rnn = 10
         self.para_hidden_len = 10
         self.multi_gpu = False
+        self.pure = True
         self.full_gpu_id = 0
         self.max_query = 12
         self.data_file_old = 'data/mydata_v5.pkl'

@@ -93,14 +93,15 @@ def build(config):
     from models.modeling_bart_ex import BartModel, nn, BartLearnedPositionalEmbedding
     from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus
     pos_embed = BartLearnedPositionalEmbedding(1024, 768)
-    encoder = BartModel.from_pretrained(config.bert_model, encoder_layers=3).encoder
+    encoder = BartModel.from_pretrained(config.bert_model).encoder
     encoder.embed_positions = pos_embed
-    encoder.embed_tokens = nn.Embedding(config.tokenizer_editplus.vocab_size, 768, encoder.padding_idx)
-    tokenizer = config.tokenizer
-    decoder = EditDecoderRNN(config.tokenizer_editplus.vocab_size, 768, config.rnn_dim, n_layers=config.rnn_layer,
+    encoder.embed_tokens = nn.Embedding(config.tokenizer_editplus.vocab_size, config.embedding_new.shape[1],
+                                        encoder.padding_idx)
+    encoder.embed_tokens.weight.data[106:] = config.embedding_new[106:]
+    tokenizer = config.tokenizer_editplus
+    decoder = EditDecoderRNN(config.tokenizer_editplus.vocab_size, 300, config.rnn_dim, n_layers=config.rnn_layer,
                              embedding=encoder.embed_tokens)
     edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
-    modeld = edit_nts_ex
     modeld = edit_nts_ex
     modelp.to("cuda:1")
     models.to("cuda:1")

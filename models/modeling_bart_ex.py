@@ -706,6 +706,7 @@ class BartEncoder(BartPretrainedModel):
             self.embed_tokens = embed_tokens
         else:
             self.embed_tokens = nn.Embedding(config.vocab_size, embed_dim, self.padding_idx)
+        self.align_layer = nn.Linear(300, embed_dim, bias=False)
 
         self.embed_positions = BartLearnedPositionalEmbedding(
             config.max_position_embeddings,
@@ -792,7 +793,11 @@ class BartEncoder(BartPretrainedModel):
             raise ValueError("You have to specify either input_ids or inputs_embeds")
 
         if inputs_embeds is None:
-            inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
+
+            inputs_embeds = self.embed_tokens(input_ids)
+            if inputs_embeds.shape[2] != 768:
+                inputs_embeds = self.align_layer(inputs_embeds)
+            inputs_embeds = inputs_embeds * self.embed_scale
 
 
         embed_pos = self.embed_positions(input_shape)

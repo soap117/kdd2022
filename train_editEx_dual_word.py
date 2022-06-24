@@ -56,21 +56,41 @@ def build(config):
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
     debug_flag = False
-    if not debug_flag and os.path.exists(config.data_file_old.replace('.pkl', '_train_dataset_edit_word.pkl')):
-        train_dataset = torch.load(config.data_file_old.replace('.pkl', '_train_dataset_edit_word.pkl'))
-        valid_dataset = torch.load(config.data_file_old.replace('.pkl', '_valid_dataset_edit_word.pkl'))
-        test_dataset = torch.load(config.data_file_old.replace('.pkl', '_test_dataset_edit_word.pkl'))
+    if config.pure:
+        if not debug_flag and os.path.exists(config.data_file_old.replace('.pkl', '_train_dataset_edit_word_pure.pkl')):
+            train_dataset = torch.load(config.data_file_old.replace('.pkl', '_train_dataset_edit_word_pure.pkl'))
+            valid_dataset = torch.load(config.data_file_old.replace('.pkl', '_valid_dataset_edit_word_pure.pkl'))
+            test_dataset = torch.load(config.data_file_old.replace('.pkl', '_test_dataset_edit_word_pure.pkl'))
+        else:
+            train_dataset = MyData(config, tokenizer, config.data_file_old.replace('.pkl', '_train_dataset_raw.pkl'),
+                                   titles, sections, title2sections, sec2id,
+                                   bm25_title, bm25_section, word=True, is_pure=True)
+            valid_dataset = MyData(config, tokenizer, config.data_file_old.replace('.pkl', '_valid_dataset_raw.pkl'),
+                                   titles, sections, title2sections, sec2id,
+                                   bm25_title,
+                                   bm25_section, word=True, is_pure=True)
+            test_dataset = MyData(config, tokenizer, config.data_file_old.replace('.pkl', '_test_dataset_raw.pkl'),
+                                  titles, sections, title2sections, sec2id, bm25_title,
+                                  bm25_section, word=True, is_pure=True)
+            torch.save(train_dataset, config.data_file_old.replace('.pkl', '_train_dataset_edit_word_pure.pkl'))
+            torch.save(valid_dataset, config.data_file_old.replace('.pkl', '_valid_dataset_edit_word_pure.pkl'))
+            torch.save(test_dataset, config.data_file_old.replace('.pkl', '_test_dataset_edit_word_pure.pkl'))
     else:
-        train_dataset = MyData(config, tokenizer, config.data_file_old.replace('.pkl', '_train_dataset_raw.pkl'), titles, sections, title2sections, sec2id,
-                               bm25_title, bm25_section, word=True)
-        valid_dataset = MyData(config, tokenizer, config.data_file_old.replace('.pkl', '_valid_dataset_raw.pkl'), titles, sections, title2sections, sec2id,
-                               bm25_title,
-                               bm25_section, word=True)
-        test_dataset = MyData(config, tokenizer, config.data_file_old.replace('.pkl', '_test_dataset_raw.pkl'), titles, sections, title2sections, sec2id, bm25_title,
-                              bm25_section, word=True)
-        torch.save(train_dataset, config.data_file_old.replace('.pkl', '_train_dataset_edit_word.pkl'))
-        torch.save(valid_dataset, config.data_file_old.replace('.pkl', '_valid_dataset_edit_word.pkl'))
-        torch.save(test_dataset, config.data_file_old.replace('.pkl', '_test_dataset_edit_word.pkl'))
+        if not debug_flag and os.path.exists(config.data_file_old.replace('.pkl', '_train_dataset_edit_word.pkl')):
+            train_dataset = torch.load(config.data_file_old.replace('.pkl', '_train_dataset_edit_word.pkl'))
+            valid_dataset = torch.load(config.data_file_old.replace('.pkl', '_valid_dataset_edit_word.pkl'))
+            test_dataset = torch.load(config.data_file_old.replace('.pkl', '_test_dataset_edit_word.pkl'))
+        else:
+            train_dataset = MyData(config, tokenizer, config.data_file_old.replace('.pkl', '_train_dataset_raw.pkl'), titles, sections, title2sections, sec2id,
+                                   bm25_title, bm25_section, word=True)
+            valid_dataset = MyData(config, tokenizer, config.data_file_old.replace('.pkl', '_valid_dataset_raw.pkl'), titles, sections, title2sections, sec2id,
+                                   bm25_title,
+                                   bm25_section, word=True)
+            test_dataset = MyData(config, tokenizer, config.data_file_old.replace('.pkl', '_test_dataset_raw.pkl'), titles, sections, title2sections, sec2id, bm25_title,
+                                  bm25_section, word=True)
+            torch.save(train_dataset, config.data_file_old.replace('.pkl', '_train_dataset_edit_word.pkl'))
+            torch.save(valid_dataset, config.data_file_old.replace('.pkl', '_valid_dataset_edit_word.pkl'))
+            torch.save(test_dataset, config.data_file_old.replace('.pkl', '_test_dataset_edit_word.pkl'))
 
     train_dataloader = DataLoader(dataset=train_dataset, batch_size=config.batch_size
                                   , collate_fn=train_dataset.collate_fn)
@@ -92,10 +112,14 @@ def build(config):
     print('Load pretrained E')
     from models.modeling_bart_ex import BartModel, nn
     from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus
-    encoder = BartModel.from_pretrained(config.bert_model).encoder
-    encoder.embed_tokens = nn.Embedding(config.tokenizer_editplus.vocab_size, 768, encoder.padding_idx)
+    encoder = BartModel.from_pretrained(config.bert_model)
+    emb_layer = nn.Embedding(config.tokenizer_editplus.vocab_size, config.embedding_new.shape[1], encoder.padding_idx,
+                             _weight=config.embedding_new)
+    align_layer = nn.Linear(config.embedding_new.shape[1], 768, bias=False)
+    encoder.embed_tokens = nn.Sequential(emb_layer, align_layer)
     tokenizer = config.tokenizer
-    decoder = EditDecoderRNN(config.tokenizer_editplus.vocab_size, 768, config.rnn_dim, n_layers=config.rnn_layer, embedding=encoder.embed_tokens)
+    decoder = EditDecoderRNN(config.tokenizer_editplus.vocab_size, 768, config.rnn_dim, n_layers=config.rnn_layer,
+                             embedding=encoder.embed_tokens)
     edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
     modeld = edit_nts_ex
     modelp.cuda()
@@ -303,7 +327,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             print('New Test Loss D:%f' % (d_eval_loss))
             state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(), 'modele': modele.state_dict(), 'modeld': modeld.state_dict(),
                      'eval_rs': eval_ans}
-            torch.save(state, './results/' + config.data_file_old.replace('.pkl', '_models_edit_dual_plus_word_%d_%d.pkl' %(config.rnn_dim, config.rnn_layer)).replace('data/', ''))
+            torch.save(state, './results/' + config.data_file_old.replace('.pkl', '_models_edit_dual_plus_word_%d_%d_%s.pkl' %(config.rnn_dim, config.rnn_layer, str(config.pure))).replace('data/', ''))
             min_loss_d = d_eval_loss
             for one, one_g in zip(eval_ans[0:5], grand_ans[0:5]):
                 print(one)

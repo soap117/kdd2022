@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from config import Config
 config = Config(8)
-from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref, read_clean_data, find_spot_para, mask_actions, operation2sentence
+from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref, read_clean_data, find_spot_para, mask_actions, operation2sentence_word
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
 from tqdm import tqdm
@@ -56,21 +56,21 @@ def build(config):
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
     debug_flag = False
-    if not debug_flag and os.path.exists(config.data_file.replace('.pkl', '_train_dataset_edit_purewo.pkl')):
-        train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset_edit_purewo.pkl'))
-        valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset_edit_purewo.pkl'))
-        test_dataset = torch.load(config.data_file.replace('.pkl', '_test_dataset_edit_purewo.pkl'))
+    if not debug_flag and os.path.exists(config.data_file.replace('.pkl', '_train_dataset_edit_purewo_word.pkl')):
+        train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset_edit_purewo_word.pkl'))
+        valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset_edit_purewo_word.pkl'))
+        test_dataset = torch.load(config.data_file.replace('.pkl', '_test_dataset_edit_purewo_word.pkl'))
     else:
         train_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_train_dataset_raw.pkl'), titles, sections, title2sections, sec2id,
-                               bm25_title, bm25_section, is_pure=True, wo_re=True)
+                               bm25_title, bm25_section, is_pure=True, wo_re=True, word=True)
         valid_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_valid_dataset_raw.pkl'), titles, sections, title2sections, sec2id,
                                bm25_title,
-                               bm25_section, is_pure=True, wo_re=True)
+                               bm25_section, is_pure=True, wo_re=True, word=True)
         test_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_test_dataset_raw.pkl'), titles, sections, title2sections, sec2id, bm25_title,
-                              bm25_section, is_pure=True, wo_re=True)
-        torch.save(train_dataset, config.data_file.replace('.pkl', '_train_dataset_edit_purewo.pkl'))
-        torch.save(valid_dataset, config.data_file.replace('.pkl', '_valid_dataset_edit_purewo.pkl'))
-        torch.save(test_dataset, config.data_file.replace('.pkl', '_test_dataset_edit_purewo.pkl'))
+                              bm25_section, is_pure=True, wo_re=True, word=True)
+        torch.save(train_dataset, config.data_file.replace('.pkl', '_train_dataset_edit_purewo_word.pkl'))
+        torch.save(valid_dataset, config.data_file.replace('.pkl', '_valid_dataset_edit_purewo_word.pkl'))
+        torch.save(test_dataset, config.data_file.replace('.pkl', '_test_dataset_edit_purewo_word.pkl'))
 
     train_dataloader = DataLoader(dataset=train_dataset, batch_size=config.batch_size
                                   , collate_fn=train_dataset.collate_fn)
@@ -88,15 +88,18 @@ def build(config):
     models.load_state_dict(save_data['models'])
     print('Load pretrained S')
     modele = config.modeld_ann.from_pretrained(config.bert_model)
-    modele.load_state_dict(save_data['model'])
+    modele.load_state_dict(save_data['model'], strict=False)
     print('Load pretrained E')
-    from models.modeling_bart_ex import BartModel, BartLearnedPositionalEmbedding
+    from models.modeling_bart_ex import BartModel, nn, BartLearnedPositionalEmbedding
     from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus
     pos_embed = BartLearnedPositionalEmbedding(1024, 768)
-    encoder = BartModel.from_pretrained(config.bert_model, encoder_layers=3).encoder
+    encoder = BartModel.from_pretrained(config.bert_model).encoder
     encoder.embed_positions = pos_embed
-    tokenizer = config.tokenizer
-    decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 400, n_layers=1, embedding=encoder.embed_tokens)
+    encoder.embed_tokens = nn.Embedding(config.tokenizer_editplus.vocab_size, config.embedding_new.shape[1], encoder.padding_idx)
+    encoder.embed_tokens.weight.data[106:] = config.embedding_new[106:]
+    tokenizer = config.tokenizer_editplus
+    decoder = EditDecoderRNN(config.tokenizer_editplus.vocab_size, 768, config.rnn_dim, n_layers=config.rnn_layer,
+                             embedding=encoder.embed_tokens, output_dim=300)
     edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
     modeld = edit_nts_ex
     modelp.cuda()
@@ -138,10 +141,6 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             edit_sens_token = [['[CLS]'] + x + ['[SEP]'] for x in edit_sens]
             edit_sens_token_ids = [torch.LongTensor(tokenizer.convert_tokens_to_ids(x)) for x in edit_sens_token]
             edit_sens_token_ids = pad_sequence(edit_sens_token_ids, batch_first=True, padding_value=0).to(config.device)
-
-            # noisy edits
-            #edit_sens_token_ids_rd = mask_actions(edit_sens_token_ids, tokenizer)
-            edit_sens_token_ids
 
             # Clean actions
             input_actions = torch.zeros_like(edit_sens_token_ids) + 5
@@ -287,20 +286,14 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             _, action_predictions = torch.max(logits_action, dim=-1)
             _, edit_predictions = torch.max(logits_edit, dim=-1)
             predictions = torch.where(action_predictions != 5, action_predictions, edit_predictions)
-            predictions = operation2sentence(predictions, decoder_ids)
-            results = tokenizer.batch_decode(predictions)
-            results = [tokenizer.convert_tokens_to_string(x) for x in results]
+            predictions, predictions_text = operation2sentence_word(predictions, decoder_ids, [x.split() for x in src_sens], tokenizer)
+            results = predictions_text
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]
             results = [x.replace('[CLS]', '') for x in results]
             results = [x.replace('[MASK]', '') for x in results]
             results = [x.split('[SEP]')[0] for x in results]
-            ground_truth = tokenizer.batch_decode(targets)
-            ground_truth = [tokenizer.convert_tokens_to_string(x) for x in ground_truth]
-            ground_truth = [x.replace(' ', '') for x in ground_truth]
-            ground_truth = [x.replace('[PAD]', '') for x in ground_truth]
-            ground_truth = [x.replace('[CLS]', '') for x in ground_truth]
-            ground_truth = [x.split('[SEP]')[0] for x in ground_truth]
+            ground_truth = tar_sens
             #masks = torch.ones_like(targets)
             #masks[torch.where(targets == 0)] = 0
             eval_ans += results

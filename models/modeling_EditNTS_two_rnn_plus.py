@@ -24,13 +24,14 @@ MAX_LEN = 768
 STOP_ID = tokenizer.vocab['[SEP]']
 PAD_ID = tokenizer.vocab['[PAD]']
 class EditDecoderRNN(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_size, n_layers=1, embedding=None):
+    def __init__(self, vocab_size, embedding_dim, hidden_size, n_layers=1, embedding=None, output_dim=None):
         super(EditDecoderRNN, self).__init__()
         self.hidden_size = hidden_size
         self.embedding_dim = embedding_dim
         self.vocab_size = vocab_size
         self.n_layers = n_layers
-
+        if output_dim is None:
+            output_dim = embedding_dim
         if embedding is None:
             self.embedding = nn.Embedding(vocab_size, embedding_dim)
         else:
@@ -44,14 +45,14 @@ class EditDecoderRNN(nn.Module):
         # self.attn_Projection_scpn = nn.Linear(hidden_size, hidden_size, bias=False) #hard attention here
 
 
-        self.attn_MLP = nn.Sequential(nn.Linear(hidden_size * 5, embedding_dim),
+        self.attn_MLP = nn.Sequential(nn.Linear(hidden_size * 5, output_dim),
                                           nn.Tanh())
-        self.attn_ACTION = nn.Sequential(nn.Linear(hidden_size * 5, embedding_dim),
+        self.attn_ACTION = nn.Sequential(nn.Linear(hidden_size * 5, output_dim),
                                       nn.Tanh())
         self.attn_REF = nn.Sequential(nn.Linear(hidden_size, 2),
                                       nn.Softmax(dim=-1))
-        self.out = nn.Linear(embedding_dim, self.vocab_size)
-        self.out_action = nn.Linear(embedding_dim, 200)
+        self.out = nn.Linear(output_dim, self.vocab_size)
+        self.out_action = nn.Linear(output_dim, 200)
         self.action_mask = torch.ones([1, 200], dtype=torch.float64)
         self.action_mask[0, [0, 1, 2, 5, 101, 102]] = 0
         self.action_mask = self.action_mask * -1e5
@@ -354,6 +355,61 @@ class EditDecoderRNN(nn.Module):
         c = h_c[:, self.hidden_size:]
         return h.unsqueeze(0).expand(self.n_layers, h.size(0), h.size(1)).contiguous(), c.unsqueeze(0).expand(self.n_layers, h.size(0), h.size(1)).contiguous()
 
+from torch.nn.utils.rnn import pack_padded_sequence as pack
+from torch.nn.utils.rnn import pad_packed_sequence as unpack
+def unsort(x_sorted, sorted_order):
+    x_unsort = torch.zeros_like(x_sorted)
+    x_unsort[:, sorted_order,:] = x_sorted
+    return x_unsort
+class EncoderRNN(nn.Module):
+    def __init__(self, vocab_size, embedding_dim, pos_vocab_size, pos_embedding_dim,hidden_size, n_layers=1, embedding=None, embeddingPOS=None,dropout=0.3):
+        super(EncoderRNN, self).__init__()
+        self.n_layers = n_layers
+        self.hidden_size = hidden_size
+
+        if embedding is None:
+            self.embedding = nn.Embedding(vocab_size, embedding_dim)
+        else:
+            self.embedding = embedding
+
+        if embeddingPOS is None:
+            self.embeddingPOS = nn.Embedding(pos_vocab_size, pos_embedding_dim)
+        else:
+            self.embeddingPOS = embeddingPOS
+
+        self.rnn = nn.LSTM(embedding_dim+pos_embedding_dim, hidden_size, num_layers=n_layers, batch_first=True, bidirectional=True)
+        self.drop = nn.Dropout(dropout)
+
+    def forward(self, input_ids, anno_position, hidden_annotation, hidden):
+        #inp and inp pose should be both sorted
+        inp_sorted=inp[0]
+        inp_lengths_sorted=inp[1].cpu()
+        inp_sort_order=inp[2]
+
+        inp_pos_sorted = inp_pos[0]
+        inp_pos_lengths_sorted = inp_pos[1]
+        inp_pos_sort_order = inp_pos[2]
+
+        emb = self.embedding(inp_sorted)
+        emb_pos = self.embeddingPOS(inp_pos_sorted)
+
+        embed_cat = torch.cat((emb,emb_pos),dim=2)
+        packed_emb = pack(embed_cat, inp_lengths_sorted,batch_first=True)
+        memory_bank, encoder_final = self.rnn(packed_emb, hidden)
+
+        memory_bank = unpack(memory_bank)[0]
+        memory_bank = unsort(memory_bank, inp_sort_order)
+
+        h_unsorted=unsort(encoder_final[0], inp_sort_order)
+        c_unsorted=unsort(encoder_final[1], inp_sort_order)
+
+
+        return memory_bank.transpose(0,1), (h_unsorted,c_unsorted)
+
+    def initHidden(self, bsz):
+        weight = next(self.parameters()).data
+        return Variable(weight.new(self.n_layers * 2, bsz, self.hidden_size).zero_()), \
+               Variable(weight.new(self.n_layers * 2, bsz, self.hidden_size).zero_())
 
 class EditPlus(nn.Module):
     def __init__(self, encoder, decoder, tokenizer):

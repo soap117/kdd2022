@@ -369,6 +369,46 @@ def operation2sentence(operations, input_sentences):
         outputs.append(output)
     return outputs
 
+def operation2sentence_word(operations, input_sentences, input_sequence_word, tokenizer):
+    operations = operations.cpu().detach().numpy()
+    input_sentences = input_sentences.cpu().detach().numpy()
+    outputs = []
+    out_sens = []
+    for operation, input_sentence in zip(operations, input_sentences):
+        out_sen = ''
+        read_index = 1
+        output = [101]
+        for op in operation:
+            if read_index < len(input_sentence):
+                if op == config.tokenizer.vocab['[unused1]']:
+                    output.append(input_sentence[read_index])
+                    out_sen += input_sequence_word[read_index-1]
+                    out_sen += ' '
+                    read_index += 1
+                elif op != config.tokenizer.vocab['[SEP]'] and op != config.tokenizer.vocab['[unused2]']:
+                    output.append(op)
+                    out_sen += tokenizer.vocab[op]
+                    out_sen += ' '
+                elif op == config.tokenizer.vocab['[unused2]']:
+                    read_index += 1
+                    # del do nothing
+                    continue
+                elif op == 102:
+                    break
+        if read_index < len(input_sentence)-1:
+            try:
+                temp = list(input_sentence)[read_index:]
+                output += temp
+                for word in input_sequence_word[read_index-1:]:
+                    out_sen += word
+                    out_sen += ' '
+            except:
+                print(output)
+                print(input_sentence)
+        outputs.append(output)
+        out_sens.append(out_sen)
+    return outputs, out_sens
+
 def obtain_annotation(tar , t_s):
     t_e = t_s + 1
     count = 1
@@ -672,8 +712,8 @@ def get_retrieval_train_batch_word(sentences, titles, sections, bm25_title, bm25
                 print(src_sentence_clean)
                 print(tar_sentence_clean)
                 continue
-            sentences_data.append({'src_sen': src_sentence, 'src_sen_ori': src_sentence_ori,
-                                   'tar_sen': tar_sentence, 'textid': sentence['textid'], 'key_data': key_list,
+            sentences_data.append({'src_sen': config.pre_cut(src_sentence), 'src_sen_ori': src_sentence_ori,
+                                   'tar_sen': config.pre_cut(tar_sentence), 'textid': sentence['textid'], 'key_data': key_list,
                                    'edit_sen': edit_tokens})
     else:
         sentences_data = []
