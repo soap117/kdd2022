@@ -27,9 +27,12 @@ def modify_tokenizer():
     function_vocabs = original_vocabs[0:106]
     for fv in function_vocabs:
         sjieba.add_word(fv)
-    new_vocabs = function_vocabs+target_vocabs[0:30000]
-    new_vocabs = list(set(new_vocabs))
-    c = 0
+    new_vocabs = function_vocabs
+    for new_word in target_vocabs[0:30000]:
+        if new_word not in new_vocabs:
+            new_vocabs.append(new_word)
+        else:
+            print(new_word)
     with open('./tokenizer/vocab.txt', 'w', encoding='utf-8') as f:
         f.writelines([x+'\n' for x in new_vocabs])
     tokenizer = BertTokenizer.from_pretrained('./tokenizer', do_lower_case=False)
