@@ -90,6 +90,16 @@ def build(config):
     modele = config.modeld_ann.from_pretrained(config.bert_model)
     modele.load_state_dict(save_data['model'])
     print('Load pretrained E')
+    KEEP_ID = config.tokenizer_editplus.vocab['[unused1]']
+    DEL_ID = config.tokenizer_editplus.vocab['[unused2]']
+    INSERT_ID = config.tokenizer_editplus.vocab['[unused5]']
+    STOP_ID = config.tokenizer_editplus.vocab['[SEP]']
+    PAD_ID = config.tokenizer_editplus.vocab['[PAD]']
+    LEFT_ID = config.tokenizer_editplus.vocab['（']
+    RIGHT_ID = config.tokenizer_editplus.vocab['）']
+    MARK_ID = config.tokenizer_editplus.vocab['$']
+    SP_IDS = [KEEP_ID, DEL_ID, INSERT_ID, STOP_ID, PAD_ID, LEFT_ID, RIGHT_ID, MARK_ID]
+
     from models.modeling_bart_ex import BartModel, nn, BartLearnedPositionalEmbedding
     from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus
     pos_embed = BartLearnedPositionalEmbedding(1024, 768)
@@ -100,7 +110,7 @@ def build(config):
     encoder.embed_tokens.weight.data[106:] = config.embedding_new[106:]
     tokenizer = config.tokenizer_editplus
     decoder = EditDecoderRNN(config.tokenizer_editplus.vocab_size, 300, config.rnn_dim, n_layers=config.rnn_layer,
-                             embedding=encoder.embed_tokens)
+                             embedding=encoder.embed_tokens, SP_IDS=SP_IDS)
     edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
     modeld = edit_nts_ex
     modelp.to("cuda:1")
@@ -269,7 +279,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             # masks = torch.ones_like(targets)
             # masks[torch.where(targets == 0)] = 0
             lossd_ed = loss_func(logits_edit, targets_flat)
-            lossd_ed[(targets_flat==0)|(targets_flat==1)|(targets_flat==2)|(targets_flat==101)|(targets_flat==102)] = 0
+            lossd_ed[(targets_flat==0)|(targets_flat==1)|(targets_flat==2)|(targets_flat==101)|(targets_flat==102)|(targets_flat==100)] = 0
             lossd_ed = lossd_ed.view(targets_edit.size())
             lossd_ed = lossd_ed.sum(1).float()
             lossd_ed = lossd_ed / tar_lens
