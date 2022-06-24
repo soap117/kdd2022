@@ -369,12 +369,12 @@ def operation2sentence(operations, input_sentences):
         outputs.append(output)
     return outputs
 
-def operation2sentence_word(operations, input_sentences, input_sequence_word, tokenizer):
+def operation2sentence_word(operations, input_sentences, input_sequences_word, tokenizer):
     operations = operations.cpu().detach().numpy()
     input_sentences = input_sentences.cpu().detach().numpy()
     outputs = []
     out_sens = []
-    for operation, input_sentence in zip(operations, input_sentences):
+    for operation, input_sentence, input_sequence_word in zip(operations, input_sentences, input_sequences_word):
         out_sen = ''
         read_index = 1
         output = [101]
