@@ -119,7 +119,7 @@ class EditDecoderRNN(nn.Module):
         counter_for_keep_ins =np.zeros(bsz, dtype=int)
         counter_for_annos = np.zeros(bsz, dtype=int)
         encoder_outputs_org = F.tanh(self.output_hidden_alignment(encoder_outputs_org))
-        h_0, c_0 = self.decoder.initHidden(encoder_outputs_org[:, 0])
+        h_0, c_0 = self.initHidden(encoder_outputs_org[:, 0])
         hidden_org = (h_0, c_0)
         encoder_outputs_org = encoder_outputs_org[:, 1:]
         # decoder in the training:
