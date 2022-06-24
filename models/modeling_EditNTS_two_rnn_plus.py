@@ -49,8 +49,8 @@ class EditDecoderRNN(nn.Module):
                                       nn.Tanh())
         self.attn_REF = nn.Sequential(nn.Linear(hidden_size, 2),
                                       nn.Softmax(dim=-1))
-        self.out = nn.Linear(output_dim, self.vocab_size)
-        self.out_action = nn.Linear(output_dim, 200)
+        self.out = nn.Linear(embedding_dim, self.vocab_size)
+        self.out_action = nn.Linear(embedding_dim, 200)
         self.action_mask = torch.ones([1, 200], dtype=torch.float64)
         self.action_mask[0, [0, 1, 2, 5, 101, 102]] = 0
         self.action_mask = self.action_mask * -1e5
