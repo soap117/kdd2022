@@ -381,35 +381,15 @@ class EncoderRNN(nn.Module):
         self.drop = nn.Dropout(dropout)
 
     def forward(self, input_ids, anno_position, hidden_annotation, hidden):
-        #inp and inp pose should be both sorted
-        inp_sorted=inp[0]
-        inp_lengths_sorted=inp[1].cpu()
-        inp_sort_order=inp[2]
+        seq_length = torch.sum(input_ids!=0, dim=1)
 
-        inp_pos_sorted = inp_pos[0]
-        inp_pos_lengths_sorted = inp_pos[1]
-        inp_pos_sort_order = inp_pos[2]
+        emb = self.embedding(input_ids)
 
-        emb = self.embedding(inp_sorted)
-        emb_pos = self.embeddingPOS(inp_pos_sorted)
+        outputs, encoder_final = self.rnn(emb, hidden)
+        outputs_final = torch.gather(outputs, 0, seq_length)
 
-        embed_cat = torch.cat((emb,emb_pos),dim=2)
-        packed_emb = pack(embed_cat, inp_lengths_sorted,batch_first=True)
-        memory_bank, encoder_final = self.rnn(packed_emb, hidden)
+        return outputs.transpose(0,1), outputs_final[0]
 
-        memory_bank = unpack(memory_bank)[0]
-        memory_bank = unsort(memory_bank, inp_sort_order)
-
-        h_unsorted=unsort(encoder_final[0], inp_sort_order)
-        c_unsorted=unsort(encoder_final[1], inp_sort_order)
-
-
-        return memory_bank.transpose(0,1), (h_unsorted,c_unsorted)
-
-    def initHidden(self, bsz):
-        weight = next(self.parameters()).data
-        return Variable(weight.new(self.n_layers * 2, bsz, self.hidden_size).zero_()), \
-               Variable(weight.new(self.n_layers * 2, bsz, self.hidden_size).zero_())
 
 class EditPlus(nn.Module):
     def __init__(self, encoder, decoder, tokenizer):
