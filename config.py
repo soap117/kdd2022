@@ -25,6 +25,7 @@ def modify_tokenizer():
     target_vocabs = open('./tokenizer/vocab_ch.txt', 'r', encoding='utf-8').readlines()
     target_vocabs = [x.split()[0] for x in target_vocabs if x !='\n']
     function_vocabs = original_vocabs[0:106]
+    function_vocabs[10] = '$'
     for fv in function_vocabs:
         sjieba.add_word(fv)
     new_vocabs = function_vocabs
