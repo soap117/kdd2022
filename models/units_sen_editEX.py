@@ -552,128 +552,252 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
     return sentences_data
 
 def get_retrieval_train_batch_word(sentences, titles, sections, bm25_title, bm25_section, wo_re=False):
-    sentences_data = []
-    for sentence in tqdm(sentences):
-        src_sentence = sentence['src_st']
-        src_sentence_ori = copy.copy(src_sentence)
-        tar_sentence = sentence['tar_st']
-        key_list = []
-        temp_keys = sentence['data']
-        temp_keys = sorted(temp_keys, key=lambda x: len(x['origin']), reverse=True)
-        used = []
-        if wo_re:
-            temp_keys = []
-        for key in temp_keys:
-            flag = False
-            for key_used in used:
-                if key['origin'] in key_used:
-                    flag = True
-                    break
-            if flag:
-                continue
-            region = re.search(key['origin'], src_sentence)
-            if region is not None:
-                region = region.regs[0]
-            else:
-                region = (0, 0)
-            if region[0] != 0 or region[1] != 0:
-                src_sentence = src_sentence[0:region[0]] + '${}$'.format(key['origin']) + '（' + ''.join([' [unused3] ']+[' [MASK] ' for x in range(config.hidden_anno_len_rnn-2)] + [' [unused4] ']) + '）' + src_sentence[region[1]:]
-            regions = [x for x in re.finditer(key['origin'], tar_sentence)]
-            region = None
-            for one in regions:
-                if is_in_annotation(one.regs[0][0], tar_sentence):
+    if is_pure:
+        sentences_data = []
+        for sentence in tqdm(sentences):
+            src_sentence = sentence['src_st']
+            src_sentence_ori = copy.copy(src_sentence)
+            tar_sentence = sentence['tar_st']
+            key_list = []
+            temp_keys = sentence['data']
+            temp_keys = sorted(temp_keys, key=lambda x: len(x['origin']), reverse=True)
+            used = []
+            if wo_re:
+                temp_keys = []
+            for key in temp_keys:
+                flag = False
+                for key_used in used:
+                    if key['origin'] in key_used:
+                        flag = True
+                        break
+                if flag:
                     continue
-                region = one.regs[0]
-                break
-            if region is None and len(regions) == 1:
-                region = regions[0].regs[0]
-            if region is not None:
-                region = region
-            else:
-                region = (0, 0)
-            if region[0] != 0 or region[1] != 0:
-                if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（':
-                    tar_sentence = tar_sentence[0:region[0]] + '${}$（）'.format(key['origin']) + tar_sentence[region[1]:]
-                elif region[1] < len(tar_sentence) and tar_sentence[region[1]] == '（':
-                    annotation = obtain_annotation(tar_sentence, region[1])
-                    if annotation in src_sentence:
+                regions = [x for x in re.finditer(key['origin'], tar_sentence)]
+                region = None
+                for one in regions:
+                    if is_in_annotation(one.regs[0][0], tar_sentence):
+                        continue
+                    region = one.regs[0]
+                    break
+                if region is None and len(regions) == 1:
+                    region = regions[0].regs[0]
+                if region is not None:
+                    region = region
+                else:
+                    region = (0, 0)
+                if region[0] != 0 or region[1] != 0:
+                    if region[1] < len(tar_sentence) and tar_sentence[region[1]] == '（':
+                        annotation = obtain_annotation(tar_sentence, region[1])
+                        if annotation not in src_sentence:
+                            tar_sentence = tar_sentence[0:region[0]] + '${}$'.format(key['origin']) + tar_sentence[
+                                                                                                      region[1]:]
+                            region = re.search(key['origin'], src_sentence)
+                            if region is not None:
+                                region = region.regs[0]
+                            else:
+                                region = (0, 0)
+                            if region[0] != 0 or region[1] != 0:
+                                src_sentence = src_sentence[0:region[0]] + '${}$'.format(key['origin']) + '（' + ''.join(
+                                    [' [unused3] '] + [' [MASK] ' for x in range(config.para_hidden_len - 2)] + [
+                                        ' [unused4] ']) + '）' + src_sentence[region[1]:]
+
+                data_filed = {}
+                data_filed['context'] = sentence['src_st']
+                region_ori = re.search(key['origin'], src_sentence_ori)
+                if region_ori is not None:
+                    region_ori = region_ori.regs[0]
+                    context_key = find_context_sentence(region_ori[0], src_sentence_ori)
+                else:
+                    region_ori = (0, 0)
+                    context_key = '        '
+                if len(context_key) > 100:
+                    context_key = context_key[0:100]
+                if len(key['anno']) == 0:
+                    continue
+                s = time.time()
+                if len(key['rpsecs'][0]) <= 1 or len(key['key']) < 1:
+                    continue
+                data_filed['key'] = key['key']
+                data_filed['ori_key'] = key['origin']
+                data_filed['anno'] = key['anno']
+                data_filed['context'] = context_key
+
+                key_cut = jieba.lcut(key['key'])
+                infer_titles = bm25_title.get_top_n(key_cut, titles, config.infer_title_range)
+                data_filed['title_candidates'] = infer_titles
+                for x in key['rpsecs']:
+                    if len(x) == 0:
+                        x.append('')
+                neg_titles = neg_sample_title(key['key'], [x[-1] for x in key['rpsecs']], titles, config.neg_num)
+                neg_sections = neg_sample_section(key['key'], key['rsecs'], sections, config.neg_num, bm25_section)
+                temp_strong_neg_sections = []
+                for _ in key['rpsecs']:
+                    temp_strong_neg_sections += _
+                neg_sections_strong = neg_sample_strong_section(key['key'], key['rsecs'], temp_strong_neg_sections,
+                                                                config.neg_strong_num, bm25_section)
+                if len(neg_sections_strong) <= 0:
+                    neg_sections_strong.append('                                                            ')
+                # pos_section = key['rsecs'][np.random.randint(len(key['rsecs']))]
+                # pos_title = key['rpsecs'][np.random.randint(len(key['rpsecs']))][-1]
+                data_filed['pos_ans'] = (key['rsecs'], key['rpsecs'])
+                data_filed['neg_title_candidates'] = neg_titles
+                data_filed['neg_section_candidates'] = neg_sections
+                data_filed['sneg_section_candidates'] = neg_sections_strong
+                used.append(key['origin'])
+                e = time.time()
+                if e - s > 5:
+                    print(key['key'])
+                key_list.append(data_filed)
+            src_tokens = config.tokenizer_editplus.tokenize(config.pre_cut(src_sentence))
+            tar_tokens = config.tokenizer_editplus.tokenize(config.pre_cut(tar_sentence))
+            # check
+            '''
+            tar_ids = config.tokenizer.convert_tokens_to_ids(tar_tokens)
+            tar_ids_2 = config.tokenizer(tar_sentence)['input_ids'][1:-1]
+            if tar_ids != tar_ids_2:
+                print('here')
+             '''
+            edit_tokens, edit_tokens_ori = sent2edit(src_tokens, tar_tokens)
+            tar_sentence_clean = tar_sentence.replace('$', '')
+            tar_annos = obtain_annotations(tar_sentence_clean)
+            for tar_anno in tar_annos:
+                tar_sentence_clean = tar_sentence_clean.replace(tar_anno, '')
+            src_sentence_clean = src_sentence_ori.replace('$', '')
+            src_annos = obtain_annotations(src_sentence_clean)
+            for src_anno in src_annos:
+                src_sentence_clean = src_sentence_clean.replace(src_anno, '')
+            if len(tar_sentence_clean) > 2 * len(src_sentence_clean) or len(src_sentence_clean) > 2 * len(
+                    tar_sentence_clean):
+                print('Not a good match')
+                print(src_sentence_clean)
+                print(tar_sentence_clean)
+                continue
+            sentences_data.append({'src_sen': src_sentence, 'src_sen_ori': src_sentence_ori,
+                                   'tar_sen': tar_sentence, 'textid': sentence['textid'], 'key_data': key_list,
+                                   'edit_sen': edit_tokens})
+    else:
+        sentences_data = []
+        for sentence in tqdm(sentences):
+            src_sentence = sentence['src_st']
+            src_sentence_ori = copy.copy(src_sentence)
+            tar_sentence = sentence['tar_st']
+            key_list = []
+            temp_keys = sentence['data']
+            temp_keys = sorted(temp_keys, key=lambda x: len(x['origin']), reverse=True)
+            used = []
+            if wo_re:
+                temp_keys = []
+            for key in temp_keys:
+                flag = False
+                for key_used in used:
+                    if key['origin'] in key_used:
+                        flag = True
+                        break
+                if flag:
+                    continue
+                region = re.search(key['origin'], src_sentence)
+                if region is not None:
+                    region = region.regs[0]
+                else:
+                    region = (0, 0)
+                if region[0] != 0 or region[1] != 0:
+                    src_sentence = src_sentence[0:region[0]] + '${}$'.format(key['origin']) + '（' + ''.join([' [unused3] ']+[' [MASK] ' for x in range(config.hidden_anno_len_rnn-2)] + [' [unused4] ']) + '）' + src_sentence[region[1]:]
+                regions = [x for x in re.finditer(key['origin'], tar_sentence)]
+                region = None
+                for one in regions:
+                    if is_in_annotation(one.regs[0][0], tar_sentence):
+                        continue
+                    region = one.regs[0]
+                    break
+                if region is None and len(regions) == 1:
+                    region = regions[0].regs[0]
+                if region is not None:
+                    region = region
+                else:
+                    region = (0, 0)
+                if region[0] != 0 or region[1] != 0:
+                    if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（':
                         tar_sentence = tar_sentence[0:region[0]] + '${}$（）'.format(key['origin']) + tar_sentence[region[1]:]
+                    elif region[1] < len(tar_sentence) and tar_sentence[region[1]] == '（':
+                        annotation = obtain_annotation(tar_sentence, region[1])
+                        if annotation in src_sentence:
+                            tar_sentence = tar_sentence[0:region[0]] + '${}$（）'.format(key['origin']) + tar_sentence[region[1]:]
+                        else:
+                            tar_sentence = tar_sentence[0:region[0]] + '${}$'.format(key['origin']) + tar_sentence[region[1]:]
                     else:
                         tar_sentence = tar_sentence[0:region[0]] + '${}$'.format(key['origin']) + tar_sentence[region[1]:]
+
+                data_filed = {}
+                data_filed['context'] = sentence['src_st']
+                region_ori = re.search(key['origin'], src_sentence_ori)
+                if region_ori is not None:
+                    region_ori = region_ori.regs[0]
+                    context_key = find_context_sentence(region_ori[0], src_sentence_ori)
                 else:
-                    tar_sentence = tar_sentence[0:region[0]] + '${}$'.format(key['origin']) + tar_sentence[region[1]:]
+                    region_ori = (0, 0)
+                    context_key = '        '
+                if len(context_key) > 100:
+                    context_key = context_key[0:100]
+                if len(key['anno']) == 0:
+                    continue
+                s = time.time()
+                if len(key['rpsecs'][0]) <= 1 or len(key['key']) < 1:
+                    continue
+                data_filed['key'] = key['key']
+                data_filed['ori_key'] = key['origin']
+                data_filed['anno'] = key['anno']
+                data_filed['context'] = context_key
 
-            data_filed = {}
-            data_filed['context'] = sentence['src_st']
-            region_ori = re.search(key['origin'], src_sentence_ori)
-            if region_ori is not None:
-                region_ori = region_ori.regs[0]
-                context_key = find_context_sentence(region_ori[0], src_sentence_ori)
-            else:
-                region_ori = (0, 0)
-                context_key = '        '
-            if len(context_key) > 100:
-                context_key = context_key[0:100]
-            if len(key['anno']) == 0:
+                key_cut = jieba.lcut(key['key'])
+                infer_titles = bm25_title.get_top_n(key_cut, titles, config.infer_title_range)
+                data_filed['title_candidates'] = infer_titles
+                for x in key['rpsecs']:
+                    if len(x) == 0:
+                        x.append('')
+                neg_titles = neg_sample_title(key['key'], [x[-1] for x in key['rpsecs']], titles, config.neg_num)
+                neg_sections = neg_sample_section(key['key'], key['rsecs'], sections, config.neg_num, bm25_section)
+                temp_strong_neg_sections = []
+                for _ in key['rpsecs']:
+                    temp_strong_neg_sections += _
+                neg_sections_strong = neg_sample_strong_section(key['key'], key['rsecs'], temp_strong_neg_sections, config.neg_strong_num, bm25_section)
+                if len(neg_sections_strong) <= 0:
+                    neg_sections_strong.append('                                                            ')
+                #pos_section = key['rsecs'][np.random.randint(len(key['rsecs']))]
+                #pos_title = key['rpsecs'][np.random.randint(len(key['rpsecs']))][-1]
+                data_filed['pos_ans'] = (key['rsecs'], key['rpsecs'])
+                data_filed['neg_title_candidates'] = neg_titles
+                data_filed['neg_section_candidates'] = neg_sections
+                data_filed['sneg_section_candidates'] = neg_sections_strong
+                used.append(key['origin'])
+                e = time.time()
+                if e-s > 5:
+                    print(key['key'])
+                key_list.append(data_filed)
+            src_tokens = config.tokenizer_editplus.tokenize(config.pre_cut(src_sentence))
+            tar_tokens = config.tokenizer_editplus.tokenize(config.pre_cut(tar_sentence))
+            # check
+            '''
+            tar_ids = config.tokenizer.convert_tokens_to_ids(tar_tokens)
+            tar_ids_2 = config.tokenizer(tar_sentence)['input_ids'][1:-1]
+            if tar_ids != tar_ids_2:
+                print('here')
+             '''
+            edit_tokens, edit_tokens_ori = sent2edit(src_tokens, tar_tokens)
+            tar_sentence_clean = tar_sentence.replace('$', '')
+            tar_annos = obtain_annotations(tar_sentence_clean)
+            for tar_anno in tar_annos:
+                tar_sentence_clean = tar_sentence_clean.replace(tar_anno, '')
+            src_sentence_clean = src_sentence_ori.replace('$', '')
+            src_annos = obtain_annotations(src_sentence_clean)
+            for src_anno in src_annos:
+                src_sentence_clean = src_sentence_clean.replace(src_anno, '')
+            if len(tar_sentence_clean)>2*len(src_sentence_clean) or len(src_sentence_clean)>2*len(tar_sentence_clean):
+                print('Not a good match')
+                print(src_sentence_clean)
+                print(tar_sentence_clean)
                 continue
-            s = time.time()
-            if len(key['rpsecs'][0]) <= 1 or len(key['key']) < 1:
-                continue
-            data_filed['key'] = key['key']
-            data_filed['ori_key'] = key['origin']
-            data_filed['anno'] = key['anno']
-            data_filed['context'] = context_key
-
-            key_cut = jieba.lcut(key['key'])
-            infer_titles = bm25_title.get_top_n(key_cut, titles, config.infer_title_range)
-            data_filed['title_candidates'] = infer_titles
-            for x in key['rpsecs']:
-                if len(x) == 0:
-                    x.append('')
-            neg_titles = neg_sample_title(key['key'], [x[-1] for x in key['rpsecs']], titles, config.neg_num)
-            neg_sections = neg_sample_section(key['key'], key['rsecs'], sections, config.neg_num, bm25_section)
-            temp_strong_neg_sections = []
-            for _ in key['rpsecs']:
-                temp_strong_neg_sections += _
-            neg_sections_strong = neg_sample_strong_section(key['key'], key['rsecs'], temp_strong_neg_sections, config.neg_strong_num, bm25_section)
-            if len(neg_sections_strong) <= 0:
-                neg_sections_strong.append('                                                            ')
-            #pos_section = key['rsecs'][np.random.randint(len(key['rsecs']))]
-            #pos_title = key['rpsecs'][np.random.randint(len(key['rpsecs']))][-1]
-            data_filed['pos_ans'] = (key['rsecs'], key['rpsecs'])
-            data_filed['neg_title_candidates'] = neg_titles
-            data_filed['neg_section_candidates'] = neg_sections
-            data_filed['sneg_section_candidates'] = neg_sections_strong
-            used.append(key['origin'])
-            e = time.time()
-            if e-s > 5:
-                print(key['key'])
-            key_list.append(data_filed)
-        src_tokens = config.tokenizer_editplus.tokenize(config.pre_cut(src_sentence))
-        tar_tokens = config.tokenizer_editplus.tokenize(config.pre_cut(tar_sentence))
-        # check
-        '''
-        tar_ids = config.tokenizer.convert_tokens_to_ids(tar_tokens)
-        tar_ids_2 = config.tokenizer(tar_sentence)['input_ids'][1:-1]
-        if tar_ids != tar_ids_2:
-            print('here')
-         '''
-        edit_tokens, edit_tokens_ori = sent2edit(src_tokens, tar_tokens)
-        tar_sentence_clean = tar_sentence.replace('$', '')
-        tar_annos = obtain_annotations(tar_sentence_clean)
-        for tar_anno in tar_annos:
-            tar_sentence_clean = tar_sentence_clean.replace(tar_anno, '')
-        src_sentence_clean = src_sentence_ori.replace('$', '')
-        src_annos = obtain_annotations(src_sentence_clean)
-        for src_anno in src_annos:
-            src_sentence_clean = src_sentence_clean.replace(src_anno, '')
-        if len(tar_sentence_clean)>2*len(src_sentence_clean) or len(src_sentence_clean)>2*len(tar_sentence_clean):
-            print('Not a good match')
-            print(src_sentence_clean)
-            print(tar_sentence_clean)
-            continue
-        sentences_data.append({'src_sen': config.pre_cut(src_sentence), 'src_sen_ori': src_sentence_ori,
-                               'tar_sen': config.pre_cut(tar_sentence), 'textid': sentence['textid'], 'key_data':key_list, 'edit_sen':edit_tokens})
+            sentences_data.append({'src_sen': config.pre_cut(src_sentence), 'src_sen_ori': src_sentence_ori,
+                                   'tar_sen': config.pre_cut(tar_sentence), 'textid': sentence['textid'], 'key_data':key_list, 'edit_sen':edit_tokens})
     return sentences_data
 
 def get_retrieval_train_batch_pure(sentences, titles, sections, bm25_title, bm25_section, wo_re=False):
