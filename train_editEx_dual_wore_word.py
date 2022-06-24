@@ -99,7 +99,7 @@ def build(config):
     encoder.embed_tokens.weight.data[106:] = config.embedding_new[106:]
     tokenizer = config.tokenizer_editplus
     decoder = EditDecoderRNN(config.tokenizer_editplus.vocab_size, 300, config.rnn_dim, n_layers=config.rnn_layer,
-                             embedding=encoder.embed_tokens, output_dim=300)
+                             embedding=encoder.embed_tokens)
     edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
     modeld = edit_nts_ex
     modelp.cuda()
