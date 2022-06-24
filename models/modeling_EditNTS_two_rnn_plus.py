@@ -1,13 +1,4 @@
 import torch.nn as nn
-from transformers.modeling_outputs import (
-    BaseModelOutput,
-    BaseModelOutputWithPastAndCrossAttentions,
-    CausalLMOutputWithCrossAttentions,
-    Seq2SeqLMOutput,
-    Seq2SeqModelOutput,
-    Seq2SeqQuestionAnsweringModelOutput,
-    Seq2SeqSequenceClassifierOutput,
-)
 import torch
 import random
 import torch.nn.functional as F
@@ -17,16 +8,12 @@ from transformers import BertTokenizer
 from models.modeling_bert_ex import BertModel
 bert_model = 'hfl/chinese-bert-wwm-ext'
 tokenizer = BertTokenizer.from_pretrained(bert_model)
-KEEP_ID = tokenizer.vocab['[unused1]']
-DEL_ID = tokenizer.vocab['[unused2]']
-INSERT_ID = tokenizer.vocab['[unused5]']
 MAX_LEN = 768
-STOP_ID = tokenizer.vocab['[SEP]']
-PAD_ID = tokenizer.vocab['[PAD]']
 class EditDecoderRNN(nn.Module):
-    def __init__(self, vocab_size, embedding_dim, hidden_size, n_layers=1, embedding=None, encoder_dim=768):
+    def __init__(self, vocab_size, embedding_dim, hidden_size, n_layers=1, embedding=None, encoder_dim=768, SP_IDS=None):
         super(EditDecoderRNN, self).__init__()
         self.hidden_size = hidden_size
+        self.sp_ids = SP_IDS
         self.embedding_dim = embedding_dim
         self.vocab_size = vocab_size
         self.n_layers = n_layers
@@ -68,9 +55,9 @@ class EditDecoderRNN(nn.Module):
         # predicted_symbol = KEEP -> feed input to RNN_LM
         # predicted_symbol = DEL -> do nothing, return current lm_state
         # predicted_symbol = new word -> feed that word to RNN_LM
-        is_keep = torch.eq(action, KEEP_ID)
-        is_del = torch.eq(action, DEL_ID)
-        is_insert = torch.eq(action, INSERT_ID)
+        is_keep = torch.eq(action, self.sp_ids[0])
+        is_del = torch.eq(action, self.sp_ids[1])
+        is_insert = torch.eq(action, self.sp_ids[2])
         if is_del:
             return lm_state
         elif is_keep: # return lstm with kept word learned in lstm
@@ -110,6 +97,14 @@ class EditDecoderRNN(nn.Module):
         #simp_sent: desired output with out special marking
         #input_edits and simp_sent need to be padded with START
         bsz, nsteps = input_edits.size()
+        KEEP_ID = self.sp_ids[0]
+        DEL_ID = self.sp_ids[1]
+        INSERT_ID = self.sp_ids[2]
+        STOP_ID = self.sp_ids[3]
+        PAD_ID = self.sp_ids[4]
+        LEFT_ID = self.sp_ids[5]
+        RIGHT_ID = self.sp_ids[6]
+        MARK_ID = self.sp_ids[7]
 
         # revisit each word and then decide the action, for each action, do the modification and calculate rouge difference
         use_teacher_forcing = True if random.random() < teacher_forcing_ratio else False
@@ -294,7 +289,7 @@ class EditDecoderRNN(nn.Module):
                 output_edit = self.attn_MLP(output_edit)
                 output_edit = F.log_softmax(self.out(output_edit), dim=-1)
                 if eval:
-                    if c_inds == 8020 or c_inds == 8021 or c_inds==109:
+                    if c_inds == LEFT_ID or c_inds == RIGHT_ID or c_inds==MARK_ID:
                         output_action[:,:, 1] += 1e10
                     if clean_indication is not None:
                         clean_inds = clean_indication.gather(1, inds.view(-1, 1).cuda())
