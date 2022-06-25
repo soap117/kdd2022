@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from config import Config
 config = Config(8)
-from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref, read_clean_data, find_spot_para, mask_actions, operation2sentence_word
+from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref, read_clean_data, find_spot_para, find_UNK, operation2sentence_word
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
 from tqdm import tqdm
@@ -133,7 +133,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
     count_s = -1
     count_p = -1
     data_size = len(train_dataloader)
-    #test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
+    test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
     for epoch in range(config.train_epoch*4):
         torch.cuda.empty_cache()
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, src_sens_ori, tar_sens, cut_list, edit_sens) in zip(
@@ -296,7 +296,8 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             _, action_predictions = torch.max(logits_action, dim=-1)
             _, edit_predictions = torch.max(logits_edit, dim=-1)
             predictions = torch.where(action_predictions != 5, action_predictions, edit_predictions)
-            predictions, predictions_text = operation2sentence_word(predictions, decoder_ids, [tokenizer.tokenize(x) for x in src_sens], tokenizer)
+            tokenized_ori = [find_UNK(x, tokenizer.tokenize(x), tokenizer) for x in src_sens]
+            predictions, predictions_text = operation2sentence_word(predictions, decoder_ids, tokenized_ori, tokenizer)
             results = predictions_text
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]

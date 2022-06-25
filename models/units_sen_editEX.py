@@ -369,6 +369,37 @@ def operation2sentence(operations, input_sentences):
         outputs.append(output)
     return outputs
 
+def find_UNK(ori_sentence, tokenized_sentence, tokenizer):
+    new = []
+    ori_sentence = ori_sentence.split()
+    for i in range(len(ori_sentence)-1, -1, -1):
+        if ori_sentence[i] == '':
+            del ori_sentence[i]
+
+    current_ori_index = 0
+    for token in tokenized_sentence:
+        if token == ori_sentence[current_ori_index]:
+            new.append(token)
+            current_ori_index += 1
+        elif token == ori_sentence[current_ori_index][0:len(token)]:
+            new.append(token)
+            ori_sentence[current_ori_index] = ori_sentence[current_ori_index][len(token):]
+        elif token == '[UNK]':
+            sub_tokens = tokenizer.tokenize(ori_sentence[current_ori_index])
+            pattern = copy.copy(ori_sentence[current_ori_index])
+            for sub_token in sub_tokens:
+                pattern.replace(sub_token, ' ')
+            pattern = pattern.split()
+            for i in range(len(pattern) - 1, -1, -1):
+                if pattern[i] == '':
+                    del pattern[i]
+            UNK_word = pattern[0]
+            new.append(UNK_word)
+            ori_sentence[current_ori_index] = ori_sentence[current_ori_index][len(UNK_word):]
+            if len(ori_sentence[current_ori_index]) == 0:
+                current_ori_index += 1
+    return new
+
 def operation2sentence_word(operations, input_sentences, input_sequences_word, tokenizer):
     operations = operations.cpu().detach().numpy()
     input_sentences = input_sentences.cpu().detach().numpy()
