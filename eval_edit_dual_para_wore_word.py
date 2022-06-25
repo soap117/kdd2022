@@ -3,7 +3,7 @@ from eval_units import *
 import pickle
 
 import torch
-from models.units_sen_editEX import find_spot, operation2sentence_word
+from models.units_sen_editEX import find_spot, operation2sentence_word, find_UNK
 from torch.nn.utils.rnn import pad_sequence
 from cbert.modeling_cbert import BertForTokenClassification
 from transformers import BertTokenizer
@@ -170,6 +170,7 @@ def pipieline(path_from):
         tars.append(tar)
 
     for src, tar in zip(srcs, tars):
+        src = config.pre_cut(src)
         src_ori = copy.copy(src)
         decoder_inputs = tokenizer([src], return_tensors="pt", padding=True, truncation=True)
         decoder_anno_position = []
@@ -201,7 +202,8 @@ def pipieline(path_from):
 
         decoder_inputs = tokenizer([src], return_tensors="pt", padding=True)
         decoder_ids = decoder_inputs['input_ids']
-        predictions, predictions_text = operation2sentence_word(predictions, decoder_ids, tokenizer.tokenize([src]), tokenizer)
+        tokenized_ori = [find_UNK(x, tokenizer.tokenize(x), tokenizer) for x in [src]]
+        predictions, predictions_text = operation2sentence_word(predictions, decoder_ids, tokenized_ori, tokenizer)
         results = predictions_text
         results = [x.replace(' ', '') for x in results]
         results = [x.replace('[PAD]', '') for x in results]

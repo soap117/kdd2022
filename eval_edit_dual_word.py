@@ -321,6 +321,7 @@ def pipieline(path_from):
                                         decoder_input_ids=an_decoder_inputs_ids)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len_rnn]
 
+            src = config.pre_cut(src)
             decoder_inputs = config.tokenizer_editplus([src], return_tensors="pt", padding=True, truncation=True)
             decoder_ids = decoder_inputs['input_ids']
 
