@@ -41,8 +41,8 @@ with open('./data/test/dataset-aligned-para.pkl', 'rb') as f:
 srcs_ = []
 tars_ = []
 for point in data_test:
-    srcs_.append(point[0])
-    tars_.append(point[1])
+    srcs_.append(point[0].lower())
+    tars_.append(point[1].lower())
 save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models_edit_dual_wore.pkl').replace('data/', ''), map_location=config.device)
 save_step1_data = torch.load('./cbert/cache/' + 'best_save.data')
 
