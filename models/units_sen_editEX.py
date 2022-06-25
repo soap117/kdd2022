@@ -387,7 +387,7 @@ def operation2sentence_word(operations, input_sentences, input_sequences_word, t
                     read_index += 1
                 elif op != config.tokenizer.vocab['[SEP]'] and op != config.tokenizer.vocab['[unused2]']:
                     output.append(op)
-                    out_sen += tokenizer.vocab[op]
+                    out_sen += tokenizer.ids_to_token[op]
                     out_sen += ' '
                 elif op == config.tokenizer.vocab['[unused2]']:
                     read_index += 1
