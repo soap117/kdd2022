@@ -205,6 +205,7 @@ def pipieline(path_from):
         tokenized_ori = [find_UNK(x, tokenizer.tokenize(x), tokenizer) for x in [src]]
         predictions, predictions_text = operation2sentence_word(predictions, decoder_ids, tokenized_ori, tokenizer)
         results = predictions_text
+        results.append(src)
         results = [x.replace(' ', '') for x in results]
         results = [x.replace('[PAD]', '') for x in results]
         results = [x.replace('[CLS]', '') for x in results]
