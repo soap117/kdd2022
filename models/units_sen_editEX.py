@@ -378,6 +378,7 @@ def operation2sentence_word(operations, input_sentences, input_sequences_word, t
         out_sen = ''
         read_index = 1
         output = [101]
+        input_sequence_word.append('[SEP]')
         for op in operation:
             if read_index < len(input_sentence):
                 if op == config.tokenizer.vocab['[unused1]']:
