@@ -36,7 +36,7 @@ def obtain_annotation(src, tar):
             t_s += 1
     return annotations
 from models.retrieval import TitleEncoder, PageRanker, SectionRanker
-with open('./data/test/dataset-aligned-para.pkl', 'rb') as f:
+with open('./data/train/dataset-aligned-para.pkl', 'rb') as f:
     data_test = pickle.load(f)
 srcs_ = []
 tars_ = []
@@ -170,7 +170,7 @@ def pipieline(path_from):
         tars.append(tar)
 
     for src, tar in zip(srcs, tars):
-        src = config.pre_cut(src)
+        src = config.pre_cut(src.lower())
         src_ori = copy.copy(src)
         decoder_inputs = tokenizer([src], return_tensors="pt", padding=True, truncation=True)
         decoder_anno_position = []
@@ -194,7 +194,7 @@ def pipieline(path_from):
                                                           hidden_annotation=hidden_annotation,
                                                           input_edits=edit_sens_token_ids,
                                                           input_actions=input_actions, org_ids=None,
-                                                          force_ratio=0.0, clean_indication=clean_indication)
+                                                          force_ratio=0.0, clean_indication=clean_indication, eval=True)
 
         _, action_predictions = torch.max(logits_action, dim=-1)
         _, edit_predictions = torch.max(logits_edit, dim=-1)

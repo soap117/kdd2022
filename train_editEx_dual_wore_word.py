@@ -55,7 +55,7 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    debug_flag = True
+    debug_flag = False
     if not debug_flag and os.path.exists(config.data_file.replace('.pkl', '_train_dataset_edit_purewo_word.pkl')):
         train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset_edit_purewo_word.pkl'))
         valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset_edit_purewo_word.pkl'))
@@ -101,15 +101,13 @@ def build(config):
     SP_IDS = [KEEP_ID, DEL_ID, INSERT_ID, STOP_ID, PAD_ID, LEFT_ID, RIGHT_ID, MARK_ID]
 
     from models.modeling_bart_ex import BartModel, nn, BartLearnedPositionalEmbedding
-    from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus
-    pos_embed = BartLearnedPositionalEmbedding(1024, 768)
-    encoder = BartModel.from_pretrained(config.bert_model).encoder
-    encoder.embed_positions = pos_embed
-    encoder.embed_tokens = nn.Embedding(config.tokenizer_editplus.vocab_size, config.embedding_new.shape[1], encoder.padding_idx)
-    encoder.embed_tokens.weight.data[106:] = config.embedding_new[106:]
+    from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus, EncoderRNN
+    emb_layer = nn.Embedding(config.tokenizer_editplus.vocab_size, 300)
+    emb_layer.weight.data[:] = config.embedding_new[:]
+    encoder = EncoderRNN(config.tokenizer_editplus.vocab_size, 300, 10, 0, 200, 1, emb_layer)
     tokenizer = config.tokenizer_editplus
     decoder = EditDecoderRNN(config.tokenizer_editplus.vocab_size, 300, config.rnn_dim, n_layers=config.rnn_layer,
-                             embedding=encoder.embed_tokens, SP_IDS=SP_IDS)
+                             embedding=emb_layer, SP_IDS=SP_IDS)
     edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
     modeld = edit_nts_ex
     modelp.cuda()
@@ -133,7 +131,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
     count_s = -1
     count_p = -1
     data_size = len(train_dataloader)
-    test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
+    #test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
     for epoch in range(config.train_epoch*4):
         torch.cuda.empty_cache()
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, src_sens_ori, tar_sens, cut_list, edit_sens) in zip(

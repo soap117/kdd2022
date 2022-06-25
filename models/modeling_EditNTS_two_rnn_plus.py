@@ -91,7 +91,7 @@ class EditDecoderRNN(nn.Module):
         return (new_batch_lm_h,new_batch_lm_c)
 
 
-    def forward(self, input_edits, input_actions, encoder_outputs_org, org_ids, simp_sent, teacher_forcing_ratio=1., eval=False, clean_indication=None):
+    def forward(self, input_edits, input_actions, encoder_outputs_org, org_ids, simp_sent, teacher_forcing_ratio=1., eval=False, clean_indication=None, hiddens=None):
         #input_edits: desired output
         #hidden_org initial state
         #simp_sent: desired output with out special marking
@@ -113,9 +113,7 @@ class EditDecoderRNN(nn.Module):
         counter_for_keep_del = np.zeros(bsz, dtype=int)
         counter_for_keep_ins =np.zeros(bsz, dtype=int)
         counter_for_annos = np.zeros(bsz, dtype=int)
-        encoder_outputs_org = F.tanh(self.output_hidden_alignment(encoder_outputs_org))
-        h_0, c_0 = self.initHidden(encoder_outputs_org[:, 0])
-        hidden_org = (h_0, c_0)
+        hidden_org = hiddens
         encoder_outputs_org = encoder_outputs_org[:, 1:]
         # decoder in the training:
 
@@ -375,16 +373,21 @@ class EncoderRNN(nn.Module):
 
         self.rnn = nn.LSTM(embedding_dim+pos_embedding_dim, hidden_size, num_layers=n_layers, batch_first=True, bidirectional=True)
         self.drop = nn.Dropout(dropout)
+        self.h_layer = nn.Sequential(nn.Linear(400, 400), nn.Tanh())
+        self.c_layer = nn.Sequential(nn.Linear(400, 400), nn.Sigmoid())
 
-    def forward(self, input_ids, anno_position, hidden_annotation, hidden):
-        seq_length = torch.sum(input_ids!=0, dim=1)
-
+    def forward(self, input_ids, anno_position, hidden_annotations):
+        seq_length = torch.sum(input_ids!=0, dim=1)-1
         emb = self.embedding(input_ids)
 
-        outputs, encoder_final = self.rnn(emb, hidden)
-        outputs_final = torch.gather(outputs, 0, seq_length)
-
-        return outputs.transpose(0,1), outputs_final[0]
+        outputs, encoder_final = self.rnn(emb)
+        index = seq_length.unsqueeze(-1).unsqueeze(-1)
+        index = index.expand(index.shape[0], index.shape[1], outputs.shape[-1])
+        outputs_final = torch.gather(outputs, 1, index)
+        outputs_final = outputs_final.transpose(0, 1)
+        h = self.h_layer(outputs_final)
+        c = self.c_layer(outputs_final)
+        return outputs, (h, c)
 
 
 class EditPlus(nn.Module):
@@ -393,19 +396,19 @@ class EditPlus(nn.Module):
         self.encoder = encoder
         self.tokenizer = tokenizer
         self.decoder = decoder
-        self.hidden_annotation_alignment = nn.Linear(encoder.config.d_model, encoder.config.d_model, bias=False)
+        #self.hidden_annotation_alignment = nn.Linear(encoder.config.d_model, encoder.config.d_model, bias=False)
 
     def forward(self, input_ids, decoder_input_ids, anno_position, hidden_annotation, input_edits, input_actions, org_ids=None, force_ratio=1.0, eval=False, clean_indication=None):
-        if hidden_annotation is not None:
-            hidden_annotation = self.hidden_annotation_alignment(hidden_annotation)
-        encoder_outputs = self.encoder(
+        #if hidden_annotation is not None:
+        #    hidden_annotation = self.hidden_annotation_alignment(hidden_annotation)
+        encoder_outputs, hiddens = self.encoder(
             input_ids=input_ids,
             anno_position=anno_position,
             hidden_annotations=hidden_annotation,
         )
         decoder_outputs = self.decoder(
-            input_edits=input_edits, input_actions=input_actions, encoder_outputs_org=encoder_outputs[0], org_ids=input_ids[:, 1:],
-            simp_sent=decoder_input_ids, teacher_forcing_ratio=force_ratio, eval=eval, clean_indication=clean_indication
+            input_edits=input_edits, input_actions=input_actions, encoder_outputs_org=encoder_outputs, org_ids=input_ids[:, 1:],
+            simp_sent=decoder_input_ids, teacher_forcing_ratio=force_ratio, eval=eval, clean_indication=clean_indication, hiddens=hiddens
         )
 
         return decoder_outputs
