@@ -684,7 +684,7 @@ class EditDecoderRNNDual(nn.Module):
             output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_org)
 
             embedded_actions = self.embedding(input_actions)
-            output_actions, hidden_actions = self.rnn_edits(embedded_actions, hidden_org)
+            output_actions, hidden_actions = self.rnn_actions(embedded_actions, hidden_org)
 
             embedded_words = self.embedding(simp_sent)
             output_words, hidden_words = self.rnn_words(embedded_words, hidden_org)
@@ -756,7 +756,7 @@ class EditDecoderRNNDual(nn.Module):
             output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_org)
 
             embedded_actions = self.embedding(decoder_input_action)
-            output_actions, hidden_actions = self.rnn_edits(embedded_actions, hidden_org)
+            output_actions, hidden_actions = self.rnn_actions(embedded_actions, hidden_org)
 
             embedded_words = self.embedding(decoder_input_word)
             output_words, hidden_words = self.rnn_words(embedded_words, hidden_org)
@@ -928,7 +928,7 @@ class EditDecoderRNNDualSI(nn.Module):
             output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_org)
 
             embedded_actions = self.embedding(input_edits)
-            output_actions, hidden_actions = self.rnn_edits(embedded_actions, hidden_org)
+            output_actions, hidden_actions = self.rnn_actions(embedded_actions, hidden_org)
 
             embedded_words = self.embedding(simp_sent)
             output_words, hidden_words = self.rnn_words(embedded_words, hidden_org)
@@ -1000,7 +1000,7 @@ class EditDecoderRNNDualSI(nn.Module):
             output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_org)
 
             embedded_actions = self.embedding(decoder_input_edit)
-            output_actions, hidden_actions = self.rnn_edits(embedded_actions, hidden_org)
+            output_actions, hidden_actions = self.rnn_actions(embedded_actions, hidden_org)
 
             embedded_words = self.embedding(decoder_input_word)
             output_words, hidden_words = self.rnn_words(embedded_words, hidden_org)
@@ -1172,7 +1172,7 @@ class EditDecoderRNNDualSICRoss(nn.Module):
             output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_org)
 
             embedded_actions = self.embedding(input_edits)
-            output_actions, hidden_actions = self.rnn_edits(embedded_actions, hidden_org)
+            output_actions, hidden_actions = self.rnn_actions(embedded_actions, hidden_org)
 
             embedded_words = self.embedding(simp_sent)
             output_words, hidden_words = self.rnn_words(embedded_words, hidden_org)
@@ -1244,7 +1244,7 @@ class EditDecoderRNNDualSICRoss(nn.Module):
             output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_org)
 
             embedded_actions = self.embedding(decoder_input_edit)
-            output_actions, hidden_actions = self.rnn_edits(embedded_actions, hidden_org)
+            output_actions, hidden_actions = self.rnn_actions(embedded_actions, hidden_org)
 
             embedded_words = self.embedding(decoder_input_word)
             output_words, hidden_words = self.rnn_words(embedded_words, hidden_org)
