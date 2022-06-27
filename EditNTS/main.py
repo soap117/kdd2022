@@ -100,7 +100,7 @@ def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
 
     best_bleu = -100 # init statistics
     print_loss = []  # Reset every print_every
-    evaluator.evaluate(test_dataset, vocab, edit_net, args)
+    #evaluator.evaluate(test_dataset, vocab, edit_net, args)
     for epoch in range(nepochs):
         # scheduler.step()
         #reload training for every epoch
