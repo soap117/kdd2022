@@ -150,7 +150,7 @@ def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
                 tar_lens = tar_action.ne(0).sum(1).float()+1e-10
                 tar_flat = tar_action.contiguous().view(-1).type(torch.LongTensor).cuda()
                 loss = editnet_criterion(output_action.contiguous().view(-1, 7), tar_flat).contiguous()
-                loss[tar_flat == 1] = 0  # remove loss for UNK
+                loss[(tar_flat == 1)|(tar_flat == 0)] = 0  # remove loss for UNK
                 loss = loss.view(tar.size())
                 loss = loss.sum(1).float()
                 loss = loss / tar_lens
@@ -159,7 +159,7 @@ def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
                 tar_lens = tar_edit.ne(0).sum(1).float()+1e-10
                 tar_flat = tar_edit.contiguous().view(-1).type(torch.LongTensor).cuda()
                 loss = editnet_criterion(output_edit.contiguous().view(-1, vocab.count), tar_flat).contiguous()
-                loss[tar_flat == 1] = 0  # remove loss for UNK
+                loss[(tar_flat == 1)|(tar_flat == 0)] = 0  # remove loss for UNK
                 loss = loss.view(tar.size())
                 loss = loss.sum(1).float()
                 loss = loss / tar_lens
