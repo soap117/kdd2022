@@ -621,7 +621,7 @@ class EditDecoderRNNDual(nn.Module):
 
         self.out_action = nn.Linear(embedding_dim, 7)
         self.out_action.weight.data = self.embedding.weight.data[:7]
-        self.mask = np.zeros((1, self.vocab_size))
+        self.mask = torch.nn.Parameter(torch.zeros((1, self.vocab_size)), requires_grad=False)
         self.mask[:, 0:7] = 1e10
 
     def execute(self, symbol, input, lm_state):
@@ -866,7 +866,7 @@ class EditDecoderRNNDualSI(nn.Module):
 
         self.out_action = nn.Linear(embedding_dim, 7)
         self.out_action.weight.data = self.embedding.weight.data[:7]
-        self.mask = np.zeros((1, self.vocab_size))
+        self.mask = torch.nn.Parameter(torch.zeros((1, self.vocab_size)), requires_grad=False)
         self.mask[:, 0:7] = 1e10
 
     def execute(self, symbol, input, lm_state):
@@ -1112,7 +1112,7 @@ class EditDecoderRNNDualSICRoss(nn.Module):
 
         self.out_action = nn.Linear(embedding_dim, 7)
         self.out_action.weight.data = self.embedding.weight.data[:7]
-        self.mask = np.zeros((1, self.vocab_size))
+        self.mask = torch.nn.Parameter(torch.zeros((1, self.vocab_size)), requires_grad=False)
         self.mask[:, 0:7] = 1e10
 
     def execute(self, symbol, input, lm_state):
@@ -1359,7 +1359,7 @@ class EditDecoderRNNDualCRoss(nn.Module):
 
         self.out_action = nn.Linear(embedding_dim, 7)
         self.out_action.weight.data = self.embedding.weight.data[:7]
-        self.mask = np.zeros((1, self.vocab_size))
+        self.mask = torch.nn.Parameter(torch.zeros((1, self.vocab_size)), requires_grad=False)
         self.mask[:, 0:7] = 1e10
     def execute(self, symbol, input, lm_state):
         """
