@@ -913,8 +913,8 @@ class EditDecoderRNNDualSI(nn.Module):
         return (new_batch_lm_h,new_batch_lm_c)
 
 
-    def forward(self, input_edits, hidden_org,encoder_outputs_org, org_ids, simp_sent,teacher_forcing_ratio=1.):
-        #input_edits and simp_sent need to be padded with START
+    def forward(self, input_edits, hidden_org, encoder_outputs_org, org_ids, simp_sent, teacher_forcing_ratio=1.):
+        # input_edits and simp_sent need to be padded with START
         bsz, nsteps = input_edits.size()
 
         # revisit each word and then decide the action, for each action, do the modification and calculate rouge difference
@@ -922,20 +922,18 @@ class EditDecoderRNNDualSI(nn.Module):
         decoder_edit_out = []
         decoder_action_out = []
         counter_for_keep_del = np.zeros(bsz, dtype=int)
-        counter_for_keep_ins =np.zeros(bsz, dtype=int)
+        counter_for_keep_ins = np.zeros(bsz, dtype=int)
         # decoder in the training:
-        input_actions = torch.zeros_like(input_edits) + INSERT_ID
-        input_actions = torch.where((input_edits!=0)&(input_edits!=1)&(input_edits!=2)&(input_edits!=3)&(input_edits!=4)&(input_edits!=5), input_actions, input_edits)
+        input_actions = input_edits
         if use_teacher_forcing:
             embedded_edits = self.embedding(input_edits)
             output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_org)
 
-            embedded_actions = self.embedding(input_edits)
+            embedded_actions = self.embedding(input_actions)
             output_actions, hidden_actions = self.rnn_actions(embedded_actions, hidden_org)
 
             embedded_words = self.embedding(simp_sent)
             output_words, hidden_words = self.rnn_words(embedded_words, hidden_org)
-
 
             key_org_edits = self.attn_Projection_org(output_edits)  # bsz x nsteps x nhid MIGHT USE WORD HERE
             logits_org = torch.bmm(key_org_edits, encoder_outputs_org.transpose(1, 2))  # bsz x nsteps x encsteps
@@ -947,7 +945,7 @@ class EditDecoderRNNDualSI(nn.Module):
             attn_weights_org_actions = F.softmax(logits_org, dim=-1)  # bsz x nsteps x encsteps
             attn_applied_org_actions = torch.bmm(attn_weights_org_actions, encoder_outputs_org)  # bsz x nsteps x nhid
 
-            for t in range(nsteps-1):
+            for t in range(nsteps - 1):
                 # print(t)
                 decoder_output_edit_t = output_edits[:, t:t + 1, :]
                 attn_applied_org_edit_t = attn_applied_org_edits[:, t:t + 1, :]
@@ -965,21 +963,21 @@ class EditDecoderRNNDualSI(nn.Module):
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), output_words.size(2)).cuda()
                 c_word = output_words.gather(1, dummy)
 
-                output_edit_t = torch.cat((decoder_output_edit_t, attn_applied_org_edit_t, c,c_word),
-                                     2)  # bsz*nsteps x nhid*2
+                output_edit_t = torch.cat((decoder_output_edit_t, attn_applied_org_edit_t, c, c_word),
+                                          2)  # bsz*nsteps x nhid*2
                 output_edit_t = self.attn_MLP_edit(output_edit_t)
-                output_edit_t = F.log_softmax(self.out_edit(output_edit_t)-self.mask, dim=-1)
+                output_edit_t = F.log_softmax(self.out_edit(output_edit_t) - self.mask, dim=-1)
                 decoder_edit_out.append(output_edit_t)
 
                 output_action_t = torch.cat((decoder_output_action_t, attn_applied_org_action_t, c, c_word),
-                                          2)  # bsz*nsteps x nhid*2
+                                            2)  # bsz*nsteps x nhid*2
                 output_action_t = self.attn_MLP_action(output_action_t)
                 output_action_t = F.log_softmax(self.out_action(output_action_t), dim=-1)
                 decoder_action_out.append(output_action_t)
 
                 # interpreter's output from lm
                 gold_action = input_edits[:, t + 1].data.cpu().numpy()  # might need to realign here because start added
-                counter_for_keep_del = [i[0] + 1 if i[1] == 2 or i[1] == 3  else i[0]
+                counter_for_keep_del = [i[0] + 1 if i[1] == 2 or i[1] == 3 else i[0]
                                         for i in zip(counter_for_keep_del, gold_action)]
                 counter_for_keep_ins = [i[0] + 1 if i[1] != DEL_ID and i[1] != STOP_ID and i[1] != PAD_ID else i[0]
                                         for i in zip(counter_for_keep_ins, gold_action)]
@@ -992,17 +990,17 @@ class EditDecoderRNNDualSI(nn.Module):
                     break
 
 
-        else: # no teacher forcing
+        else:  # no teacher forcing
             decoder_input_edit = input_edits[:, :1]
             decoder_input_action = input_actions[:, :1]
-            decoder_input_word = simp_sent[:,:1]
-            t, tt = 0, max(MAX_LEN,input_edits.size(1)-1)
+            decoder_input_word = simp_sent[:, :1]
+            t, tt = 0, max(MAX_LEN, input_edits.size(1) - 1)
 
             # initialize
             embedded_edits = self.embedding(decoder_input_edit)
             output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_org)
 
-            embedded_actions = self.embedding(decoder_input_edit)
+            embedded_actions = self.embedding(decoder_input_action)
             output_actions, hidden_actions = self.rnn_actions(embedded_actions, hidden_org)
 
             embedded_words = self.embedding(decoder_input_word)
@@ -1015,10 +1013,10 @@ class EditDecoderRNNDualSI(nn.Module):
             # c_word = output_words.gather(1, dummy)
 
             while t < tt:
-                if t>0:
+                if t > 0:
                     embedded_edits = self.embedding(decoder_input_edit)
                     output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_edits)
-                    embedded_actions = self.embedding(decoder_input_edit)
+                    embedded_actions = self.embedding(decoder_input_action)
                     output_actions, hidden_actions = self.rnn_actions(embedded_actions, hidden_actions)
 
                 key_org_edits = self.attn_Projection_org(output_edits)  # bsz x nsteps x nhid
@@ -1038,9 +1036,9 @@ class EditDecoderRNNDualSI(nn.Module):
                 c = encoder_outputs_org.gather(1, dummy)
 
                 output_edit_t = torch.cat((output_edits, attn_applied_org_edit_t, c, hidden_words[0]),
-                                            2)  # bsz*nsteps x nhid*2
+                                          2)  # bsz*nsteps x nhid*2
                 output_edit_t = self.attn_MLP_edit(output_edit_t)
-                output_edit_t = F.log_softmax(self.out_edit(output_edit_t)-self.mask, dim=-1)
+                output_edit_t = F.log_softmax(self.out_edit(output_edit_t) - self.mask, dim=-1)
 
                 decoder_edit_out.append(output_edit_t)
                 decoder_input_edit = torch.argmax(output_edit_t, dim=2)
@@ -1055,10 +1053,10 @@ class EditDecoderRNNDualSI(nn.Module):
 
 
                 # gold_action = input[:, t + 1].vocab_data.cpu().numpy()  # might need to realign here because start added
-                pred_action = torch.argmax(output_action_t,dim=2)
+                pred_action = torch.argmax(output_action_t, dim=2)
                 pred_edit = torch.argmax(output_edit_t, dim=2)
-                pred_edit = torch.where(pred_action != INSERT_ID,  pred_action,
-                                                 pred_edit)
+                pred_edit = torch.where(pred_action != INSERT_ID, pred_action,
+                                        pred_edit)
 
                 counter_for_keep_del = [i[0] + 1 if i[1] == 2 or i[1] == 3 or i[1] == 5 else i[0]
                                         for i in zip(counter_for_keep_del, pred_action)]
