@@ -129,7 +129,7 @@ def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
             simp_ids = prepared_batch[3]
 
             editnet_optimizer.zero_grad()
-            output = edit_net(org, out, org_ids, org_pos, simp_ids, teacher_forcing_ratio=0.0)
+            output = edit_net(org, out, org_ids, org_pos, simp_ids)
             if type(output) is not tuple:
                 ##################calculate loss
                 tar_lens = tar.ne(0).sum(1).float()
