@@ -113,6 +113,7 @@ class EditDecoderRNN(nn.Module):
         counter_for_keep_del = np.zeros(bsz, dtype=int)
         counter_for_keep_ins =np.zeros(bsz, dtype=int)
         counter_for_annos = np.zeros(bsz, dtype=int)
+        encoder_outputs_org = F.tanh(self.output_hidden_alignment(encoder_outputs_org))
         hidden_org = hiddens
         encoder_outputs_org = encoder_outputs_org[:, 1:]
         # decoder in the training:
@@ -377,7 +378,7 @@ class EncoderRNN(nn.Module):
         self.c_layer = nn.Sequential(nn.Linear(400, 400), nn.Sigmoid())
 
     def forward(self, input_ids, anno_position, hidden_annotations):
-        seq_length = torch.sum(input_ids!=0, dim=1)-1
+        seq_length = torch.sum(input_ids!=0, dim=1)
         emb = self.embedding(input_ids)
 
         outputs, encoder_final = self.rnn(emb)
