@@ -113,43 +113,43 @@ class Evaluator():
                     print_loss_tf.append(loss_tf.item())
 
             # the SARI and BLUE is computed based on model.eval without teacher forcing
-            for j in range(output_without_teacher_forcing[0].size()[0]):
                 ## write beam search here
                 # try:
-                if len(output_without_teacher_forcing) == 1:
-                    if True:
-                        example = batch_df.iloc[j]
-                        example_out = output_without_teacher_forcing[j, :, :]
+            if len(output_without_teacher_forcing) == 1:
+                for j in range(output_without_teacher_forcing.size()[0]):
+                    example = batch_df.iloc[j]
+                    example_out = output_without_teacher_forcing[j, :, :]
 
-                        ##GREEDY
-                        pred_action = torch.argmax(example_out, dim=1).view(-1).data.cpu().numpy()
-                        edit_list_in_tokens = data.id2edits(pred_action, vocab)
-                        # ###BEST BEAM
-                        # edit_list_in_tokens = vocab_data.id2edits(best_seq_list[0][1:], vocab)
+                    ##GREEDY
+                    pred_action = torch.argmax(example_out, dim=1).view(-1).data.cpu().numpy()
+                    edit_list_in_tokens = data.id2edits(pred_action, vocab)
+                    # ###BEST BEAM
+                    # edit_list_in_tokens = vocab_data.id2edits(best_seq_list[0][1:], vocab)
 
-                        greedy_decoded_tokens = ' '.join(edit2sent(example['comp_tokens'], edit_list_in_tokens))
-                        greedy_decoded_tokens = greedy_decoded_tokens.split('STOP')[0].split(' ')
-                        # tgt_tokens_translated = [vocab.i2w[i] for i in example['simp_ids']]
-                        sys_out.append(' '.join(greedy_decoded_tokens))
+                    greedy_decoded_tokens = ' '.join(edit2sent(example['comp_tokens'], edit_list_in_tokens))
+                    greedy_decoded_tokens = greedy_decoded_tokens.split('STOP')[0].split(' ')
+                    # tgt_tokens_translated = [vocab.i2w[i] for i in example['simp_ids']]
+                    sys_out.append(' '.join(greedy_decoded_tokens))
 
-                        # prt = True if random.random() < 0.01 else False
-                        # if prt:
-                        #     print('*' * 30)
-                        #     # print('tgt_in_tokens_translated', ' '.join(tgt_tokens_translated))
-                        #     print('ORG', ' '.join(example['comp_tokens']))
-                        #     print('GEN', ' '.join(greedy_decoded_tokens))
-                        #     print('TGT', ' '.join(example['simp_tokens']))
-                        #     print('edit_list_in_tokens',edit_list_in_tokens)
-                        #     print('gold labels', ' '.join(example['edit_labels']))
+                    # prt = True if random.random() < 0.01 else False
+                    # if prt:
+                    #     print('*' * 30)
+                    #     # print('tgt_in_tokens_translated', ' '.join(tgt_tokens_translated))
+                    #     print('ORG', ' '.join(example['comp_tokens']))
+                    #     print('GEN', ' '.join(greedy_decoded_tokens))
+                    #     print('TGT', ' '.join(example['simp_tokens']))
+                    #     print('edit_list_in_tokens',edit_list_in_tokens)
+                    #     print('gold labels', ' '.join(example['edit_labels']))
 
-                        bleu_list.append(cal_bleu_score(greedy_decoded_tokens, example['simp_tokens']))
+                    bleu_list.append(cal_bleu_score(greedy_decoded_tokens, example['simp_tokens']))
 
-                        # calculate sari
-                        comp_string = ' '.join(example['comp_tokens'])
-                        simp_string = ' '.join(example['simp_tokens'])
-                        gen_string = ' '.join(greedy_decoded_tokens)
-                        sari_list.append(SARIsent(comp_string, gen_string, [simp_string]))
-                else:
+                    # calculate sari
+                    comp_string = ' '.join(example['comp_tokens'])
+                    simp_string = ' '.join(example['simp_tokens'])
+                    gen_string = ' '.join(greedy_decoded_tokens)
+                    sari_list.append(SARIsent(comp_string, gen_string, [simp_string]))
+            else:
+                for j in range(output_without_teacher_forcing[0].size()[0]):
                     example = batch_df.iloc[j]
                     output_action, output_edit = output_without_teacher_forcing[0], output_without_teacher_forcing[1]
                     example_out_action = output_action[j, :, :]
