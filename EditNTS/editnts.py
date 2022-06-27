@@ -1869,3 +1869,61 @@ class EditNTS(nn.Module):
         best_seq = best_k_seqs[index]
         best_seq_np=[i.item() for i in best_seq]
         return best_seq_list
+
+class EditNTSDual(nn.Module):
+    def __init__(self, config, n_layers=2):
+        super(EditNTSDual, self).__init__()
+        self.embedding = nn.Embedding(config.vocab_size, config.embedding_dim)
+        if not(config.pretrained_embedding is None):
+            print('load pre-trained embeddings')
+            self.embedding.weight.data.copy_(torch.from_numpy(config.pretrained_embedding))
+        self.embeddingPOS = nn.Embedding(config.pos_vocab_size, config.pos_embedding_dim)
+
+        self.encoder1 = EncoderRNN(config.vocab_size, config.embedding_dim,
+                                   config.pos_vocab_size, config.pos_embedding_dim,
+                                   config.word_hidden_units,
+                                   n_layers,
+                                   self.embedding, self.embeddingPOS)
+
+        self.decoder = EditDecoderRNNDual(config.vocab_size, config.embedding_dim, config.word_hidden_units * 2,
+                                      n_layers, self.embedding)
+
+
+    def forward(self,org,output,org_ids,org_pos,simp_sent,teacher_forcing_ratio=1.0):
+        def transform_hidden(hidden): #for bidirectional encoders
+            h, c = hidden
+            h = torch.cat([h[0], h[1]], dim=1)[None, :, :]
+            c = torch.cat([c[0], c[1]], dim=1)[None, :, :]
+            hidden = (h, c)
+            return hidden
+        hidden_org = self.encoder1.initHidden(org[0].size(0))
+        encoder_outputs_org, hidden_org = self.encoder1(org,org_pos,hidden_org)
+        hidden_org = transform_hidden(hidden_org)
+
+        logp, _ = self.decoder(output, hidden_org, encoder_outputs_org,org_ids,simp_sent,teacher_forcing_ratio)
+        return logp
+
+    def beamsearch(self, org, input_edits,simp_sent,org_ids,org_pos, beam_size=5):
+        def transform_hidden(hidden): #for bidirectional encoders
+            h, c = hidden
+            h = torch.cat([h[0], h[1]], dim=1)[None, :, :]
+            c = torch.cat([c[0], c[1]], dim=1)[None, :, :]
+            hidden = (h, c)
+            return hidden
+        hidden_org = self.encoder1.initHidden(org[0].size(0))
+        encoder_outputs_org, hidden_org = self.encoder1(org,org_pos,hidden_org)
+        hidden_org = transform_hidden(hidden_org)
+
+
+        best_k_seqs, best_k_probs, best_k_hidden_edits, best_k_hidden_words, best_k_counters =\
+            self.decoder.beam_forward(input_edits,simp_sent, hidden_org, encoder_outputs_org,org_ids,beam_size)
+
+        best_seq_list=[]
+        for sq in best_k_seqs:
+            best_seq_list.append([i.item() for i in sq])
+
+        # find final best output
+        index = np.argsort(best_k_probs)[::-1][0]
+        best_seq = best_k_seqs[index]
+        best_seq_np=[i.item() for i in best_seq]
+        return best_seq_list
