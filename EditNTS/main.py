@@ -143,10 +143,10 @@ def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
             else:
                 output_action, output_edit = output[0], output[1]
                 tar_action = torch.zeros_like(tar) + INSERT_ID
-                tar_action = torch.where((tar==0)|(tar==1)|(tar==2)|(tar==3)|(tar==4)|(tar==5), tar, tar_action)
+                tar_action = torch.where((tar==0)|(tar==1)|(tar==2)|(tar==3)|(tar==4)|(tar==5), tar.detach(), tar_action)
                 tar_edit = torch.zeros_like(tar)
                 tar_edit = torch.where((tar == 0) | (tar == 1) | (tar == 2) | (tar == 3) | (tar == 4) | (tar == 5),
-                                         tar_edit, tar)
+                                         tar_edit, tar.detach())
                 tar_lens = tar_action.ne(0).sum(1).float()+1e-10
                 tar_flat = tar_action.contiguous().view(-1).type(torch.LongTensor).cuda()
                 loss = editnet_criterion(output_action.contiguous().view(-1, 7), tar_flat).contiguous()
@@ -271,7 +271,7 @@ def main():
     )
 
     print('init editNTS model')
-    edit_net = EditNTSDual(hps, n_layers=1)
+    edit_net = EditNTS(hps, n_layers=1)
     edit_net.cuda()
 
     if args.load_model is not None:
@@ -285,7 +285,7 @@ def main():
     edit_net, test_rs = training(edit_net, args.epochs, args, vocab)
     test_rs = [x.replace(' ', '') for x in test_rs]
     my_result = {'prds': test_rs}
-    with open('my_results_EditNTS_Dual.pkl', 'wb') as f:
+    with open('my_results_EditNTS.pkl', 'wb') as f:
         pickle.dump(my_result, f)
 
 
