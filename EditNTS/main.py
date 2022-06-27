@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding:utf8
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="2"
+os.environ["CUDA_VISIBLE_DEVICES"]="3"
 import argparse
 import collections
 import logging
@@ -100,7 +100,7 @@ def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
 
     best_bleu = -100 # init statistics
     print_loss = []  # Reset every print_every
-    #evaluator.evaluate(test_dataset, vocab, edit_net, args)
+    evaluator.evaluate(test_dataset, vocab, edit_net, args)
     for epoch in range(nepochs):
         # scheduler.step()
         #reload training for every epoch
@@ -271,7 +271,7 @@ def main():
     )
 
     print('init editNTS model')
-    edit_net = EditNTSDualSI(hps, n_layers=1)
+    edit_net = EditNTSWAT(hps, n_layers=1)
     edit_net.cuda()
 
     if args.load_model is not None:
@@ -285,7 +285,7 @@ def main():
     edit_net, test_rs = training(edit_net, args.epochs, args, vocab)
     test_rs = [x.replace(' ', '') for x in test_rs]
     my_result = {'prds': test_rs}
-    with open('my_results_EditNT_Dual_SI.pkl', 'wb') as f:
+    with open('my_results_EditNT_WAT.pkl', 'wb') as f:
         pickle.dump(my_result, f)
 
 
