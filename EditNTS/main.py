@@ -271,7 +271,7 @@ def main():
     )
 
     print('init editNTS model')
-    edit_net = EditNTSDual(hps, n_layers=1)
+    edit_net = EditNTSDualSI(hps, n_layers=1)
     edit_net.cuda()
 
     if args.load_model is not None:
@@ -285,7 +285,7 @@ def main():
     edit_net, test_rs = training(edit_net, args.epochs, args, vocab)
     test_rs = [x.replace(' ', '') for x in test_rs]
     my_result = {'prds': test_rs}
-    with open('my_results_EditNTS_Dual.pkl', 'wb') as f:
+    with open('my_results_EditNTS_Dual_SI.pkl', 'wb') as f:
         pickle.dump(my_result, f)
 
 
