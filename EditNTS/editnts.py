@@ -621,6 +621,8 @@ class EditDecoderRNNDual(nn.Module):
 
         self.out_action = nn.Linear(embedding_dim, 7)
         self.out_action.weight.data = self.embedding.weight.data[:7]
+        self.mask = np.zeros((1, self.vocab_size))
+        self.mask[:, 0:7] = 1e10
 
     def execute(self, symbol, input, lm_state):
         """
@@ -721,7 +723,7 @@ class EditDecoderRNNDual(nn.Module):
                 output_edit_t = torch.cat((decoder_output_edit_t, attn_applied_org_edit_t, c,c_word),
                                      2)  # bsz*nsteps x nhid*2
                 output_edit_t = self.attn_MLP_edit(output_edit_t)
-                output_edit_t = F.log_softmax(self.out_edit(output_edit_t), dim=-1)
+                output_edit_t = F.log_softmax(self.out_edit(output_edit_t)-self.mask, dim=-1)
                 decoder_edit_out.append(output_edit_t)
 
                 output_action_t = torch.cat((decoder_output_action_t, attn_applied_org_action_t, c, c_word),
@@ -790,22 +792,21 @@ class EditDecoderRNNDual(nn.Module):
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c = encoder_outputs_org.gather(1, dummy)
 
+                output_edit_t = torch.cat((output_edits, attn_applied_org_edit_t, c, hidden_words[0]),
+                                            2)  # bsz*nsteps x nhid*2
+                output_edit_t = self.attn_MLP_edit(output_edit_t)
+                output_edit_t = F.log_softmax(self.out_edit(output_edit_t)-self.mask, dim=-1)
+
+                decoder_edit_out.append(output_edit_t)
+                decoder_input_edit = torch.argmax(output_edit_t, dim=2)
+
                 output_action_t = torch.cat((output_actions, attn_applied_org_action_t, c, hidden_words[0]),
-                                     2)  # bsz*nsteps x nhid*2
+                                            2)  # bsz*nsteps x nhid*2
                 output_action_t = self.attn_MLP_action(output_action_t)
                 output_action_t = F.log_softmax(self.out_action(output_action_t), dim=-1)
 
                 decoder_action_out.append(output_action_t)
                 decoder_input_action = torch.argmax(output_action_t, dim=2)
-
-                output_edit_t = torch.cat((output_edits, attn_applied_org_edit_t, c, hidden_words[0]),
-                                            2)  # bsz*nsteps x nhid*2
-                output_edit_t = self.attn_MLP_edit(output_edit_t)
-                output_edit_t = F.log_softmax(self.out_edit(output_edit_t), dim=-1)
-
-                decoder_edit_out.append(output_edit_t)
-                decoder_input_edit = torch.argmax(output_edit_t, dim=2)
-
 
                 # gold_action = input[:, t + 1].vocab_data.cpu().numpy()  # might need to realign here because start added
                 pred_action = torch.argmax(output_action_t,dim=2)
@@ -865,6 +866,8 @@ class EditDecoderRNNDualSI(nn.Module):
 
         self.out_action = nn.Linear(embedding_dim, 7)
         self.out_action.weight.data = self.embedding.weight.data[:7]
+        self.mask = np.zeros((1, self.vocab_size))
+        self.mask[:, 0:7] = 1e10
 
     def execute(self, symbol, input, lm_state):
         """
@@ -965,7 +968,7 @@ class EditDecoderRNNDualSI(nn.Module):
                 output_edit_t = torch.cat((decoder_output_edit_t, attn_applied_org_edit_t, c,c_word),
                                      2)  # bsz*nsteps x nhid*2
                 output_edit_t = self.attn_MLP_edit(output_edit_t)
-                output_edit_t = F.log_softmax(self.out_edit(output_edit_t), dim=-1)
+                output_edit_t = F.log_softmax(self.out_edit(output_edit_t)-self.mask, dim=-1)
                 decoder_edit_out.append(output_edit_t)
 
                 output_action_t = torch.cat((decoder_output_action_t, attn_applied_org_action_t, c, c_word),
@@ -1034,21 +1037,21 @@ class EditDecoderRNNDualSI(nn.Module):
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c = encoder_outputs_org.gather(1, dummy)
 
+                output_edit_t = torch.cat((output_edits, attn_applied_org_edit_t, c, hidden_words[0]),
+                                            2)  # bsz*nsteps x nhid*2
+                output_edit_t = self.attn_MLP_edit(output_edit_t)
+                output_edit_t = F.log_softmax(self.out_edit(output_edit_t)-self.mask, dim=-1)
+
+                decoder_edit_out.append(output_edit_t)
+                decoder_input_edit = torch.argmax(output_edit_t, dim=2)
+
                 output_action_t = torch.cat((output_actions, attn_applied_org_action_t, c, hidden_words[0]),
-                                     2)  # bsz*nsteps x nhid*2
+                                            2)  # bsz*nsteps x nhid*2
                 output_action_t = self.attn_MLP_action(output_action_t)
                 output_action_t = F.log_softmax(self.out_action(output_action_t), dim=-1)
 
                 decoder_action_out.append(output_action_t)
                 decoder_input_action = torch.argmax(output_action_t, dim=2)
-
-                output_edit_t = torch.cat((output_edits, attn_applied_org_edit_t, c, hidden_words[0]),
-                                            2)  # bsz*nsteps x nhid*2
-                output_edit_t = self.attn_MLP_edit(output_edit_t)
-                output_edit_t = F.log_softmax(self.out_edit(output_edit_t), dim=-1)
-
-                decoder_edit_out.append(output_edit_t)
-                decoder_input_edit = torch.argmax(output_edit_t, dim=2)
 
 
                 # gold_action = input[:, t + 1].vocab_data.cpu().numpy()  # might need to realign here because start added
@@ -1109,6 +1112,8 @@ class EditDecoderRNNDualSICRoss(nn.Module):
 
         self.out_action = nn.Linear(embedding_dim, 7)
         self.out_action.weight.data = self.embedding.weight.data[:7]
+        self.mask = np.zeros((1, self.vocab_size))
+        self.mask[:, 0:7] = 1e10
 
     def execute(self, symbol, input, lm_state):
         """
@@ -1208,13 +1213,13 @@ class EditDecoderRNNDualSICRoss(nn.Module):
 
                 output_edit_t = torch.cat((decoder_output_edit_t, decoder_output_action_t, attn_applied_org_edit_t, c,c_word),
                                      2)  # bsz*nsteps x nhid*2
-                output_edit_t = self.attn_MLP_action(output_edit_t)
-                output_edit_t = F.log_softmax(self.out_edit(output_edit_t), dim=-1)
+                output_edit_t = self.attn_MLP_edit(output_edit_t)
+                output_edit_t = F.log_softmax(self.out_edit(output_edit_t)-self.mask, dim=-1)
                 decoder_edit_out.append(output_edit_t)
 
                 output_action_t = torch.cat((decoder_output_action_t, decoder_output_edit_t, attn_applied_org_action_t, c, c_word),
                                           2)  # bsz*nsteps x nhid*2
-                output_action_t = self.attn_MLP_edit(output_action_t)
+                output_action_t = self.attn_MLP_action(output_action_t)
                 output_action_t = F.log_softmax(self.out_action(output_action_t), dim=-1)
                 decoder_action_out.append(output_action_t)
 
@@ -1278,18 +1283,19 @@ class EditDecoderRNNDualSICRoss(nn.Module):
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c = encoder_outputs_org.gather(1, dummy)
 
-                output_action_t = torch.cat((output_actions, output_edits, attn_applied_org_action_t, c, hidden_words[0]),
-                                     2)  # bsz*nsteps x nhid*2
+                output_edit_t = torch.cat((output_edits, output_actions, attn_applied_org_edit_t, c, hidden_words[0]),
+                                            2)  # bsz*nsteps x nhid*2
+                output_edit_t = self.attn_MLP_edit(output_edit_t)
+                output_edit_t = F.log_softmax(self.out_edit(output_edit_t)-self.mask, dim=-1)
+
+                output_action_t = torch.cat(
+                    (output_actions, output_edits, attn_applied_org_action_t, c, hidden_words[0]),
+                    2)  # bsz*nsteps x nhid*2
                 output_action_t = self.attn_MLP_action(output_action_t)
                 output_action_t = F.log_softmax(self.out_action(output_action_t), dim=-1)
 
                 decoder_action_out.append(output_action_t)
                 decoder_input_action = torch.argmax(output_action_t, dim=2)
-
-                output_edit_t = torch.cat((output_edits, output_actions, attn_applied_org_edit_t, c, hidden_words[0]),
-                                            2)  # bsz*nsteps x nhid*2
-                output_edit_t = self.attn_MLP_edit(output_edit_t)
-                output_edit_t = F.log_softmax(self.out_edit(output_edit_t), dim=-1)
 
                 decoder_edit_out.append(output_edit_t)
                 decoder_input_edit = torch.argmax(output_edit_t, dim=2)
@@ -1353,7 +1359,8 @@ class EditDecoderRNNDualCRoss(nn.Module):
 
         self.out_action = nn.Linear(embedding_dim, 7)
         self.out_action.weight.data = self.embedding.weight.data[:7]
-
+        self.mask = np.zeros((1, self.vocab_size))
+        self.mask[:, 0:7] = 1e10
     def execute(self, symbol, input, lm_state):
         """
         :param symbol: token_id for predicted edit action (in teacher forcing mode, give the true one)
@@ -1452,13 +1459,13 @@ class EditDecoderRNNDualCRoss(nn.Module):
 
                 output_edit_t = torch.cat((decoder_output_edit_t, decoder_output_action_t, attn_applied_org_edit_t, c,c_word),
                                      2)  # bsz*nsteps x nhid*2
-                output_edit_t = self.attn_MLP_action(output_edit_t)
-                output_edit_t = F.log_softmax(self.out_edit(output_edit_t), dim=-1)
+                output_edit_t = self.attn_MLP_edit(output_edit_t)
+                output_edit_t = F.log_softmax(self.out_edit(output_edit_t)-self.mask, dim=-1)
                 decoder_edit_out.append(output_edit_t)
 
                 output_action_t = torch.cat((decoder_output_action_t, decoder_output_edit_t, attn_applied_org_action_t, c, c_word),
                                           2)  # bsz*nsteps x nhid*2
-                output_action_t = self.attn_MLP_edit(output_action_t)
+                output_action_t = self.attn_MLP_action(output_action_t)
                 output_action_t = F.log_softmax(self.out_action(output_action_t), dim=-1)
                 decoder_action_out.append(output_action_t)
 
@@ -1522,21 +1529,23 @@ class EditDecoderRNNDualCRoss(nn.Module):
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c = encoder_outputs_org.gather(1, dummy)
 
-                output_action_t = torch.cat((output_actions, output_edits, attn_applied_org_action_t, c, hidden_words[0]),
-                                     2)  # bsz*nsteps x nhid*2
+
+                output_edit_t = torch.cat((output_edits, output_actions, attn_applied_org_edit_t, c, hidden_words[0]),
+                                            2)  # bsz*nsteps x nhid*2
+                output_edit_t = self.attn_MLP_edit(output_edit_t)
+                output_edit_t = F.log_softmax(self.out_edit(output_edit_t)-self.mask, dim=-1)
+
+                decoder_edit_out.append(output_edit_t)
+                decoder_input_edit = torch.argmax(output_edit_t, dim=2)
+
+                output_action_t = torch.cat(
+                    (output_actions, output_edits, attn_applied_org_action_t, c, hidden_words[0]),
+                    2)  # bsz*nsteps x nhid*2
                 output_action_t = self.attn_MLP_action(output_action_t)
                 output_action_t = F.log_softmax(self.out_action(output_action_t), dim=-1)
 
                 decoder_action_out.append(output_action_t)
                 decoder_input_action = torch.argmax(output_action_t, dim=2)
-
-                output_edit_t = torch.cat((output_edits, output_actions, attn_applied_org_edit_t, c, hidden_words[0]),
-                                            2)  # bsz*nsteps x nhid*2
-                output_edit_t = self.attn_MLP_edit(output_edit_t)
-                output_edit_t = F.log_softmax(self.out_edit(output_edit_t), dim=-1)
-
-                decoder_edit_out.append(output_edit_t)
-                decoder_input_edit = torch.argmax(output_edit_t, dim=2)
 
 
                 # gold_action = input[:, t + 1].vocab_data.cpu().numpy()  # might need to realign here because start added
