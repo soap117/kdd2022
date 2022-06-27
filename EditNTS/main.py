@@ -287,7 +287,7 @@ def main():
     edit_net, test_rs = training(edit_net, args.epochs, args, vocab)
     test_rs = [x.replace(' ', '') for x in test_rs]
     my_result = {'prds': test_rs}
-    with open('my_results_EditNTS_new.pkl', 'wb') as f:
+    with open('my_results_EditNTS_word_att.pkl', 'wb') as f:
         pickle.dump(my_result, f)
 
 
