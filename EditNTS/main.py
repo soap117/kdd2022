@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding:utf8
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="2"
 import argparse
 import collections
 import logging
@@ -14,7 +14,7 @@ import torch.nn as nn
 
 import data
 from checkpoint import Checkpoint
-from editnts import EditNTSDualSI, EditNTSWAT
+from editnts import EditNTSDualSI, EditNTSWAT, EditNTSDualSICross
 from evaluator import Evaluator
 
 PAD = 'PAD' #  This has a vocab id, which is used to represent out-of-vocabulary words [0]
@@ -271,7 +271,7 @@ def main():
     )
 
     print('init editNTS model')
-    edit_net = EditNTSDualSI(hps, n_layers=1)
+    edit_net = EditNTSDualSICross(hps, n_layers=1)
     edit_net.cuda()
 
     if args.load_model is not None:
@@ -285,7 +285,7 @@ def main():
     edit_net, test_rs = training(edit_net, args.epochs, args, vocab)
     test_rs = [x.replace(' ', '') for x in test_rs]
     my_result = {'prds': test_rs}
-    with open('my_results_EditNTS_dual_si.pkl', 'wb') as f:
+    with open('my_results_EditNTS_dual_si_cross.pkl', 'wb') as f:
         pickle.dump(my_result, f)
 
 
