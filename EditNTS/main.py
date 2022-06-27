@@ -2,8 +2,6 @@
 # coding:utf8
 import os
 os.environ["CUDA_VISIBLE_DEVICES"]="0"
-from __future__ import print_function
-
 import argparse
 import collections
 import logging
@@ -131,8 +129,8 @@ def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
             simp_ids = prepared_batch[3]
 
             editnet_optimizer.zero_grad()
-            output = edit_net(org, out, org_ids, org_pos,simp_ids)
-            if len(output) == 1:
+            output = edit_net(org, out, org_ids, org_pos, simp_ids, teacher_forcing_ratio=0.0)
+            if type(output) is not tuple:
                 ##################calculate loss
                 tar_lens = tar.ne(0).sum(1).float()
                 tar_flat = tar.contiguous().view(-1).type(torch.LongTensor).cuda()

@@ -21,7 +21,6 @@ from __future__ import division
 from collections import Counter
 import sys
 from keras.layers import LSTM
-from sktime.transformations.panel.rocket import MiniRocket
 
 def ReadInFile (filename):
     

@@ -548,7 +548,7 @@ class EditDecoderRNNWA(nn.Module):
                     embedded_edits = self.embedding(decoder_input_edit)
                     output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_edits)
 
-                key_org = self.attn_Projection_org(hidden_words[0])  # bsz x nsteps x nhid
+                key_org = self.attn_Projection_org(hidden_words[0].transpose(0, 1))  # bsz x nsteps x nhid
                 logits_org = torch.bmm(key_org, encoder_outputs_org.transpose(1, 2))  # bsz x nsteps x encsteps
                 attn_weights_org_t = F.softmax(logits_org, dim=-1)  # bsz x nsteps x encsteps
                 attn_applied_org_t = torch.bmm(attn_weights_org_t, encoder_outputs_org)  # bsz x nsteps x nhid
@@ -1342,7 +1342,7 @@ class EditNTS(nn.Module):
                                    self.embedding, self.embeddingPOS)
 
         self.decoder = EditDecoderRNNWA(config.vocab_size, config.embedding_dim, config.word_hidden_units * 2,
-                                      n_layers, self.embedding
+                                      n_layers, self.embedding)
 
 
     def forward(self,org,output,org_ids,org_pos,simp_sent,teacher_forcing_ratio=1.0):
