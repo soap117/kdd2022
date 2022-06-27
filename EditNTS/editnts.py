@@ -991,16 +991,15 @@ class EditDecoderRNNDualSI(nn.Module):
 
 
         else:  # no teacher forcing
-            decoder_input_edit = input_edits[:, :1]
-            decoder_input_action = input_actions[:, :1]
+            decoder_input_action_edit = input_edits[:, :1]
             decoder_input_word = simp_sent[:, :1]
             t, tt = 0, max(MAX_LEN, input_edits.size(1) - 1)
 
             # initialize
-            embedded_edits = self.embedding(decoder_input_edit)
+            embedded_edits = self.embedding(decoder_input_action_edit)
             output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_org)
 
-            embedded_actions = self.embedding(decoder_input_action)
+            embedded_actions = self.embedding(decoder_input_action_edit)
             output_actions, hidden_actions = self.rnn_actions(embedded_actions, hidden_org)
 
             embedded_words = self.embedding(decoder_input_word)
@@ -1014,9 +1013,9 @@ class EditDecoderRNNDualSI(nn.Module):
 
             while t < tt:
                 if t > 0:
-                    embedded_edits = self.embedding(decoder_input_edit)
+                    embedded_edits = self.embedding(decoder_input_action_edit)
                     output_edits, hidden_edits = self.rnn_edits(embedded_edits, hidden_edits)
-                    embedded_actions = self.embedding(decoder_input_action)
+                    embedded_actions = self.embedding(decoder_input_action_edit)
                     output_actions, hidden_actions = self.rnn_actions(embedded_actions, hidden_actions)
 
                 key_org_edits = self.attn_Projection_org(output_edits)  # bsz x nsteps x nhid
@@ -1050,6 +1049,8 @@ class EditDecoderRNNDualSI(nn.Module):
 
                 decoder_action_out.append(output_action_t)
                 decoder_input_action = torch.argmax(output_action_t, dim=2)
+                decoder_input_action_edit = torch.where(decoder_input_action != INSERT_ID, decoder_input_action,
+                                        decoder_input_edit)
 
 
                 # gold_action = input[:, t + 1].vocab_data.cpu().numpy()  # might need to realign here because start added
