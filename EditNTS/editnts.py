@@ -1341,7 +1341,7 @@ class EditNTS(nn.Module):
                                    n_layers,
                                    self.embedding, self.embeddingPOS)
 
-        self.decoder = EditDecoderRNNWA(config.vocab_size, config.embedding_dim, config.word_hidden_units * 2,
+        self.decoder = EditDecoderRNNDualSI(config.vocab_size, config.embedding_dim, config.word_hidden_units * 2,
                                       n_layers, self.embedding)
 
 
