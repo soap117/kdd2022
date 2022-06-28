@@ -303,7 +303,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             print('New Test Loss D:%f' % (d_eval_loss))
             state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(), 'modele': modele.state_dict(), 'modeld': modeld.state_dict(),
                      'eval_rs': eval_ans}
-            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_edit_dual_pure_plus_word.pkl').replace('data/', ''))
+            torch.save(state, './results/' + config.data_file.replace('.pkl', '_models_edit_word.pkl').replace('data/', ''))
             min_loss_d = d_eval_loss
             for one, one_g in zip(eval_ans[0:5], grand_ans[0:5]):
                 print(one)
@@ -374,7 +374,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
                 infer_title_candidates_pured.append(temp)
                 infer_section_candidates_pured.append(temp2_pured)
 
-            mapping = torch.FloatTensor(mapping_title).to("cuda:1")
+            mapping = torch.FloatTensor(mapping_title).to("cuda:0")
             scores_title = scores_title.unsqueeze(1)
             scores_title = scores_title.matmul(mapping).squeeze(1)
             rs_scores = models(query_embedding, infer_section_candidates_pured, is_infer=True)
@@ -393,7 +393,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
                 temp = ' [SEP] '.join(temp)
                 reference.append(temp[0:config.maxium_sec])
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
-            reference_ids = inputs_ref['input_ids'].to("cuda:1")
+            reference_ids = inputs_ref['input_ids'].to("cuda:0")
 
             an_decoder_input = ' '.join(['[MASK]' for x in range(100)])
             an_decoder_inputs = [an_decoder_input for x in reference_ids]
