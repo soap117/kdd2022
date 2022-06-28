@@ -255,7 +255,7 @@ class EditDecoderRNN(nn.Module):
                         output_t[:, :, 2] += 1e5
                         ins_flag = 0
                     c_inds = org_ids.gather(1, inds.view(-1, 1).cuda())
-                    if c_inds == 8020 or c_inds == 109 or c_inds == 8021:
+                    if c_inds == 111 or c_inds == 109 or c_inds == 10:
                         output_t[:,:, 1] += 1e5
                 decoder_out.append(output_t)
                 decoder_input_edit=torch.argmax(output_t,dim=2)
