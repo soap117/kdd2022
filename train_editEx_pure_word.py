@@ -3,7 +3,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '0, 1'
 import torch
 import torch.nn as nn
 from config import Config
-config = Config(1)
+config = Config(4)
 from models.units_sen_editEX import MyData, get_decoder_att_map, mask_ref, read_clean_data, find_spot_para, find_UNK, operation2sentence_word
 from torch.utils.data import DataLoader
 from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
@@ -55,7 +55,7 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    debug_flag = True
+    debug_flag = False
     if not debug_flag and os.path.exists(config.data_file.replace('.pkl', '_train_dataset_edit_pure_word.pkl')):
         train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset_edit_pure_word.pkl'))
         valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset_edit_pure_word.pkl'))
@@ -103,7 +103,7 @@ def build(config):
     from models.modeling_bart_ex import BartModel, nn, BartLearnedPositionalEmbedding
     from models.modeling_EditNTS import EditDecoderRNN, EditPlus
     pos_embed = BartLearnedPositionalEmbedding(1024, 768)
-    encoder = BartModel.from_pretrained(config.bert_model, encoder_layers=3).encoder
+    encoder = BartModel.from_pretrained(config.bert_model).encoder
     encoder.embed_positions = pos_embed
     encoder.embed_tokens = nn.Embedding(config.tokenizer_editplus.vocab_size, config.embedding_new.shape[1],
                                         encoder.padding_idx)
@@ -113,9 +113,9 @@ def build(config):
                              embedding=encoder.embed_tokens)
     edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
     modeld = edit_nts_ex
-    modelp.to("cuda:0")
-    models.to("cuda:0")
-    modele.to("cuda:0")
+    modelp.to("cuda:1")
+    models.to("cuda:1")
+    modele.to("cuda:1")
     modeld.cuda()
     modelp.train()
     models.train()
@@ -174,7 +174,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 infer_title_candidates_pured.append(temp)
                 infer_section_candidates_pured.append(temp2_pured)
 
-            mapping = torch.FloatTensor(mapping_title).to("cuda:0")
+            mapping = torch.FloatTensor(mapping_title).to("cuda:1")
             scores_title = scores_title.unsqueeze(1)
             scores_title = scores_title.matmul(mapping).squeeze(1)
             rs_scores = models(query_embedding, infer_section_candidates_pured, is_infer=True)
@@ -191,7 +191,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 reference.append(temp[0:config.maxium_sec])
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
             reference_ids = inputs_ref['input_ids']
-            reference_ids = mask_ref(reference_ids, tokenizer).to("cuda:0")
+            reference_ids = mask_ref(reference_ids, tokenizer).to("cuda:1")
 
             an_decoder_input = ' '.join(['[MASK]' for x in range(config.para_hidden_len)])
             an_decoder_inputs = [an_decoder_input for x in reference_ids]
@@ -201,7 +201,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix,
-                                        decoder_input_ids=an_decoder_inputs_ids.to("cuda:0"))
+                                        decoder_input_ids=an_decoder_inputs_ids.to("cuda:1"))
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len].to("cuda:0")
 
             decoder_inputs = config.tokenizer_editplus(src_sens, return_tensors="pt", padding=True, truncation=True)
@@ -401,7 +401,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix,
-                                        decoder_input_ids=an_decoder_inputs_ids.to("cuda:0"))
+                                        decoder_input_ids=an_decoder_inputs_ids.to("cuda:1"))
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len].to("cuda:0")
 
             decoder_inputs = config.tokenizer_editplus(src_sens, return_tensors="pt", padding=True, truncation=True)
