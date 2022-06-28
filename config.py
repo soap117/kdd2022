@@ -7,10 +7,10 @@ import jieba as sjieba
 import numpy as np
 
 def pre_cut(text):
-    temp = ' '.join(sjieba.lcut(text))
-    temp = temp.replace('[ MASK ]', '[MASK]')
-    temp = temp.replace('[ CLS ]', '[CLS]')
-    temp = temp.replace('[ SEP ]', '[SEP]')
+    temp = ' '.join(sjieba.lcut(text.lower()))
+    temp = temp.replace('[ mask ]', '[MASK]')
+    temp = temp.replace('[ cls ]', '[CLS]')
+    temp = temp.replace('[ sep ]', '[SEP]')
     temp = temp.replace('[ unused1 ]', '[unused1]')
     temp = temp.replace('[ unused2 ]', '[unused2]')
     temp = temp.replace('[ unused3 ]', '[unused3]')
@@ -40,7 +40,6 @@ def modify_tokenizer():
     tokenizer.is_pretokenized = True
     tokenizer.tokenize_chinese_chars = True
     tokenizer.do_basic_tokenize = False
-    tokenizer.do_lower_case = True
     print("Loading Glove embeddings")
     embed_size = 300
     with open('./tokenizer/sgns.wiki.word', 'r', encoding='UTF-8') as f:
