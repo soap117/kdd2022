@@ -36,7 +36,7 @@ def obtain_annotation(src, tar):
             t_s += 1
     return annotations
 from models.retrieval import TitleEncoder, PageRanker, SectionRanker
-with open('./data/train/dataset-aligned-para.pkl', 'rb') as f:
+with open('../data/train/dataset-aligned-para.pkl', 'rb') as f:
     data_test = pickle.load(f)
 srcs_ = []
 tars_ = []
@@ -229,10 +229,10 @@ def pipieline(path_from):
 
     result_final = {'srcs': srcs, 'prds': eval_ans, 'tars': eval_gt, 'scores': record_scores,
                     'reference': record_references}
-    with open('./data/test/my_results_edit_para_dual_wo.pkl', 'wb') as f:
+    with open('../data/test/my_results_edit_para_dual_wo.pkl', 'wb') as f:
         pickle.dump(result_final, f)
 
 
 
 
-pipieline('./data/test')
+pipieline('../data/test')

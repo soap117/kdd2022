@@ -744,8 +744,8 @@ def get_retrieval_train_batch_word(sentences, titles, sections, bm25_title, bm25
                 print(src_sentence_clean)
                 print(tar_sentence_clean)
                 continue
-            sentences_data.append({'src_sen': config.pre_cut(src_sentence.lower()), 'src_sen_ori': src_sentence_ori,
-                                   'tar_sen': config.pre_cut(tar_sentence.lower()), 'textid': sentence['textid'], 'key_data': key_list,
+            sentences_data.append({'src_sen': config.pre_cut(src_sentence), 'src_sen_ori': src_sentence_ori,
+                                   'tar_sen': config.pre_cut(tar_sentence), 'textid': sentence['textid'], 'key_data': key_list,
                                    'edit_sen': edit_tokens})
     else:
         sentences_data = []
@@ -868,8 +868,8 @@ def get_retrieval_train_batch_word(sentences, titles, sections, bm25_title, bm25
                 print(src_sentence_clean)
                 print(tar_sentence_clean)
                 continue
-            sentences_data.append({'src_sen': config.pre_cut(src_sentence.lower()), 'src_sen_ori': src_sentence_ori,
-                                   'tar_sen': config.pre_cut(tar_sentence.lower()), 'textid': sentence['textid'], 'key_data':key_list, 'edit_sen':edit_tokens})
+            sentences_data.append({'src_sen': config.pre_cut(src_sentence), 'src_sen_ori': src_sentence_ori,
+                                   'tar_sen': config.pre_cut(tar_sentence), 'textid': sentence['textid'], 'key_data':key_list, 'edit_sen':edit_tokens})
     return sentences_data
 
 def get_retrieval_train_batch_pure(sentences, titles, sections, bm25_title, bm25_section, wo_re=False):

@@ -9,6 +9,7 @@ from tqdm import tqdm
 from datasets import load_metric
 bert_model = 'hfl/chinese-bert-wwm-ext'
 tokenizer = BertTokenizer.from_pretrained(bert_model)
+tokenizer.model_max_length = 512
 BertScoreModel = BertModel.from_pretrained(bert_model)
 BertScoreModel.cuda()
 BertScoreModel.eval()
@@ -151,7 +152,7 @@ def count_bleu_score(candidate, reference):
             print(candidate[k])
             print(reference[k])
     return avg_score
-results = pickle.load(open('../data/test/my_results_EditNT_Dual_SI.pkl', 'rb'))
+results = pickle.load(open('../data/test/my_results_EditNT_WAT.pkl', 'rb'))
 results_temp = pickle.load(open('../data/test/my_results_bart.pkl', 'rb'))
 if 'srcs' not in results:
     results['srcs'] = results_temp['srcs']

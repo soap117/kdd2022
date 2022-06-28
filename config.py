@@ -40,6 +40,7 @@ def modify_tokenizer():
     tokenizer.is_pretokenized = True
     tokenizer.tokenize_chinese_chars = True
     tokenizer.do_basic_tokenize = False
+    tokenizer.do_lower_case = True
     print("Loading Glove embeddings")
     embed_size = 300
     with open('./tokenizer/sgns.wiki.word', 'r', encoding='UTF-8') as f:

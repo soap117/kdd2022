@@ -1,4 +1,4 @@
-import cuda2
+import cuda3
 from eval_units import *
 import pickle
 
@@ -36,15 +36,15 @@ def obtain_annotation(src, tar):
             t_s += 1
     return annotations
 from models.retrieval import TitleEncoder, PageRanker, SectionRanker
-with open('./data/test/dataset-aligned-para.pkl', 'rb') as f:
+with open('../data/test/dataset-aligned-para.pkl', 'rb') as f:
     data_test = pickle.load(f)
 srcs_ = []
 tars_ = []
 for point in data_test:
     srcs_.append(point[0])
     tars_.append(point[1])
-save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models_edit_dual_pure_plus.pkl').replace('data/', ''), map_location=config.device)
-save_step1_data = torch.load('./cbert/cache/' + 'best_save_new.data')
+save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models_edit_dual.pkl').replace('data/', ''), map_location=config.device)
+save_step1_data = torch.load('./cbert/cache/' + 'best_save.data')
 
 
 bert_model = 'hfl/chinese-bert-wwm-ext'
@@ -68,7 +68,7 @@ modele.load_state_dict(save_data['modele'])
 modele.cuda()
 modele.eval()
 from models.modeling_bart_ex import BartModel, BartLearnedPositionalEmbedding
-from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus
+from models.modeling_EditNTS_two_rnn import EditDecoderRNN, EditPlus
 bert_model = config.bert_model
 pos_embed = BartLearnedPositionalEmbedding(1024, 768)
 encoder = BartModel.from_pretrained(config.bert_model, encoder_layers=3).encoder
@@ -128,8 +128,46 @@ def fix_stop(tar):
     tar = tar.replace('\n', '。')
     return tar
 import copy
+def pre_process_sentence(src, tar, keys):
+    src = '。'.join(src)
+    src = re.sub('\*\*', '', src)
+    src = src.replace('(', '（')
+    src = src.replace('$', '')
+    src = src.replace(')', '）')
+    src = src.replace('\n', '').replace('。。', '。')
+    src = fix_stop(src)
+    tar = re.sub('\*\*', '', tar)
+    tar = tar.replace('\n', '').replace('。。', '。')
+    tar = tar.replace('(', '（')
+    tar = tar.replace(')', '）')
+    tar = tar.replace('$', '')
+    tar = fix_stop(tar)
+    src_sentence = src.split('。')
+    tar_sentence = tar.split('。')
+    for key in keys:
+        region = re.search(key, src)
+        if region is not None:
+            region = region.regs[0]
+        else:
+            region = (0, 0)
+        if region[0] != 0 or region[1] != 0:
+            src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key) + ''.join(
+                [' [MASK] ' for x in range(config.hidden_anno_len_rnn)]) + src_sentence[region[1]:]
+        region = re.search(key, tar_sentence)
+        if region is not None:
+            region = region.regs[0]
+        else:
+            region = (0, 0)
+        if region[0] != 0 or region[1] != 0:
+            if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（' and region[1] + 1 < len(
+                    tar_sentence) and tar_sentence[region[1] + 1] != '（' and region[1] + 2 < len(tar_sentence) and \
+                    tar_sentence[region[1] + 2] != '（':
+                tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key) + tar_sentence[region[1]:]
+            else:
+                tar_sentence = tar_sentence[0:region[0]] + ' ${}$ '.format(key) + tar_sentence[region[1]:]
+    src = src_sentence
+    return src, tar_sentence, tar
 import json
-
 def pipieline(path_from):
     eval_ans = []
     eval_gt = []
@@ -351,10 +389,10 @@ def pipieline(path_from):
 
     result_final = {'srcs': srcs, 'prds': eval_ans, 'tars': eval_gt, 'scores': record_scores,
                     'reference': record_references}
-    with open('./data/test/my_results_edit_para_dual_pure_plus.pkl', 'wb') as f:
+    with open('../data/test/my_results_edit_para_dual.pkl', 'wb') as f:
         pickle.dump(result_final, f)
 
 
 
 
-pipieline('./data/test')
+pipieline('../data/test')

@@ -36,14 +36,14 @@ def obtain_annotation(src, tar):
             t_s += 1
     return annotations
 from models.retrieval import TitleEncoder, PageRanker, SectionRanker
-with open('./data/test/dataset-aligned-para.pkl', 'rb') as f:
+with open('../data/test/dataset-aligned-para.pkl', 'rb') as f:
     data_test = pickle.load(f)
 srcs_ = []
 tars_ = []
 for point in data_test:
     srcs_.append(point[0])
     tars_.append(point[1])
-save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models_edit_dual.pkl').replace('data/', ''), map_location=config.device)
+save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models_edit_dual_plus.pkl').replace('data/', ''), map_location=config.device)
 save_step1_data = torch.load('./cbert/cache/' + 'best_save.data')
 
 
@@ -68,7 +68,7 @@ modele.load_state_dict(save_data['modele'])
 modele.cuda()
 modele.eval()
 from models.modeling_bart_ex import BartModel, BartLearnedPositionalEmbedding
-from models.modeling_EditNTS_two_rnn import EditDecoderRNN, EditPlus
+from models.modeling_EditNTS_two_rnn_plus import EditDecoderRNN, EditPlus
 bert_model = config.bert_model
 pos_embed = BartLearnedPositionalEmbedding(1024, 768)
 encoder = BartModel.from_pretrained(config.bert_model, encoder_layers=3).encoder
@@ -389,10 +389,10 @@ def pipieline(path_from):
 
     result_final = {'srcs': srcs, 'prds': eval_ans, 'tars': eval_gt, 'scores': record_scores,
                     'reference': record_references}
-    with open('./data/test/my_results_edit_para_dual.pkl', 'wb') as f:
+    with open('../data/test/my_results_edit_para_dual_plus.pkl', 'wb') as f:
         pickle.dump(result_final, f)
 
 
 
 
-pipieline('./data/test')
+pipieline('../data/test')
