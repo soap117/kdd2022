@@ -1,5 +1,5 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ['CUDA_VISIBLE_DEVICES'] = '2,3'
 import torch
 import torch.nn as nn
 from config import Config
@@ -113,9 +113,9 @@ def build(config):
                              embedding=encoder.embed_tokens)
     edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
     modeld = edit_nts_ex
-    modelp.to("cuda:0")
-    models.to("cuda:0")
-    modele.to("cuda:0")
+    modelp.to("cuda:1")
+    models.to("cuda:1")
+    modele.to("cuda:1")
     modeld.cuda()
     modelp.train()
     models.train()
@@ -174,7 +174,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 infer_title_candidates_pured.append(temp)
                 infer_section_candidates_pured.append(temp2_pured)
 
-            mapping = torch.FloatTensor(mapping_title).to("cuda:0")
+            mapping = torch.FloatTensor(mapping_title).to("cuda:1")
             scores_title = scores_title.unsqueeze(1)
             scores_title = scores_title.matmul(mapping).squeeze(1)
             rs_scores = models(query_embedding, infer_section_candidates_pured, is_infer=True)
@@ -191,7 +191,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 reference.append(temp[0:config.maxium_sec])
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
             reference_ids = inputs_ref['input_ids']
-            reference_ids = mask_ref(reference_ids, tokenizer).to("cuda:0")
+            reference_ids = mask_ref(reference_ids, tokenizer).to("cuda:1")
 
             an_decoder_input = ' '.join(['[MASK]' for x in range(config.para_hidden_len)])
             an_decoder_inputs = [an_decoder_input for x in reference_ids]
@@ -201,7 +201,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix,
-                                        decoder_input_ids=an_decoder_inputs_ids.to("cuda:0"))
+                                        decoder_input_ids=an_decoder_inputs_ids.to("cuda:1"))
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len].to("cuda:0")
 
             decoder_inputs = config.tokenizer_editplus(src_sens, return_tensors="pt", padding=True, truncation=True)
@@ -306,14 +306,14 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             for one, one_g in zip(eval_ans[0:5], grand_ans[0:5]):
                 print(one)
                 print(one_g)
-            print('+++++++++++++++++++++++++++++++')
+                print('+++++++++++++++++++++++++++++++')
         else:
             print(count_p, count_s)
             print('New Larger Test Loss D:%f' % (d_eval_loss))
             for one, one_g in zip(eval_ans[0:5], grand_ans[0:5]):
                 print(one)
                 print(one_g)
-            print('+++++++++++++++++++++++++++++++')
+                print('+++++++++++++++++++++++++++++++')
     return state
 
 
@@ -372,7 +372,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
                 infer_title_candidates_pured.append(temp)
                 infer_section_candidates_pured.append(temp2_pured)
 
-            mapping = torch.FloatTensor(mapping_title).to("cuda:0")
+            mapping = torch.FloatTensor(mapping_title).to("cuda:1")
             scores_title = scores_title.unsqueeze(1)
             scores_title = scores_title.matmul(mapping).squeeze(1)
             rs_scores = models(query_embedding, infer_section_candidates_pured, is_infer=True)
@@ -391,7 +391,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
                 temp = ' [SEP] '.join(temp)
                 reference.append(temp[0:config.maxium_sec])
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
-            reference_ids = inputs_ref['input_ids'].to("cuda:0")
+            reference_ids = inputs_ref['input_ids'].to("cuda:1")
 
             an_decoder_input = ' '.join(['[MASK]' for x in range(100)])
             an_decoder_inputs = [an_decoder_input for x in reference_ids]
@@ -434,8 +434,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             results = [x.replace('[CLS]', '') for x in results]
             results = [x.replace('[MASK]', '') for x in results]
             results = [x.split('[SEP]')[0] for x in results]
-            ground_truth = config.tokenizer_editplus.batch_decode(targets)
-            ground_truth = [config.tokenizer_editplus.convert_tokens_to_string(x) for x in ground_truth]
+            ground_truth = tar_sens
             ground_truth = [x.replace(' ', '') for x in ground_truth]
             ground_truth = [x.replace('[PAD]', '') for x in ground_truth]
             ground_truth = [x.replace('[CLS]', '') for x in ground_truth]
@@ -444,8 +443,8 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             #masks[torch.where(targets == 0)] = 0
             eval_ans += results
             eval_gt += ground_truth
-        predictions = [config.tokenizer_editplus.tokenize(doc) for doc in eval_ans]
-        reference = [[config.tokenizer_editplus.tokenize(doc)] for doc in eval_gt]
+        predictions = [config.tokenizer.tokenize(doc) for doc in eval_ans]
+        reference = [[config.tokenizer.tokenize(doc)] for doc in eval_gt]
         bleu_scores = corpus_bleu(reference, predictions,)
         print("Bleu Annotation:%f" % bleu_scores)
         modelp.train()

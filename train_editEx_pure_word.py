@@ -306,14 +306,14 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             for one, one_g in zip(eval_ans[0:5], grand_ans[0:5]):
                 print(one)
                 print(one_g)
-            print('+++++++++++++++++++++++++++++++')
+                print('+++++++++++++++++++++++++++++++')
         else:
             print(count_p, count_s)
             print('New Larger Test Loss D:%f' % (d_eval_loss))
             for one, one_g in zip(eval_ans[0:5], grand_ans[0:5]):
                 print(one)
                 print(one_g)
-            print('+++++++++++++++++++++++++++++++')
+                print('+++++++++++++++++++++++++++++++')
     return state
 
 
@@ -434,8 +434,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             results = [x.replace('[CLS]', '') for x in results]
             results = [x.replace('[MASK]', '') for x in results]
             results = [x.split('[SEP]')[0] for x in results]
-            ground_truth = config.tokenizer_editplus.batch_decode(targets)
-            ground_truth = [config.tokenizer_editplus.convert_tokens_to_string(x) for x in ground_truth]
+            ground_truth = tar_sens
             ground_truth = [x.replace(' ', '') for x in ground_truth]
             ground_truth = [x.replace('[PAD]', '') for x in ground_truth]
             ground_truth = [x.replace('[CLS]', '') for x in ground_truth]
