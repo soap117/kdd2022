@@ -444,8 +444,8 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             #masks[torch.where(targets == 0)] = 0
             eval_ans += results
             eval_gt += ground_truth
-        predictions = [config.tokenizer_editplus.tokenize(doc) for doc in eval_ans]
-        reference = [[config.tokenizer_editplus.tokenize(doc)] for doc in eval_gt]
+        predictions = [config.tokenizer.tokenize(doc) for doc in eval_ans]
+        reference = [[config.tokenizer.tokenize(doc)] for doc in eval_gt]
         bleu_scores = corpus_bleu(reference, predictions,)
         print("Bleu Annotation:%f" % bleu_scores)
         modelp.train()
