@@ -34,7 +34,7 @@ def find_spot(input_ids, querys_ori, tokenizer):
     used_set = set()
     for ori_query in querys_ori:
         flag = False
-        format = '${}$（'.format(ori_query)
+        format = '$ {} $ （'.format(ori_query)
         format_id = tokenizer(format)['input_ids'][1:-1]
         for bid in range(input_ids.shape[0]):
             l = 0

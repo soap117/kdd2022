@@ -323,7 +323,7 @@ def pipieline(path_from):
                                         decoder_input_ids=an_decoder_inputs_ids)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
 
-            decoder_inputs = config.tokenizer_editplus([src], return_tensors="pt", padding=True, truncation=True)
+            decoder_inputs = config.tokenizer_editplus([config.pre_cut(src)], return_tensors="pt", padding=True, truncation=True)
             decoder_ids = decoder_inputs['input_ids']
 
             edit_sens = [['[SEP]']]
@@ -332,7 +332,7 @@ def pipieline(path_from):
             edit_sens_token_ids = pad_sequence(edit_sens_token_ids, batch_first=True, padding_value=0).to(config.device)
             # decoder_edits = tokenizer(edit_sens.replace(' ', ''), return_tensors="pt", padding=True, truncation=True)
             # decoder_ids_edits = decoder_edits['input_ids'].to(config.device)
-
+            querys_ori = [config.pre_cut(x) for x in querys_ori]
             decoder_anno_position = find_spot(decoder_ids, querys_ori, config.tokenizer_editplus)
             decoder_ids = decoder_ids.to(config.device)
             target_ids = config.tokenizer_editplus([src_tar], return_tensors="pt", padding=True, truncation=True)['input_ids'].to(
