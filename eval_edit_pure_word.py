@@ -80,7 +80,7 @@ decoder = EditDecoderRNN(config.tokenizer_editplus.vocab_size, 300, config.rnn_d
                          embedding=encoder.embed_tokens)
 edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
 modeld = edit_nts_ex
-modeld.load_state_dict(save_data['modeld'])
+modeld.load_state_dict(save_data['modeld'], strict=False)
 modeld.cuda()
 modeld.eval()
 
