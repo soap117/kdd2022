@@ -3,7 +3,7 @@ from eval_units import *
 import pickle
 
 import torch
-from models.units_sen_editEX import find_spot, operation2sentence
+from models.units_sen_editEX import find_spot, operation2sentence, find_UNK, operation2sentence_word
 from torch.nn.utils.rnn import pad_sequence
 from cbert.modeling_cbert import BertForTokenClassification
 from transformers import BertTokenizer
@@ -43,8 +43,8 @@ tars_ = []
 for point in data_test:
     srcs_.append(point[0])
     tars_.append(point[1])
-save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models_edit.pkl').replace('data/', ''))
-save_step1_data = torch.load('./cbert/cache/' + 'best_save.data')
+save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models_edit_pure_word.pkl').replace('data/', ''), map_location=config.device)
+save_step1_data = torch.load('./cbert/cache/' + 'best_save_new.data')
 
 
 bert_model = 'hfl/chinese-bert-wwm-ext'
@@ -67,12 +67,17 @@ modele = config.modeld_ann.from_pretrained(config.bert_model)
 modele.load_state_dict(save_data['modele'])
 modele.cuda()
 modele.eval()
-from models.modeling_bart_ex import BartModel
-from models.modeling_EditNTS_plus import EditDecoderRNN, EditPlus
-bert_model = config.bert_model
-encoder = BartModel.from_pretrained(bert_model).encoder
+from models.modeling_bart_ex import BartModel, nn, BartLearnedPositionalEmbedding
+from models.modeling_EditNTS import EditDecoderRNN, EditPlus
+pos_embed = BartLearnedPositionalEmbedding(1024, 768)
+encoder = BartModel.from_pretrained(config.bert_model).encoder
+encoder.embed_positions = pos_embed
+encoder.embed_tokens = nn.Embedding(config.tokenizer_editplus.vocab_size, config.embedding_new.shape[1],
+                                    encoder.padding_idx)
+encoder.embed_tokens.weight.data[106:] = config.embedding_new[106:]
 tokenizer = config.tokenizer
-decoder = EditDecoderRNN(tokenizer.vocab_size, 768, 400, n_layers=1, embedding=encoder.embed_tokens)
+decoder = EditDecoderRNN(config.tokenizer_editplus.vocab_size, 300, config.rnn_dim, n_layers=config.rnn_layer,
+                         embedding=encoder.embed_tokens)
 edit_nts_ex = EditPlus(encoder, decoder, tokenizer)
 modeld = edit_nts_ex
 modeld.load_state_dict(save_data['modeld'])
@@ -209,7 +214,7 @@ def pipieline(path_from):
         logits = outputs.logits
         pre_label_f = np.argmax(logits.detach().cpu().numpy(), axis=2)
         step2_input = obtain_step2_input(pre_label_f[0], src, x_ids[0], step1_tokenizer)
-        context_dic, order_context = mark_sentence(step2_input)
+        context_dic, order_context = mark_sentence_rnn_para(step2_input, src)
         batch_rs = {}
         for context in context_dic.keys():
             querys = context_dic[context][2]
@@ -253,9 +258,7 @@ def pipieline(path_from):
             querys = temp
             if len(querys) == 0:
                 continue
-            contexts = []
-            for query in querys:
-                contexts.append(context)
+            contexts = context[4]
             query_embedding = modelp.query_embeddings(querys, contexts)
             dis_scores = modelp(query_embedding=query_embedding, candidates=infer_titles, is_infer=True)
             rs_title = torch.topk(dis_scores, config.infer_title_select, dim=1)
@@ -314,26 +317,27 @@ def pipieline(path_from):
             an_decoder_inputs = [an_decoder_input for x in reference_ids]
             an_decoder_inputs = tokenizer(an_decoder_inputs, return_tensors="pt", padding=True)
             an_decoder_inputs_ids = an_decoder_inputs['input_ids'].to(config.device)
-
-            decoder_inputs = tokenizer([src], return_tensors="pt", padding=True, truncation=True)
-            decoder_ids = decoder_inputs['input_ids']
-
-            edit_sens = [['[SEP]']]
-            edit_sens_token = [['[CLS]'] + x + ['[SEP]'] for x in edit_sens]
-            edit_sens_token_ids = [torch.LongTensor(tokenizer.convert_tokens_to_ids(x)) for x in edit_sens_token]
-            edit_sens_token_ids = pad_sequence(edit_sens_token_ids, batch_first=True, padding_value=0).to(config.device)
-            # decoder_edits = tokenizer(edit_sens.replace(' ', ''), return_tensors="pt", padding=True, truncation=True)
-            # decoder_ids_edits = decoder_edits['input_ids'].to(config.device)
-
-            decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
-            decoder_ids = decoder_ids.to(config.device)
-            target_ids = tokenizer([src_tar], return_tensors="pt", padding=True, truncation=True)['input_ids'].to(
-                config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix,
                                         decoder_input_ids=an_decoder_inputs_ids)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
+
+            decoder_inputs = config.tokenizer_editplus([src], return_tensors="pt", padding=True, truncation=True)
+            decoder_ids = decoder_inputs['input_ids']
+
+            edit_sens = [['[SEP]']]
+            edit_sens_token = [['[CLS]'] + x + ['[SEP]'] for x in edit_sens]
+            edit_sens_token_ids = [torch.LongTensor(config.tokenizer_editplus.convert_tokens_to_ids(x)) for x in edit_sens_token]
+            edit_sens_token_ids = pad_sequence(edit_sens_token_ids, batch_first=True, padding_value=0).to(config.device)
+            # decoder_edits = tokenizer(edit_sens.replace(' ', ''), return_tensors="pt", padding=True, truncation=True)
+            # decoder_ids_edits = decoder_edits['input_ids'].to(config.device)
+
+            decoder_anno_position = find_spot(decoder_ids, querys_ori, config.tokenizer_editplus)
+            decoder_ids = decoder_ids.to(config.device)
+            target_ids = config.tokenizer_editplus([src_tar], return_tensors="pt", padding=True, truncation=True)['input_ids'].to(
+                config.device)
+
 
             logits, hidden_edits = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids,
                                           anno_position=decoder_anno_position, hidden_annotation=hidden_annotation,
@@ -341,9 +345,11 @@ def pipieline(path_from):
 
             _, predictions = torch.max(logits, dim=-1)
 
-            predictions = operation2sentence(predictions, decoder_ids)
-            results = tokenizer.batch_decode(predictions)
-            results = [tokenizer.convert_tokens_to_string(x) for x in results]
+            tokenized_ori = [find_UNK(x, config.tokenizer_editplus.tokenize(x), config.tokenizer_editplus) for x in
+                             [src]]
+            predictions, predictions_text = operation2sentence_word(predictions, decoder_ids, tokenized_ori,
+                                                                    config.tokenizer_editplus)
+            results = predictions_text
             results.append(src)
             results = [x.replace(' ', '') for x in results]
             results = [x.replace('[PAD]', '') for x in results]

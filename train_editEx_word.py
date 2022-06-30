@@ -55,7 +55,7 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    debug_flag = False
+    debug_flag = True
     if not debug_flag and os.path.exists(config.data_file.replace('.pkl', '_train_dataset_edit_word.pkl')):
         train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset_edit_word.pkl'))
         valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset_edit_word.pkl'))
@@ -427,7 +427,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
 
             targets = target_ids[:, 1:]
             _, predictions = torch.max(logits_edit, dim=-1)
-            tokenized_ori = [find_UNK(x, tokenizer.tokenize(x), tokenizer) for x in src_sens]
+            tokenized_ori = [find_UNK(x, config.tokenizer_editplus.tokenize(x), tokenizer) for x in src_sens]
             predictions, predictions_text = operation2sentence_word(predictions, decoder_ids, tokenized_ori, tokenizer)
             results = predictions_text
             results = [x.replace(' ', '') for x in results]
