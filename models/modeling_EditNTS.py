@@ -48,6 +48,10 @@ class EditDecoderRNN(nn.Module):
                                       nn.Softmax(dim=-1))
         self.out = nn.Linear(embedding_dim, self.vocab_size)
         self.out.weight.data = self.embedding.weight.data[:self.vocab_size]
+        mask = torch.zeros([1, vocab_size], dtype=torch.float64)
+        mask[1, 0:106] = -1e10
+        mask[1, [0, 1, 2, 101, 102]] = 0
+        self.mask = nn.Parameter(mask, requires_grad=False)
 
     def execute(self, symbol, input, lm_state):
         """
@@ -245,6 +249,7 @@ class EditDecoderRNN(nn.Module):
                 output_t = self.attn_MLP(output_t)
                 output_t = F.log_softmax(self.out(output_t), dim=-1)
                 if eval:
+                    output_t = output_t + self.mask
                     decoder_input_edit = torch.argmax(output_t, dim=2)
                     if decoder_input_edit[0] != DEL_ID and  decoder_input_edit[0] != STOP_ID and decoder_input_edit[0] != PAD_ID and decoder_input_edit[0] != KEEP_ID:
                         ins_flag += 1
