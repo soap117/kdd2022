@@ -258,7 +258,7 @@ def pipieline(path_from):
             querys = temp
             if len(querys) == 0:
                 continue
-            contexts = context[4]
+            contexts = context_dic[context][4]
             query_embedding = modelp.query_embeddings(querys, contexts)
             dis_scores = modelp(query_embedding=query_embedding, candidates=infer_titles, is_infer=True)
             rs_title = torch.topk(dis_scores, config.infer_title_select, dim=1)
