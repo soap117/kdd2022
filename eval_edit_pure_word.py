@@ -322,8 +322,8 @@ def pipieline(path_from):
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix,
                                         decoder_input_ids=an_decoder_inputs_ids)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
-
-            decoder_inputs = config.tokenizer_editplus([config.pre_cut(src)], return_tensors="pt", padding=True, truncation=True)
+            src = config.pre_cut(src)
+            decoder_inputs = config.tokenizer_editplus([src], return_tensors="pt", padding=True, truncation=True)
             decoder_ids = decoder_inputs['input_ids']
 
             edit_sens = [['[SEP]']]
