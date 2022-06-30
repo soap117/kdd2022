@@ -49,8 +49,8 @@ class EditDecoderRNN(nn.Module):
         self.out = nn.Linear(embedding_dim, self.vocab_size)
         self.out.weight.data = self.embedding.weight.data[:self.vocab_size]
         mask = torch.zeros([1, vocab_size], dtype=torch.float64)
-        mask[1, 0:106] = -1e10
-        mask[1, [0, 1, 2, 101, 102]] = 0
+        mask[0, 0:106] = -1e10
+        mask[0, [0, 1, 2, 101, 102]] = 0
         self.mask = nn.Parameter(mask, requires_grad=False)
 
     def execute(self, symbol, input, lm_state):
@@ -255,7 +255,7 @@ class EditDecoderRNN(nn.Module):
                         ins_flag += 1
                     else:
                         ins_flag = 0
-                    if ins_flag > 50:
+                    if ins_flag > 20:
                         output_t[:, :, 1] += 1e5
                         output_t[:, :, 2] += 1e5
                         ins_flag = 0
