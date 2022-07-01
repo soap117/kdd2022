@@ -19,6 +19,7 @@ KEEP = 'KEEP' # This has a vocab id, which is used for copying from the source [
 DEL = 'DEL' # This has a vocab id, which is used for deleting the corresponding word [3]
 START = 'START' # this has a vocab id, which is uded for indicating start of the sentence for decoding [4]
 STOP = 'STOP' # This has a vocab id, which is used to stop decoding [5]
+bm25_title = None
 import re
 def remove_lrb(sent_string):
     # sent_string = sent_string.lower()
@@ -124,12 +125,68 @@ def modify_sentence(srcs, tars, query_groups):
             new_tars.append(tar)
         return new_srcs, new_tars
 
+def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
+    input_list = [[],[],[],[],[]]
+    l = 0
+    r = 0
+    while src_ids[r] != step1_tokenizer.vocab['。']:
+        r += 1
+    for c_id in range(len(src_ids)):
+        if src_ids[c_id] == step1_tokenizer.vocab['。']:
+            context = step1_tokenizer.decode(src_ids[l:r]).replace(' ', '').replace('[CLS]', '').replace('[SEP]', '')
+            input_list[4].append((False, context))
+            l = r + 1
+            r = l+1
+            while r<len(src_ids) and src_ids[r] != step1_tokenizer.vocab['。']:
+                r += 1
+        if pre_labels[c_id] == 1:
+            l_k = c_id
+            r_k = l_k+1
+            while r_k<len(pre_labels) and pre_labels[r_k] == 3:
+                r_k += 1
+            templete = src_ids[l_k:r_k]
+            tokens = step1_tokenizer.convert_ids_to_tokens(templete)
+            key = step1_tokenizer.convert_tokens_to_string(tokens).replace(' ', '')
+            context = step1_tokenizer.decode(src_ids[l:r]).replace(' ', '').replace('[CLS]', '').replace('[SEP]', '')
+            key_cut = jieba.lcut(key)
+            infer_titles = bm25_title.get_top_n(key_cut, titles, config.infer_title_range)
+            if len(key) > 0:
+                input_list[0].append(key)
+                input_list[1].append(context)
+                input_list[2].append(infer_titles)
+                input_list[3].append((l_k, r_k))
+    return input_list
+
+def modify_sentence_test(srcs, tars):
+    new_srcs = []
+    new_tars = []
+    query_groups = []
+    for src, tar in zip(srcs, tars):
+        used = set()
+        src_ = step1_tokenizer([src], return_tensors="pt", padding=True, truncation=True)
+        x_ids = src_['input_ids']
+        x_mask = src_['attention_mask']
+        x_indicator = torch.zeros_like(x_ids)
+        outputs = model_step1(x_ids, attention_mask=x_mask, existing_indicates=x_indicator)
+        logits = outputs.logits
+        pre_label_0 = np.argmax(logits.detach().cpu().numpy(), axis=2)
+        x_indicator = obtain_indicator(x_ids[0], pre_label_0[0])
+        x_indicator = torch.LongTensor(x_indicator).unsqueeze(0)
+        outputs = model_step1(x_ids, attention_mask=x_mask, existing_indicates=x_indicator)
+        logits = outputs.logits
+        pre_label_f = np.argmax(logits.detach().cpu().numpy(), axis=2)
+        step2_input = obtain_step2_input(pre_label_f[0], src, x_ids[0], step1_tokenizer)
+        new_srcs.append(src)
+        new_tars.append(tar)
+        query_groups.append(step2_input)
+    return new_srcs, new_tars, query_groups
+
 def process_raw_data(comp_txt, simp_txt, querys_group, key_tran, bm25_title, titles, is_train=True,):
     # querys, querys_ori, querys_context, infer_titles, src_sens, src_sens_ori, tar_sens, edit_sens
     if is_train:
         comp_txt, simp_txt = modify_sentence(comp_txt, simp_txt, querys_group)
     else:
-        comp_txt, simp_txt, querys_group = modify_sentence_test(comp_txt, simp_txt, querys_group)
+        comp_txt, simp_txt, querys_group = modify_sentence_test(comp_txt, simp_txt)
     comp_txt_pos = []
     for line in tqdm(comp_txt):
         comp_txt_pos.append(list(posseg.cut(line)))
