@@ -9,6 +9,8 @@ from tqdm import tqdm
 from label_edits import sent2edit
 import jieba.posseg as posseg
 import torch
+from config import config
+from transformers import BertForTokenClassification, BertTokenizer
 # This script contains the reimplementation of the pre-process steps of the dataset
 # For the editNTS system to run, the dataset need to be in a pandas DataFrame format
 # with columns ['comp_tokens', 'simp_tokens','comp_ids','simp_ids', 'comp_pos_tags', 'comp_pos_ids', edit_labels','new_edit_ids']
@@ -19,8 +21,61 @@ KEEP = 'KEEP' # This has a vocab id, which is used for copying from the source [
 DEL = 'DEL' # This has a vocab id, which is used for deleting the corresponding word [3]
 START = 'START' # this has a vocab id, which is uded for indicating start of the sentence for decoding [4]
 STOP = 'STOP' # This has a vocab id, which is used to stop decoding [5]
-bm25_title = None
 import re
+
+def read_clean_data(path):
+    sample_data = pickle.load(open(path, 'rb'))
+    titles = []
+    sections = []
+    title2sections = {}
+    urls = set()
+    sec2id = {}
+    for one in sample_data:
+        if len(one['urls']) > 0:
+            for tid, (title, url, tref) in enumerate(zip(one['rpsecs'], one['urls'], one['rsecs'])):
+                if len(title) > 0:
+                    web_title = title[-1]
+                    web_title = re.sub('_.+', '', web_title)
+                    web_title = re.sub(' -.+', '', web_title)
+                    one['rpsecs'][tid][-1] = web_title
+                    sections += title[0:-1]
+                    titles.append(web_title)
+                    if web_title in title2sections and url not in urls:
+                        title2sections[web_title] += title[0:-1]
+                        if tref not in title2sections[web_title]:
+                            title2sections[web_title].append(tref)
+                        urls.add(url)
+                    elif web_title not in title2sections:
+                        title2sections[web_title] = title[0:-1]
+                        if tref not in title2sections[web_title]:
+                            title2sections[web_title].append(tref)
+                        urls.add(url)
+
+    titles = list(set(titles))
+    sections = list(set(sections))
+    for k in range(len(sections)-1, -1, -1):
+        if len(sections[k]) < 5:
+            del sections[k]
+    for tid, temp in enumerate(sections):
+        sec2id[temp] = tid
+    return titles, sections, title2sections, sec2id
+
+titles, sections, title2sections, sec2id = read_clean_data(config.data_file_anno)
+corpus = sections
+tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
+bm25_section = BM25Okapi(tokenized_corpus)
+corpus = titles
+tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
+bm25_title = BM25Okapi(tokenized_corpus)
+
+save_step1_data = torch.load('./cbert/cache/' + 'best_save_new.data')
+bert_model = 'hfl/chinese-bert-wwm-ext'
+model_step1 = BertForTokenClassification.from_pretrained(bert_model, num_labels=4)
+model_step1.load_state_dict(save_step1_data['para'])
+model_step1.eval()
+step1_tokenizer = BertTokenizer.from_pretrained(bert_model)
+step1_tokenizer.model_max_length = 512
+
 def remove_lrb(sent_string):
     # sent_string = sent_string.lower()
     frac_list = sent_string.split('-lrb-')
@@ -156,6 +211,32 @@ def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
                 input_list[2].append(infer_titles)
                 input_list[3].append((l_k, r_k))
     return input_list
+
+def try_match(checker, templete, token_ids):
+    h = checker
+    for ext in range(len(templete)):
+        if templete[ext] != token_ids[h+ext]:
+            return False
+    return True
+
+def obtain_indicator(token_ids_src, mask_tar):
+    indicate = np.zeros_like(token_ids_src)
+    for c_id in range(len(token_ids_src)):
+        if mask_tar[c_id] == 1:
+            l = c_id
+            r = l+1
+            while mask_tar[r] != 0:
+                r += 1
+            templete = token_ids_src[l:r]
+            checker = r
+            while checker<len(token_ids_src):
+                if try_match(checker, templete, token_ids_src):
+                    for k in range(checker, checker+len(templete)):
+                        indicate[k] = 1
+                    checker += len(templete)
+                else:
+                    checker += 1
+    return indicate
 
 def modify_sentence_test(srcs, tars):
     new_srcs = []
