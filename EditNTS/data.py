@@ -209,6 +209,24 @@ class Dataset():
             self.idx_count += 1
             yield self.idx_count, df
 
+class Dataset_New():
+    def __init__(self,data_path):
+        self.df = pd.read_pickle(data_path)
+        self.idx_count = 0
+
+    def example_generator(self):
+        for index, row in self.df.iterrows():
+            yield index, row
+
+    def batch_generator(self, batch_size=64, shuffle=True):
+        if shuffle:
+            self.df = self.df.sample(frac=1).reset_index(drop=True)
+            # print('shuffling the df')
+        #querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, src_sens_ori, tar_sens, edit_sens
+        list_df = [self.df[i:i + batch_size] for i in range(0, self.df.shape[0], batch_size)]
+        for df in list_df:
+            self.idx_count += 1
+            yield self.idx_count, df
 
 def prepare_batch(batch_df,vocab, max_length=100):
     """

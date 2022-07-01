@@ -15,7 +15,7 @@ def aligneddata(dataset,path):
     # tar_all = [u[1] for u in dataset]
     src_all = [u['src'] for u in dataset]
     tar_all = [u['tar'] for u in dataset]
-
+    contents_all = [u['contents'] for u in dataset]
     for i in range(len(src_all)):
         src = src_all[i]
         src = re.sub('\*\*', '', src).lower()
@@ -34,7 +34,7 @@ def aligneddata(dataset,path):
     dataset_new_para = []
     dataset = []
 
-    for src, tar in zip(src_all, tar_all):
+    for src, tar, cs in zip(src_all, tar_all, contents_all):
         if len(src)==0 or len(tar)==0: continue
         # if src[-1] == '。' and tar[-1] != '。':
         #     tar += '。'
@@ -50,7 +50,13 @@ def aligneddata(dataset,path):
                     dataset_new.append((u, v))
         tars_sec = '。'.join(tars)
         srcs_sec = '。'.join(srcs)
-        dataset_new_para.append((srcs_sec, tars_sec))
+        temp = []
+        for content in cs:
+            for query_group in content['tooltips']:
+                query = query_group['origin']
+                translation = query_group['translation']
+                temp.append((query, translation))
+        dataset_new_para.append((srcs_sec, tars_sec, temp))
 
     print(len(dataset))
     with open(os.path.join(path, 'dataset.pkl'), 'wb') as f:
@@ -58,7 +64,7 @@ def aligneddata(dataset,path):
     print(len(dataset_new))
     with open(os.path.join(path,'dataset-aligned.pkl'), 'wb') as f:
         pickle.dump(dataset_new, f)
-    with open(os.path.join(path,'dataset-aligned-para.pkl'), 'wb') as f:
+    with open(os.path.join(path,'dataset-aligned-para-new.pkl'), 'wb') as f:
         pickle.dump(dataset_new_para, f)
 
 
