@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 import data
 from tqdm import tqdm
-from nltk import pos_tag
 from label_edits import sent2edit
 import jieba.posseg as posseg
+import torch
 # This script contains the reimplementation of the pre-process steps of the dataset
 # For the editNTS system to run, the dataset need to be in a pandas DataFrame format
 # with columns ['comp_tokens', 'simp_tokens','comp_ids','simp_ids', 'comp_pos_tags', 'comp_pos_ids', edit_labels','new_edit_ids']
