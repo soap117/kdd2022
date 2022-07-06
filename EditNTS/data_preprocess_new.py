@@ -69,10 +69,11 @@ corpus = titles
 tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
 bm25_title = BM25Okapi(tokenized_corpus)
 
-save_step1_data = torch.load('./cbert/cache/' + 'best_save_new.data')
-bert_model = 'hfl/chinese-bert-wwm-ext'
+key_tran = {}
+#save_step1_data = torch.load('./cbert/cache/' + 'best_save_new.data')
+bert_model = 'bert-base-uncased'
 model_step1 = BertForTokenClassification.from_pretrained(bert_model, num_labels=4)
-model_step1.load_state_dict(save_step1_data['para'])
+#model_step1.load_state_dict(save_step1_data['para'])
 model_step1.eval()
 step1_tokenizer = BertTokenizer.from_pretrained(bert_model)
 step1_tokenizer.model_max_length = 512
@@ -117,6 +118,7 @@ def obtain_annotation(tar , t_s):
             count += 1
         t_e += 1
     annotations = tar[t_s+1:t_e-1]
+    return annotations
 
 def obtain_annotations(tar):
     t_s = 0
@@ -139,47 +141,51 @@ def obtain_annotations(tar):
     return annotations
 
 def modify_sentence(srcs, tars, query_groups):
-        new_srcs = []
-        new_tars = []
-        for src, tar, query_group in zip(srcs, tars, query_groups):
-            used = set()
-            for query in query_group[0]:
-                flag = False
-                for key_used in used:
-                    if query in key_used:
-                        flag = True
-                        break
-                if flag:
-                    continue
-                regions = [x for x in re.finditer(query, tar)]
-                region = None
-                for one in regions:
-                    if is_in_annotation(one.regs[0][0], tar):
-                        continue
-                    region = one.regs[0]
+    new_srcs = []
+    new_tars = []
+    for src, tar, query_group in zip(srcs, tars, query_groups):
+        used = set()
+        for query_data in query_group:
+            query = query_data[0]
+            key_cut = jieba.lcut(query)
+            infer_titles = bm25_title.get_top_n(key_cut, titles, config.infer_title_range)
+            query_group.append(infer_titles)
+            flag = False
+            for key_used in used:
+                if query in key_used:
+                    flag = True
                     break
-                if region is None and len(regions) == 1:
-                    region = regions[0].regs[0]
-                if region is not None:
-                    region = region
-                else:
-                    region = (0, 0)
-                if region[0] != 0 or region[1] != 0:
-                    if region[1] < len(tar) and tar[region[1]] == '（':
-                        annotation = obtain_annotation(tar, region[1])
-                        if annotation not in src:
-                            tar = tar[0:region[0]] + '${}$'.format(query) + tar[region[1]:]
-                            region = re.search(query, src)
-                            if region is not None:
-                                region = region.regs[0]
-                            else:
-                                region = (0, 0)
-                            if region[0] != 0 or region[1] != 0:
-                                src = src[0:region[0]] + '${}$'.format(query) + '（' + ''.join(
-                                    [' [MASK] ' for x in range(10)]) + '）' + src[region[1]:]
-            new_srcs.append(src)
-            new_tars.append(tar)
-        return new_srcs, new_tars
+            if flag:
+                continue
+            regions = [x for x in re.finditer(query, tar)]
+            region = None
+            for one in regions:
+                if is_in_annotation(one.regs[0][0], tar):
+                    continue
+                region = one.regs[0]
+                break
+            if region is None and len(regions) == 1:
+                region = regions[0].regs[0]
+            if region is not None:
+                region = region
+            else:
+                region = (0, 0)
+            if region[0] != 0 or region[1] != 0:
+                if region[1] < len(tar) and tar[region[1]] == '（':
+                    annotation = obtain_annotation(tar, region[1])
+                    if annotation not in src:
+                        tar = tar[0:region[0]] + '${}$'.format(query) + tar[region[1]:]
+                        region = re.search(query, src)
+                        if region is not None:
+                            region = region.regs[0]
+                        else:
+                            region = (0, 0)
+                        if region[0] != 0 or region[1] != 0:
+                            src = src[0:region[0]] + '${}$'.format(query) + '（' + ''.join(
+                                [' [MASK] ' for x in range(10)]) + '）' + src[region[1]:]
+        new_srcs.append(src)
+        new_tars.append(tar)
+    return new_srcs, new_tars, query_groups
 
 def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
     input_list = [[],[],[],[],[]]
@@ -244,7 +250,6 @@ def modify_sentence_test(srcs, tars):
     new_tars = []
     query_groups = []
     for src, tar in zip(srcs, tars):
-        used = set()
         src_ = step1_tokenizer([src], return_tensors="pt", padding=True, truncation=True)
         x_ids = src_['input_ids']
         x_mask = src_['attention_mask']
@@ -263,12 +268,20 @@ def modify_sentence_test(srcs, tars):
         query_groups.append(step2_input)
     return new_srcs, new_tars, query_groups
 
-def process_raw_data(comp_txt, simp_txt, querys_group, key_tran, bm25_title, titles, is_train=True,):
+def process_raw_data(train_data, is_train):
     # querys, querys_ori, querys_context, infer_titles, src_sens, src_sens_ori, tar_sens, edit_sens
+    comp_txt = []
+    simp_txt = []
+    querys_group = []
+    for comp, simp, query_gropu in train_data:
+        comp_txt.append(comp)
+        simp_txt.append(simp)
+        querys_group.append(query_gropu)
     if is_train:
-        comp_txt, simp_txt = modify_sentence(comp_txt, simp_txt, querys_group)
+        comp_txt, simp_txt, querys_group = modify_sentence(comp_txt, simp_txt, querys_group)
     else:
         comp_txt, simp_txt, querys_group = modify_sentence_test(comp_txt, simp_txt)
+        comp_txt, simp_txt, _ = modify_sentence(comp_txt, simp_txt, querys_group)
     comp_txt_pos = []
     for line in tqdm(comp_txt):
         comp_txt_pos.append(list(posseg.cut(line)))
@@ -408,9 +421,7 @@ def editnet_data_to_editnetID(df,output_path):
 
 
 train_data = pickle.load(open('../data/train/dataset-aligned-para-new.pkl', 'rb'))
-src_data = pickle.load(open('./mydata/train/src_txts.pkl', 'rb'))
-tar_data = pickle.load(open('./mydata/train/tar_txts.pkl', 'rb'))
-df = process_raw_data(src_data, tar_data)
+df = process_raw_data(train_data, True)
 editnet_data_to_editnetID(df, './mydata/train.df.filtered.pos')
 src_data = pickle.load(open('./mydata/valid/src_txts.pkl', 'rb'))
 tar_data = pickle.load(open('./mydata/valid/tar_txts.pkl', 'rb'))
