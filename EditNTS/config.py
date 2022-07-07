@@ -1,7 +1,5 @@
 import torch
 from transformers import BertTokenizer,BartTokenizer
-from models.modeling_bart_ex import BartForConditionalGeneration as BartEX
-from models.modeling_bart_ex import BartForAnnotation as BartAN
 import jieba as sjieba
 import numpy as np
 
@@ -80,9 +78,6 @@ class Config(object):
         #    {'additional_special_tokens': ['[unused1]', '[unused2]', '[unused3]', '[unused4]']})
         #self.tokenizer_editplus.model_max_length = 512
         self.pre_cut = pre_cut
-        self.modeld = BartAN
-        self.modeld_sen = BartEX
-        self.modeld_ann = BartAN
         self.title_emb_dim = 128
         self.key_emb_dim = 128
         self.rnn_layer = 1
