@@ -1,6 +1,5 @@
 import torch
 from transformers import BertTokenizer,BartTokenizer
-from models.modeling_gpt2_att import GPT2LMHeadModel
 from models.modeling_bart_ex import BartForConditionalGeneration as BartEX
 from models.modeling_bart_ex import BartForAnnotation as BartAN
 import jieba as sjieba
