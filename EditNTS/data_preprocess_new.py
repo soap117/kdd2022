@@ -73,7 +73,9 @@ corpus = titles
 tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
 bm25_title = BM25Okapi(tokenized_corpus)
 
-key_tran = {}
+with open('../data/mydata_new_clean_v3_mark.pkl', 'rb') as f:
+    key_tran = pickle.load(f)
+
 save_step1_data = torch.load('./cbert/cache/' + 'best_save_new.data')
 bert_model = 'hfl/chinese-bert-wwm-ext'
 model_step1 = BertForTokenClassification.from_pretrained(bert_model, num_labels=4)
@@ -413,6 +415,7 @@ def process_raw_data(train_data, is_train):
         df['querys_ori'] = querys_ori
         df['query_contxt'] = querys_context
         df['infer_titles'] = infer_titles
+        return df
 
     def get_vocab(df):
         word_dict ={}
@@ -518,10 +521,10 @@ def editnet_data_to_editnetID(df,output_path):
 
 train_data = pickle.load(open('../data/train/dataset-aligned-para-new.pkl', 'rb'))
 df = process_raw_data(train_data, True)
-editnet_data_to_editnetID(df, './mydata/train.df.filtered.pos')
+editnet_data_to_editnetID(df, './mydata/train_pure.df.filtered.pos')
 val_data = pickle.load(open('../data/valid/dataset-aligned-para-new.pkl', 'rb'))
 df = process_raw_data(val_data, False)
-editnet_data_to_editnetID(df, './mydata/val.df.filtered.pos')
+editnet_data_to_editnetID(df, './mydata/val_pure.df.filtered.pos')
 test_data = pickle.load(open('../data/valid/dataset-aligned-para-new.pkl', 'rb'))
 df = process_raw_data(test_data, False)
-editnet_data_to_editnetID(df, './mydata/test.df.filtered.pos')
+editnet_data_to_editnetID(df, './mydata/test_pure.df.filtered.pos')

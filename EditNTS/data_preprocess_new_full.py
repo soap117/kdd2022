@@ -413,6 +413,7 @@ def process_raw_data(train_data, is_train):
         df['querys_ori'] = querys_ori
         df['query_contxt'] = querys_context
         df['infer_titles'] = infer_titles
+        return df
 
     def get_vocab(df):
         word_dict ={}
