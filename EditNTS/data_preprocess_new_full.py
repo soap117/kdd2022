@@ -147,14 +147,20 @@ def obtain_annotations(tar):
 def modify_sentence(srcs, tars, query_groups):
     new_srcs = []
     new_tars = []
+    new_query_groups = []
     for src, tar, query_group in zip(srcs, tars, query_groups):
         used = set()
+        new_query_group = []
         for query_data in query_group:
             query = query_data[0]
             query = query.replace('(', '（')
             query = query.replace(')', '）')
             query = query.replace('（', '')
             query = query.replace('）', '')
+            if query not in src:
+                continue
+            else:
+                new_query_group.append(query_data)
             flag = False
             for key_used in used:
                 if query in key_used:
@@ -188,22 +194,29 @@ def modify_sentence(srcs, tars, query_groups):
                         if region[0] != 0 or region[1] != 0:
                             src = src[0:region[0]] + '${}$'.format(query) + '（' + ''.join(
                                 [' [MASK] ' for x in range(0)]) + '）' + src[region[1]:]
+        new_query_groups.append(new_query_group)
         new_srcs.append(src)
         new_tars.append(tar)
-    return new_srcs, new_tars, query_groups
+    return new_srcs, new_tars, new_query_groups
 
 
 def modify_sentence_direct(srcs, tars, query_groups):
     new_srcs = []
     new_tars = []
+    new_query_groups = []
     for src, tar, query_group in zip(srcs, tars, query_groups):
         used = set()
+        new_query_group = []
         for query_data in query_group:
             query = query_data[0]
             query = query.replace('(', '（')
             query = query.replace(')', '）')
             query = query.replace('（', '')
             query = query.replace('）', '')
+            if query not in src:
+                continue
+            else:
+                new_query_group.append(query_data)
             flag = False
             for key_used in used:
                 if query in key_used:
@@ -236,9 +249,10 @@ def modify_sentence_direct(srcs, tars, query_groups):
             if region[0] != 0 or region[1] != 0:
                 src = src[0:region[0]] + '${}$'.format(query) + '（' + ''.join(
                     [' [MASK] ' for x in range(0)]) + '）' + src[region[1]:]
+        new_query_groups.append(new_query_group)
         new_srcs.append(src)
         new_tars.append(tar)
-    return new_srcs, new_tars, query_groups
+    return new_srcs, new_tars, new_query_groups
 
 
 
