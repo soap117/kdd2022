@@ -230,7 +230,7 @@ def main():
     parser.add_argument('--batch_size', dest='batch_size', default=16, type=int)
     parser.add_argument('--max_seq_len', dest='max_seq_len', default=512)
 
-    parser.add_argument('--epochs', type=int, default=5)
+    parser.add_argument('--epochs', type=int, default=8)
     parser.add_argument('--hidden', type=int, default=200)
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--device', type=int, default=0,
