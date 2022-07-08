@@ -187,12 +187,12 @@ class EditDecoderRNNRe(nn.Module):
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c1 = encoder_outputs_org.gather(1, dummy)
 
-                inds = torch.LongTensor(torch.clamp(counter_for_keep_del-1, min=0))
+                inds = torch.LongTensor(np.clip(counter_for_keep_del-1, 0))
                 dummy = inds.view(-1, 1, 1)
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c2 = encoder_outputs_org.gather(1, dummy)
 
-                inds = torch.LongTensor(torch.clamp(counter_for_keep_del-2, min=0))
+                inds = torch.LongTensor(np.clip(counter_for_keep_del-2, 0))
                 dummy = inds.view(-1, 1, 1)
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c3 = encoder_outputs_org.gather(1, dummy)
@@ -269,12 +269,12 @@ class EditDecoderRNNRe(nn.Module):
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c1 = encoder_outputs_org.gather(1, dummy)
 
-                inds = torch.LongTensor(torch.clamp(counter_for_keep_del - 1, min=0))
+                inds = torch.LongTensor(np.clip(counter_for_keep_del - 1, 0))
                 dummy = inds.view(-1, 1, 1)
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c2 = encoder_outputs_org.gather(1, dummy)
 
-                inds = torch.LongTensor(torch.clamp(counter_for_keep_del - 2, min=0))
+                inds = torch.LongTensor(np.clip(counter_for_keep_del - 2, 0))
                 dummy = inds.view(-1, 1, 1)
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c3 = encoder_outputs_org.gather(1, dummy)
