@@ -73,7 +73,9 @@ corpus = titles
 tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
 bm25_title = BM25Okapi(tokenized_corpus)
 
-key_tran = {}
+with open('../data/mydata_new_clean_v3_mark.pkl', 'rb') as f:
+    key_tran = pickle.load(f)
+
 save_step1_data = torch.load('./cbert/cache/' + 'best_save.data')
 bert_model = 'hfl/chinese-bert-wwm-ext'
 model_step1 = BertForTokenClassification.from_pretrained(bert_model, num_labels=4)
