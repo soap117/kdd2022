@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding:utf8
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="3"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 import argparse
 import collections
 import logging
@@ -285,7 +285,7 @@ def main():
     edit_net, test_rs = training(edit_net, args.epochs, args, vocab)
     test_rs = [x.replace(' ', '') for x in test_rs]
     my_result = {'prds': test_rs}
-    with open('my_results_EditNT_pure_re_mark.pkl', 'wb') as f:
+    with open('my_results_EditNT_pure_re_mark_contack.pkl', 'wb') as f:
         pickle.dump(my_result, f)
 
 

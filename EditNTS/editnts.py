@@ -102,7 +102,7 @@ class EditDecoderRNNRe(nn.Module):
         # self.attn_Projection_scpn = nn.Linear(hidden_size, hidden_size, bias=False) #hard attention here
 
 
-        self.attn_MLP = nn.Sequential(nn.Linear(hidden_size * 4, embedding_dim),
+        self.attn_MLP = nn.Sequential(nn.Linear(hidden_size * 6, embedding_dim),
                                           nn.Tanh())
         self.out = nn.Linear(embedding_dim, self.vocab_size)
         self.out.weight.data = self.embedding.weight.data[:self.vocab_size]
@@ -197,7 +197,7 @@ class EditDecoderRNNRe(nn.Module):
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c3 = encoder_outputs_org.gather(1, dummy)
 
-                c = c1 + c2 + c3
+                c = torch.cat([c1,c2,c3], dim=2)
 
                 inds = torch.LongTensor(counter_for_annos)
                 dummy = inds.view(-1, 1, 1)
@@ -279,7 +279,7 @@ class EditDecoderRNNRe(nn.Module):
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c3 = encoder_outputs_org.gather(1, dummy)
 
-                c = c1 + c2 + c3
+                c = torch.cat([c1,c2,c3], dim=2)
 
                 output_t = torch.cat((output_edits, attn_applied_org_t, c, hidden_words[0]),
                                      2)  # bsz*nsteps x nhid*2
