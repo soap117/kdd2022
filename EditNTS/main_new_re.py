@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding:utf8
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="2"
 import argparse
 import collections
 import logging
@@ -14,7 +14,7 @@ import torch.nn as nn
 
 import data
 from checkpoint import Checkpoint
-from editnts import EditNTSDualSI, EditNTSWAT, EditNTSDualSICross, EditNTS, EditNTSDualCross, EditNTSDual
+from editnts import EditNTSDualSI, EditNTSWAT, EditNTSDualSICross, EditNTS, EditNTSDualCross, EditNTSDual, EditNTSFar
 from evaluator import Evaluator
 
 PAD = 'PAD' #  This has a vocab id, which is used to represent out-of-vocabulary words [0]
@@ -84,8 +84,8 @@ def reweight_global_loss(w_add,w_keep,w_del):
     return NLL_weight
 
 def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
-    eval_dataset = data.Dataset(args.data_path + 'val_full.df.filtered.pos') # load eval dataset
-    test_dataset = data.Dataset(args.data_path + 'test_full.df.filtered.pos')  # load eval dataset
+    eval_dataset = data.Dataset(args.data_path + 'val_pure.df.filtered.pos') # load eval dataset
+    test_dataset = data.Dataset(args.data_path + 'test_pure.df.filtered.pos')  # load eval dataset
     evaluator = Evaluator(loss= nn.NLLLoss(ignore_index=vocab.w2i['PAD'], reduction='none'))
     editnet_optimizer = torch.optim.Adam(edit_net.parameters(),
                                           lr=1e-3, weight_decay=1e-6)
@@ -104,10 +104,10 @@ def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
     for epoch in range(nepochs):
         # scheduler.step()
         #reload training for every epoch
-        if os.path.isfile(args.data_path+'train_full.df.filtered.pos'):
-            train_dataset = data.Dataset(args.data_path + 'train_full.df.filtered.pos')
+        if os.path.isfile(args.data_path+'train_pure.df.filtered.pos'):
+            train_dataset = data.Dataset(args.data_path + 'train_pure.df.filtered.pos')
         else:  # iter chunks and vocab_data
-            train_dataset = data.Datachunk(args.data_path + 'train_full.df.filtered.pos')
+            train_dataset = data.Datachunk(args.data_path + 'train_pure.df.filtered.pos')
 
         for i, batch_df in tqdm(train_dataset.batch_generator(batch_size=args.batch_size, shuffle=True)):
 
@@ -271,7 +271,7 @@ def main():
     )
 
     print('init editNTS model')
-    edit_net = EditNTS(hps, n_layers=1)
+    edit_net = EditNTSFar(hps, n_layers=1)
     edit_net.cuda()
 
     if args.load_model is not None:
@@ -285,7 +285,7 @@ def main():
     edit_net, test_rs = training(edit_net, args.epochs, args, vocab)
     test_rs = [x.replace(' ', '') for x in test_rs]
     my_result = {'prds': test_rs}
-    with open('my_results_EditNT_full_mark.pkl', 'wb') as f:
+    with open('my_results_EditNT_pure_re_mark.pkl', 'wb') as f:
         pickle.dump(my_result, f)
 
 
