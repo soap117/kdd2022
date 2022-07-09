@@ -213,7 +213,7 @@ class EditDecoderRNNRe(nn.Module):
 
                 attn_wights = torch.softmax(self.attn_words(decoder_output_t), dim=-1)
                 c = torch.bmm(attn_wights, c)
-                output_t = torch.cat((decoder_output_t, attn_applied_org_t, c,c_word),
+                output_t = torch.cat((decoder_output_t, attn_applied_org_t, c3,c_word),
                                      2)  # bsz*nsteps x nhid*2
                 output_t = self.attn_MLP(output_t)
                 output_t = F.log_softmax(self.out(output_t), dim=-1)
@@ -287,7 +287,7 @@ class EditDecoderRNNRe(nn.Module):
 
                 attn_wights = torch.softmax(self.attn_words(output_edits), dim=-1)
                 c = torch.bmm(attn_wights, c)
-                output_t = torch.cat((output_edits, attn_applied_org_t, c, hidden_words[0]),
+                output_t = torch.cat((output_edits, attn_applied_org_t, c3, hidden_words[0]),
                                      2)  # bsz*nsteps x nhid*2
                 output_t = self.attn_MLP(output_t)
                 output_t = F.log_softmax(self.out(output_t), dim=-1)
