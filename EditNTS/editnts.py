@@ -99,10 +99,11 @@ class EditDecoderRNNRe(nn.Module):
         self.rnn_edits = nn.LSTM(embedding_dim, hidden_size, num_layers=n_layers, batch_first=True)
         self.rnn_words = nn.LSTM(embedding_dim, hidden_size, num_layers=n_layers, batch_first=True)
         self.attn_Projection_org = nn.Linear(hidden_size, hidden_size, bias=False)
+        self.attn_words = nn.Linear(hidden_size, 3, bias=False)
         # self.attn_Projection_scpn = nn.Linear(hidden_size, hidden_size, bias=False) #hard attention here
 
 
-        self.attn_MLP = nn.Sequential(nn.Linear(hidden_size * 6, embedding_dim),
+        self.attn_MLP = nn.Sequential(nn.Linear(hidden_size * 4, embedding_dim),
                                           nn.Tanh())
         self.out = nn.Linear(embedding_dim, self.vocab_size)
         self.out.weight.data = self.embedding.weight.data[:self.vocab_size]
@@ -197,7 +198,8 @@ class EditDecoderRNNRe(nn.Module):
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c3 = encoder_outputs_org.gather(1, dummy)
 
-                c = torch.cat([c1,c2,c3], dim=2)
+                c = torch.cat([c1,c2,c3], dim=1)
+
 
                 inds = torch.LongTensor(counter_for_annos)
                 dummy = inds.view(-1, 1, 1)
@@ -209,6 +211,8 @@ class EditDecoderRNNRe(nn.Module):
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), output_words.size(2)).cuda()
                 c_word = output_words.gather(1, dummy)
 
+                attn_wights = torch.softmax(self.attn_words(decoder_output_t), dim=-1)
+                c = torch.bmm(attn_wights, c)
                 output_t = torch.cat((decoder_output_t, attn_applied_org_t, c,c_word),
                                      2)  # bsz*nsteps x nhid*2
                 output_t = self.attn_MLP(output_t)
@@ -279,8 +283,10 @@ class EditDecoderRNNRe(nn.Module):
                 dummy = dummy.expand(dummy.size(0), dummy.size(1), encoder_outputs_org.size(2)).cuda()
                 c3 = encoder_outputs_org.gather(1, dummy)
 
-                c = torch.cat([c1,c2,c3], dim=2)
+                c = torch.cat([c1,c2,c3], dim=1)
 
+                attn_wights = torch.softmax(self.attn_words(output_edits), dim=-1)
+                c = torch.bmm(attn_wights, c)
                 output_t = torch.cat((output_edits, attn_applied_org_t, c, hidden_words[0]),
                                      2)  # bsz*nsteps x nhid*2
                 output_t = self.attn_MLP(output_t)
