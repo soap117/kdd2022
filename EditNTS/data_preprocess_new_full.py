@@ -450,7 +450,7 @@ def process_raw_data(train_data, is_train):
         list_word = word_dict.items()
         list_word = sorted(list_word, key=lambda x: x[1], reverse=True)
         list_word = [x[0] +' '+ str(x[1]) + '\n' for x in list_word]
-        f = open('./vocab_data/vocab.txt', 'w', encoding='utf-8')
+        f = open('./vocab_data/vocab_full.txt', 'w', encoding='utf-8')
         f.writelines(list_word)
         f.close()
     def add_edits(df):

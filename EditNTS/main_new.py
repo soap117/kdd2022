@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding:utf8
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 import argparse
 import collections
 import logging
@@ -65,7 +65,7 @@ def reweigh_batch_loss(target_id_bath):
             else:
                 other_c += 1
 
-    NLL_weight = np.zeros(30006) + (1 / other_c+1)
+    NLL_weight = np.zeros(30007) + (1 / other_c+1)
     NLL_weight[PAD_ID] = 0  # pad
     NLL_weight[UNK_ID] = 1. / unk_c+1
     NLL_weight[KEEP_ID] = 1. / keep_c+1
@@ -77,7 +77,7 @@ def reweigh_batch_loss(target_id_bath):
 
 def reweight_global_loss(w_add,w_keep,w_del):
     # keep, del, other, (0, 65304, 246768, 246768, 2781648, 3847848, 2016880) pad,start,stop,keep,del,add
-    NLL_weight = np.ones(30006)+w_add
+    NLL_weight = np.ones(30007)+w_add
     NLL_weight[PAD_ID] = 0  # pad
     NLL_weight[KEEP_ID] = w_keep
     NLL_weight[DEL_ID] = w_del
