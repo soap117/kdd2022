@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding:utf8
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="1"
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 import argparse
 import collections
 import logging
@@ -100,7 +100,7 @@ def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
 
     best_bleu = -100 # init statistics
     print_loss = []  # Reset every print_every
-    #evaluator.evaluate(test_dataset, vocab, edit_net, args)
+    evaluator.evaluate_ind(test_dataset, vocab, edit_net, args)
     for epoch in range(nepochs):
         # scheduler.step()
         #reload training for every epoch
@@ -187,7 +187,7 @@ def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
             if i % check_every == 0:
                 edit_net.eval()
 
-                val_loss, bleu_score, sari, sys_out = evaluator.evaluate(eval_dataset, vocab, edit_net,args)
+                val_loss, bleu_score, sari, sys_out = evaluator.evaluate_ind(eval_dataset, vocab, edit_net,args)
                 log_msg = "epoch %d, step %d, Dev loss: %.4f, Bleu score: %.4f, Sari: %.4f \n" % (epoch, i, val_loss, bleu_score, sari)
                 print(log_msg)
                 print(sys_out[0:10])
