@@ -418,7 +418,7 @@ def process_raw_data(train_data, is_train):
 
         df['querys'] = querys
         df['querys_ori'] = querys_ori
-        df['query_contxt'] = querys_context
+        df['query_context'] = querys_context
         df['infer_titles'] = infer_titles
         return df
 
