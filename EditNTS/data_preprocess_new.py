@@ -188,8 +188,8 @@ def modify_sentence(srcs, tars, query_groups):
                         else:
                             region = (0, 0)
                         if region[0] != 0 or region[1] != 0:
-                            src = src[0:region[0]] + '${}$'.format(query) + '（' + ''.join(
-                                [' [MASK] ' for x in range(0)]) + '）' + src[region[1]:]
+                            src = src[0:region[0]] + '${}$'.format(query)  + ''.join(
+                                [' [MASK] ' for x in range(0)])  + src[region[1]:]
         new_srcs.append(src)
         new_tars.append(tar)
     return new_srcs, new_tars, query_groups
@@ -236,8 +236,8 @@ def modify_sentence_direct(srcs, tars, query_groups):
             else:
                 region = (0, 0)
             if region[0] != 0 or region[1] != 0:
-                src = src[0:region[0]] + '${}$'.format(query) + '（' + ''.join(
-                    [' [MASK] ' for x in range(0)]) + '）' + src[region[1]:]
+                src = src[0:region[0]] + '${}$'.format(query) + ''.join(
+                    [' [MASK] ' for x in range(0)])  + src[region[1]:]
         new_srcs.append(src)
         new_tars.append(tar)
     return new_srcs, new_tars, query_groups
@@ -521,10 +521,10 @@ def editnet_data_to_editnetID(df,output_path):
 
 train_data = pickle.load(open('../data/train/dataset-aligned-para-new.pkl', 'rb'))
 df = process_raw_data(train_data, True)
-editnet_data_to_editnetID(df, './mydata/train_pure.df.filtered.pos')
+editnet_data_to_editnetID(df, './mydata/train_pure_wo.df.filtered.pos')
 val_data = pickle.load(open('../data/valid/dataset-aligned-para-new.pkl', 'rb'))
 df = process_raw_data(val_data, False)
-editnet_data_to_editnetID(df, './mydata/val_pure.df.filtered.pos')
+editnet_data_to_editnetID(df, './mydata/val_pure_wo.df.filtered.pos')
 test_data = pickle.load(open('../data/test/dataset-aligned-para-new.pkl', 'rb'))
 df = process_raw_data(test_data, False)
-editnet_data_to_editnetID(df, './mydata/test_pure.df.filtered.pos')
+editnet_data_to_editnetID(df, './mydata/test_pure_wo.df.filtered.pos')
