@@ -84,8 +84,8 @@ def reweight_global_loss(w_add,w_keep,w_del):
     return NLL_weight
 
 def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
-    eval_dataset = data.Dataset(args.data_path + 'val_full.df.filtered.pos') # load eval dataset
-    test_dataset = data.Dataset(args.data_path + 'test_full.df.filtered.pos')  # load eval dataset
+    eval_dataset = data.Dataset(args.data_path + 'val_full_in.df.filtered.pos') # load eval dataset
+    test_dataset = data.Dataset(args.data_path + 'test_full_in.df.filtered.pos')  # load eval dataset
     evaluator = Evaluator(loss= nn.NLLLoss(ignore_index=vocab.w2i['PAD'], reduction='none'))
     editnet_optimizer = torch.optim.Adam(edit_net.parameters(),
                                           lr=1e-3, weight_decay=1e-6)
@@ -104,32 +104,36 @@ def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
     for epoch in range(nepochs):
         # scheduler.step()
         #reload training for every epoch
-        if os.path.isfile(args.data_path+'train_full.df.filtered.pos'):
-            train_dataset = data.Dataset(args.data_path + 'train_full.df.filtered.pos')
+        if os.path.isfile(args.data_path+'train_full_in.df.filtered.pos'):
+            train_dataset = data.Dataset(args.data_path + 'train_full_in.df.filtered.pos')
         else:  # iter chunks and vocab_data
-            train_dataset = data.Datachunk(args.data_path + 'train_full.df.filtered.pos')
+            train_dataset = data.Datachunk(args.data_path + 'train_full_in.df.filtered.pos')
 
         for i, batch_df in tqdm(train_dataset.batch_generator(batch_size=args.batch_size, shuffle=True)):
 
             #     time1 = time.time()
-            prepared_batch, syn_tokens_list = data.prepare_batch(batch_df, vocab, args.max_seq_len) #comp,scpn,simp
+            prepared_batch, syn_tokens_list = data.prepare_batch_indication(batch_df, vocab, args.max_seq_len) #comp,scpn,simp
 
             # a batch of complex tokens in vocab ids, sorted in descending order
             org_ids = prepared_batch[0]
             org_lens = org_ids.ne(0).sum(1)
             org = sort_by_lens(org_ids, org_lens)  # inp=[inp_sorted, inp_lengths_sorted, inp_sort_order]
             # a batch of pos-tags in pos-tag ids for complex
-            org_pos_ids = prepared_batch[1]
+            org_indication_ids = prepared_batch[1]
+            org_indication_lens = org_indication_ids.ne(0).sum(1)
+            org_indication = sort_by_lens(org_indication_ids, org_indication_lens)
+
+            org_pos_ids = prepared_batch[2]
             org_pos_lens = org_pos_ids.ne(0).sum(1)
             org_pos = sort_by_lens(org_pos_ids, org_pos_lens)
 
-            out = prepared_batch[2][:, :]
-            tar = prepared_batch[2][:, 1:]
+            out = prepared_batch[3][:, :]
+            tar = prepared_batch[3][:, 1:]
 
-            simp_ids = prepared_batch[3]
+            simp_ids = prepared_batch[4]
 
             editnet_optimizer.zero_grad()
-            output = edit_net(org, out, org_ids, org_pos, simp_ids)
+            output = edit_net(org, out, org_ids, org_pos, org_indication, simp_ids)
             if type(output) is not tuple:
                 ##################calculate loss
                 tar_lens = tar.ne(0).sum(1).float()
@@ -285,7 +289,7 @@ def main():
     edit_net, test_rs = training(edit_net, args.epochs, args, vocab)
     test_rs = [x.replace(' ', '') for x in test_rs]
     my_result = {'prds': test_rs}
-    with open('my_results_EditNT_full_re_mark_contact.pkl', 'wb') as f:
+    with open('my_results_EditNT_full_in_mark.pkl', 'wb') as f:
         pickle.dump(my_result, f)
 
 

@@ -84,6 +84,60 @@ class EncoderRNN(nn.Module):
         return Variable(weight.new(self.n_layers * 2, bsz, self.hidden_size).zero_()), \
                Variable(weight.new(self.n_layers * 2, bsz, self.hidden_size).zero_())
 
+class EncoderRNNIndi(nn.Module):
+    def __init__(self, vocab_size, embedding_dim, pos_vocab_size, indication_vocab_size, pos_embedding_dim,hidden_size, n_layers=1, embedding=None, embeddingPOS=None, dropout=0.3):
+        super(EncoderRNNIndi, self).__init__()
+        self.n_layers = n_layers
+        self.hidden_size = hidden_size
+
+        if embedding is None:
+            self.embedding = nn.Embedding(vocab_size, embedding_dim)
+        else:
+            self.embedding = embedding
+
+        if embeddingPOS is None:
+            self.embeddingPOS = nn.Embedding(pos_vocab_size, pos_embedding_dim)
+        else:
+            self.embeddingPOS = embeddingPOS
+
+        self.embeddingIND = nn.Embedding(indication_vocab_size, pos_embedding_dim)
+
+        self.rnn = nn.LSTM(embedding_dim+2*pos_embedding_dim, hidden_size, num_layers=n_layers, batch_first=True, bidirectional=True)
+        self.drop = nn.Dropout(dropout)
+
+    def forward(self, inp, inp_pos, inp_indication, hidden):
+        #inp and inp pose should be both sorted
+        inp_sorted=inp[0]
+        inp_lengths_sorted=inp[1].cpu()
+        inp_sort_order=inp[2]
+
+        inp_pos_sorted = inp_pos[0]
+        inp_pos_lengths_sorted = inp_pos[1]
+        inp_pos_sort_order = inp_pos[2]
+
+        emb = self.embedding(inp_sorted)
+        emb_pos = self.embeddingPOS(inp_pos_sorted)
+        emb_ind = self.embeddingPOS(inp_indication[0])
+
+        embed_cat = torch.cat((emb,emb_pos,emb_ind),dim=2)
+        packed_emb = pack(embed_cat, inp_lengths_sorted,batch_first=True)
+        memory_bank, encoder_final = self.rnn(packed_emb, hidden)
+
+        memory_bank = unpack(memory_bank)[0]
+        memory_bank = unsort(memory_bank, inp_sort_order)
+
+        h_unsorted=unsort(encoder_final[0], inp_sort_order)
+        c_unsorted=unsort(encoder_final[1], inp_sort_order)
+
+
+        return memory_bank.transpose(0,1), (h_unsorted,c_unsorted)
+
+    def initHidden(self, bsz):
+        weight = next(self.parameters()).data
+        return Variable(weight.new(self.n_layers * 2, bsz, self.hidden_size).zero_()), \
+               Variable(weight.new(self.n_layers * 2, bsz, self.hidden_size).zero_())
+
+
 class EditDecoderRNNRe(nn.Module):
     def __init__(self, vocab_size, embedding_dim, hidden_size, n_layers=1, embedding=None):
         super(EditDecoderRNNRe, self).__init__()
@@ -2114,17 +2168,17 @@ class EditNTSFar(nn.Module):
             self.embedding.weight.data.copy_(torch.from_numpy(config.pretrained_embedding))
         self.embeddingPOS = nn.Embedding(config.pos_vocab_size, config.pos_embedding_dim)
 
-        self.encoder1 = EncoderRNN(config.vocab_size, config.embedding_dim,
-                                   config.pos_vocab_size, config.pos_embedding_dim,
+        self.encoder1 = EncoderRNNIndi(config.vocab_size, config.embedding_dim,
+                                   config.pos_vocab_size, config.pos_vocab_size, config.pos_embedding_dim,
                                    config.word_hidden_units,
                                    n_layers,
                                    self.embedding, self.embeddingPOS)
 
-        self.decoder = EditDecoderRNNRe(config.vocab_size, config.embedding_dim, config.word_hidden_units * 2,
+        self.decoder = EditDecoderRNN(config.vocab_size, config.embedding_dim, config.word_hidden_units * 2,
                                       n_layers, self.embedding)
 
 
-    def forward(self,org,output,org_ids,org_pos,simp_sent,teacher_forcing_ratio=1.0):
+    def forward(self,org,output,org_ids,org_pos,org_ind,simp_sent,teacher_forcing_ratio=1.0):
         def transform_hidden(hidden): #for bidirectional encoders
             h, c = hidden
             h = torch.cat([h[0], h[1]], dim=1)[None, :, :]
@@ -2132,7 +2186,7 @@ class EditNTSFar(nn.Module):
             hidden = (h, c)
             return hidden
         hidden_org = self.encoder1.initHidden(org[0].size(0))
-        encoder_outputs_org, hidden_org = self.encoder1(org,org_pos,hidden_org)
+        encoder_outputs_org, hidden_org = self.encoder1(org,org_pos,org_ind,hidden_org)
         hidden_org = transform_hidden(hidden_org)
 
         logp, _ = self.decoder(output, hidden_org, encoder_outputs_org,org_ids,simp_sent,teacher_forcing_ratio)

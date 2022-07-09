@@ -246,7 +246,24 @@ def prepare_batch(batch_df,vocab, max_length=100):
     # I think new edit ids do not ave early stopping
     return [inp, inp_pos, tgt,inp_simp], batch_df['comp_tokens']
 
-
+def prepare_batch_indication(batch_df,vocab, max_length=100):
+    """
+        :param example: one row in pandas dataframe with feild ['comp_tokens', 'simp_tokens','comp_ids','simp_ids', 'comp_pos_ids', edit_labels','new_edit_ids']
+        :param vocab: vocab object for translation
+        :return: inp: original input sentences
+        :return: inp_pos: pos-tag ids for the input sentences
+        :return: tgt: the target edit-labels in ids
+        :return: inp_simp:the corresponding simple sentences in ids
+        :return: batch_df['comp_tokens']:the complex tokens
+        """
+    inp = batchify_stop(batch_df['comp_ids'], max_len=max_length)
+    inp_pos = batchify_stop(batch_df['comp_pos_ids'], max_len=max_length)
+    inp_indication = batchify_stop(batch_df['comp_indication_ids'], max_len=max_length)
+    inp_simp=batchify_start_stop(batch_df['simp_ids'], max_len=max_length)
+    # tgt = batchify_start_stop(batch_df['edit_ids'], max_len=max_length)  # edit ids has early stop
+    tgt = batchify_start_stop(batch_df['new_edit_ids'], max_len=max_length)  # new_edit_ids do not do early stopping
+    # I think new edit ids do not ave early stopping
+    return [inp, inp_indication, inp_pos, tgt,inp_simp], batch_df['comp_tokens']
 
 
 
