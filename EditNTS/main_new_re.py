@@ -88,7 +88,7 @@ def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
     test_dataset = data.Dataset(args.data_path + 'test_full_in.df.filtered.pos')  # load eval dataset
     evaluator = Evaluator(loss= nn.NLLLoss(ignore_index=vocab.w2i['PAD'], reduction='none'))
     editnet_optimizer = torch.optim.Adam(edit_net.parameters(),
-                                          lr=1e-3, weight_decay=1e-6)
+                                          lr=1e-4, weight_decay=1e-6)
     # scheduler = MultiStepLR(abstract_optimizer, milestones=[20,30,40], gamma=0.1)
     # abstract_scheduler = ReduceLROnPlateau(abstract_optimizer, mode='max')
 
