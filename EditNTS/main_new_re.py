@@ -190,7 +190,7 @@ def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
                 val_loss, bleu_score, sari, sys_out = evaluator.evaluate_ind(eval_dataset, vocab, edit_net,args)
                 log_msg = "epoch %d, step %d, Dev loss: %.4f, Bleu score: %.4f, Sari: %.4f \n" % (epoch, i, val_loss, bleu_score, sari)
                 print(log_msg)
-                print(sys_out[0:10])
+                print(sys_out[2:4])
 
                 if bleu_score > best_bleu:
                     best_bleu = bleu_score
@@ -236,7 +236,7 @@ def main():
 
     parser.add_argument('--epochs', type=int, default=8)
     parser.add_argument('--hidden', type=int, default=200)
-    parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--lr', type=float, default=1e-5)
     parser.add_argument('--device', type=int, default=0,
                         help='select GPU')
 
