@@ -206,7 +206,7 @@ def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
     edit_net = ckpt.model
     edit_net.cuda()
     edit_net.eval()
-    test_loss, bleu_score, sari, test_sys_out = evaluator.evaluate(test_dataset, vocab, edit_net, args)
+    test_loss, bleu_score, sari, test_sys_out = evaluator.evaluate_ind(test_dataset, vocab, edit_net, args)
     return edit_net, test_sys_out
 
 dataset='sample.pkl'
