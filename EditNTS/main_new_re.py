@@ -199,7 +199,7 @@ def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
                                epoch=epoch, step=i,
                                ).save(args.store_dir)
                     print("checked after %d steps"%i)
-                    print(best_bleu)
+                print(best_bleu)
 
                 edit_net.train()
     ckpt = Checkpoint.load(best_path)
