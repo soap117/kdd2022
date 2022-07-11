@@ -209,19 +209,21 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             lossd = lossd / tar_lens
             lossd = lossd.mean()
             loss = lossd
+            loss_ori = 0
             if count_p < 2:
-                loss += losss.mean()
+                loss_ori += losss.mean()
             else:
-                loss += 0.1*losss.mean()
+                loss_ori += 0.1*losss.mean()
             if count_s < 2:
-                loss += lossp.mean()
+                loss_ori += lossp.mean()
             else:
-                loss += 0.1*lossp.mean()
+                loss_ori += 0.1*lossp.mean()
             optimizer_p.zero_grad()
             optimizer_s.zero_grad()
             optimizer_encoder.zero_grad()
             optimizer_decoder.zero_grad()
-            loss.backward()
+            loss.backward(retain_graph=True)
+            loss_ori.backward()
             if epoch > 3:
                 optimizer_p.step()
                 optimizer_s.step()
