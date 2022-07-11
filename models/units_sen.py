@@ -165,7 +165,7 @@ def get_decoder_att_map(tokenizer, sep, ids, scores):
                 k += 1
             if k == len(spe_seq):
                 c_father += 1
-    mapping = torch.FloatTensor(mapping).to(config.device)
+    mapping = torch.FloatTensor(mapping).to(scores.device)
     scores = scores.unsqueeze(1)
     scores = scores.matmul(mapping).squeeze(1) + torch.FloatTensor(adding).to(scores.device)
     return scores
