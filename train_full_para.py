@@ -92,6 +92,7 @@ def build(config):
     from models.modeling_bart_ex import BartModel, BartLearnedPositionalEmbedding
     pos_embed = BartLearnedPositionalEmbedding(1024, 768)
     config.tokenizer.model_max_length = 1024
+    tokenizer.model_max_length = 1024
     modeld = config.modeld_sen.from_pretrained(config.bert_model)
     modeld.model.embed_positions = pos_embed
     modeld.cuda()
