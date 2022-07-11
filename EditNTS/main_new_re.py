@@ -84,8 +84,8 @@ def reweight_global_loss(w_add,w_keep,w_del):
     return NLL_weight
 
 def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
-    eval_dataset = data.Dataset(args.data_path + 'val_full_in.df.filtered.pos') # load eval dataset
-    test_dataset = data.Dataset(args.data_path + 'test_full_in.df.filtered.pos')  # load eval dataset
+    eval_dataset = data.Dataset(args.data_path + 'val_pure_in.df.filtered.pos') # load eval dataset
+    test_dataset = data.Dataset(args.data_path + 'test_pure_in.df.filtered.pos')  # load eval dataset
     evaluator = Evaluator(loss= nn.NLLLoss(ignore_index=vocab.w2i['PAD'], reduction='none'))
     editnet_optimizer = torch.optim.Adam(edit_net.parameters(),
                                           lr=5e-4, weight_decay=1e-6)
@@ -104,10 +104,10 @@ def training(edit_net,nepochs, args, vocab, print_every=100, check_every=500):
     for epoch in range(nepochs):
         # scheduler.step()
         #reload training for every epoch
-        if os.path.isfile(args.data_path+'train_full_in.df.filtered.pos'):
-            train_dataset = data.Dataset(args.data_path + 'train_full_in.df.filtered.pos')
+        if os.path.isfile(args.data_path+'train_pure_in.df.filtered.pos'):
+            train_dataset = data.Dataset(args.data_path + 'train_pure_in.df.filtered.pos')
         else:  # iter chunks and vocab_data
-            train_dataset = data.Datachunk(args.data_path + 'train_full_in.df.filtered.pos')
+            train_dataset = data.Datachunk(args.data_path + 'train_pure_in.df.filtered.pos')
 
         for i, batch_df in tqdm(train_dataset.batch_generator(batch_size=args.batch_size, shuffle=True)):
 
@@ -248,7 +248,7 @@ def main():
             # load vocab-related files and init vocab
     print('*'*10)
     vocab = data.Vocab()
-    vocab.add_vocab_from_file(args.vocab_path+'vocab_full.txt', args.vocab_size)
+    vocab.add_vocab_from_file(args.vocab_path+'vocab_pure.txt', args.vocab_size)
     vocab.add_embedding(gloveFile=args.vocab_path+'sgns.wiki.word')
     pos_vocab = data.POSvocab(args.vocab_path) #load pos-tags embeddings
     print('*' * 10)
@@ -289,7 +289,7 @@ def main():
     edit_net, test_rs = training(edit_net, args.epochs, args, vocab)
     test_rs = [x.replace(' ', '') for x in test_rs]
     my_result = {'prds': test_rs}
-    with open('my_results_EditNT_full_in_mark.pkl', 'wb') as f:
+    with open('my_results_EditNT_pure_in_mark.pkl', 'wb') as f:
         pickle.dump(my_result, f)
 
 
