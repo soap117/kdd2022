@@ -472,9 +472,9 @@ def editnet_data_to_editnetID(df,output_path):
     print('saved to %s'%output_path)
 
 
-train_data = pickle.load(open('../data/train/dataset-aligned-para-new.pkl', 'rb'))
-df = process_raw_data(train_data, True)
-editnet_data_to_editnetID(df, './mydata/train_pure_in.df.filtered.pos')
+#train_data = pickle.load(open('../data/train/dataset-aligned-para-new.pkl', 'rb'))
+#df = process_raw_data(train_data, True)
+#editnet_data_to_editnetID(df, './mydata/train_pure_in.df.filtered.pos')
 val_data = pickle.load(open('../data/valid/dataset-aligned-para-new.pkl', 'rb'))
 df = process_raw_data(val_data, False)
 editnet_data_to_editnetID(df, './mydata/val_pure_in.df.filtered.pos')

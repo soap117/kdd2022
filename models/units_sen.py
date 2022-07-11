@@ -398,6 +398,20 @@ def get_retrieval_train_batch(sentences, titles, sections, bm25_title, bm25_sect
         if len(tar_sentence_clean)>2*len(src_sentence_clean) or len(src_sentence_clean)>2*len(tar_sentence_clean):
             print('Not a good match')
             continue
+        tar_sentence_clean = tar_sentence.replace('$', '')
+        tar_annos = obtain_annotations(tar_sentence_clean)
+        for tar_anno in tar_annos:
+            tar_sentence_clean = tar_sentence_clean.replace(tar_anno, '')
+        src_sentence_clean = src_sentence_ori.replace('$', '')
+        src_annos = obtain_annotations(src_sentence_clean)
+        for src_anno in src_annos:
+            src_sentence_clean = src_sentence_clean.replace(src_anno, '')
+        if len(tar_sentence_clean) > 2 * len(src_sentence_clean) or len(src_sentence_clean) > 2 * len(
+                tar_sentence_clean):
+            print('Not a good match')
+            print(src_sentence_clean)
+            print(tar_sentence_clean)
+            continue
         sentences_data.append({'src_sen': src_sentence, 'src_sen_ori': src_sentence_ori,
                                'tar_sen': tar_sentence, 'textid': sentence['textid'], 'key_data':key_list})
     return sentences_data

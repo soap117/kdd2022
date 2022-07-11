@@ -74,12 +74,12 @@ class Config(object):
         self.title_tokenizer = self.tokenizer
         self.title_tokenizer.model_max_length = 768
         self.key_tokenizer = self.title_tokenizer
-        tokenizer_editplus, embedding_new = modify_tokenizer()
-        self.tokenizer_editplus = tokenizer_editplus
-        self.embedding_new = embedding_new
-        self.tokenizer_editplus.add_special_tokens(
-            {'additional_special_tokens': ['[unused1]', '[unused2]', '[unused3]', '[unused4]']})
-        self.tokenizer_editplus.model_max_length = 512
+        #tokenizer_editplus, embedding_new = modify_tokenizer()
+        #self.tokenizer_editplus = tokenizer_editplus
+        #self.embedding_new = embedding_new
+        #self.tokenizer_editplus.add_special_tokens(
+        #    {'additional_special_tokens': ['[unused1]', '[unused2]', '[unused3]', '[unused4]']})
+        #self.tokenizer_editplus.model_max_length = 512
         self.pre_cut = pre_cut
         self.modeld = BartAN
         self.modeld_sen = BartEX
