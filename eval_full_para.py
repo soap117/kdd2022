@@ -1,142 +1,205 @@
+import cuda2
+from eval_units import *
+import pickle
+
 import torch
-import torch.nn as nn
-from config import Config
-config = Config(8)
-from models.units_sen import MyData, get_decoder_att_map, mask_ref
-from torch.utils.data import DataLoader
-from models.retrieval import TitleEncoder, PageRanker, SecEncoder, SectionRanker
-from tqdm import tqdm
-from transformers import AdamW
+from models.units_sen import restricted_decoding
+from cbert.modeling_cbert import BertForTokenClassification
+from transformers import BertTokenizer
+from section_inference import preprocess_sec
+from cbert.utils.dataset import obtain_indicator
 import numpy as np
-from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction, corpus_bleu
-smooth = SmoothingFunction()
+batch_size = 4
 import jieba
-from models.units_sen import read_clean_data, find_spot, restricted_decoding
-from rank_bm25 import BM25Okapi
-from models.modeling_gpt2_att import GPT2LMHeadModel
-from models.modeling_bart_att import BartForConditionalGeneration
-import os
-class MyDataParallel(nn.DataParallel):
-    def __getattr__(self, name):
-        return getattr(self.module, name)
-def check(query, infer_titles, pos_titles, secs=False):
-    for pos_title in pos_titles:
-        for infer_title in infer_titles:
-            key_cut = list(pos_title)
-            candidata_title = list(infer_title)
-            if secs:
-                if min(len(key_cut), len(candidata_title)) == 1:
-                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(1.0, 0.0),
-                                             smoothing_function=smooth.method1)
-                elif min(len(key_cut), len(candidata_title)) == 2:
-                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(0.5, 0.5),
-                                             smoothing_function=smooth.method1)
-                else:
-                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(0.3333, 0.3333, 0.3333),
-                                             smoothing_function=smooth.method1)
-                if can_simi > 0.5 or pos_title in infer_title:
-                    return True
-            else:
-                if min(len(key_cut), len(candidata_title)) == 1:
-                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(1.0, 0.0),
-                                             smoothing_function=smooth.method1)
-                else:
-                    can_simi = sentence_bleu([candidata_title], key_cut, weights=(0.5, 0.5),
-                                             smoothing_function=smooth.method1)
-                if can_simi > 0.5 or pos_title in infer_title or query in infer_title:
-                    return True
-    return False
-def build(config):
-    titles, sections, title2sections, sec2id = read_clean_data(config.data_file)
-    corpus = sections
-    tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
-    bm25_section = BM25Okapi(tokenized_corpus)
-    tokenizer = config.tokenizer
-    corpus = titles
-    tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
-    bm25_title = BM25Okapi(tokenized_corpus)
-    if os.path.exists(config.data_file.replace('.pkl', '_train_dataset.pkl')):
-        train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset.pkl'))
-        valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset.pkl'))
-        test_dataset = torch.load(config.data_file.replace('.pkl', '_test_dataset.pkl'))
+import requests
+import time
+from models.units import get_decoder_att_map
+from config import config
+from models.retrieval import TitleEncoder, PageRanker, SectionRanker
+with open('./data/test/dataset-aligned-para.pkl', 'rb') as f:
+    data_test = pickle.load(f)
+srcs_ = []
+tars_ = []
+for point in data_test:
+    srcs_.append(point[0])
+    tars_.append(point[1])
+#save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
+save_step1_data = torch.load('./cbert/cache/' + 'best_save.data')
+
+
+bert_model = 'hfl/chinese-bert-wwm-ext'
+model_step1 = BertForTokenClassification.from_pretrained(bert_model, num_labels=4)
+model_step1.load_state_dict(save_step1_data['para'])
+model_step1.eval()
+step1_tokenizer = BertTokenizer.from_pretrained(bert_model)
+step1_tokenizer.model_max_length = 512
+
+title_encoder = TitleEncoder(config)
+modelp = PageRanker(config, title_encoder)
+#modelp.load_state_dict(save_data['modelp'])
+modelp.cuda()
+modelp.eval()
+models = SectionRanker(config, title_encoder)
+#models.load_state_dict(save_data['models'])
+models.cuda()
+models.eval()
+modele = config.modeld_ann.from_pretrained(config.bert_model)
+#modele.load_state_dict(save_data['modele'])
+modele.cuda()
+modele.eval()
+modeld = config.modeld_sen.from_pretrained(config.bert_model)
+#modeld.load_state_dict(save_data['modeld'])
+modeld.cuda()
+modeld.eval()
+
+
+def count_score(candidate, reference):
+    avg_score = 0
+    for k in range(len(candidate)):
+        reference_ = reference[k]
+        for m in range(len(reference_)):
+            reference_[m] = tokenzier_eval.tokenize(reference_[m])
+        candidate[k] = tokenzier_eval.tokenize(candidate[k])
+        try:
+            avg_score += get_sentence_bleu(candidate[k], reference_)/len(candidate)
+        except:
+            print(candidate[k])
+            print(reference[k])
+    return avg_score
+
+from eval_units import mark_sentence, obtain_step2_input
+
+import re
+def is_in_annotation(src, pos):
+    s = 0
+    count_left = 0
+    while s < pos:
+        if src[s] == '（':
+            count_left += 1
+        elif src[s] == '）':
+            count_left -= 1
+        s += 1
+    if count_left > 0:
+        return True
     else:
-        train_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_train_dataset_raw.pkl'), titles, sections, title2sections, sec2id, bm25_title, bm25_section)
-        valid_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_valid_dataset_raw.pkl'), titles, sections, title2sections, sec2id,
-                               bm25_title,
-                               bm25_section)
-        test_dataset = MyData(config, tokenizer, config.data_file.replace('.pkl', '_test_dataset_raw.pkl'), titles, sections, title2sections, sec2id, bm25_title,
-                              bm25_section)
-        torch.save(train_dataset, config.data_file.replace('.pkl', '_train_dataset.pkl'))
-        torch.save(valid_dataset, config.data_file.replace('.pkl', '_valid_dataset.pkl'))
-        torch.save(test_dataset, config.data_file.replace('.pkl', '_test_dataset.pkl'))
+        return False
 
-    train_dataloader = DataLoader(dataset=train_dataset, batch_size=config.batch_size
-                                  , collate_fn=train_dataset.collate_fn)
-    valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=config.batch_size
-                                  , collate_fn=train_dataset.collate_fn_test)
-    test_dataloader = DataLoader(dataset=test_dataset, batch_size=config.batch_size
-                                  , collate_fn=train_dataset.collate_fn_test)
+def fix_stop(tar):
+    while re.search(r'（.*(。).*）', tar) is not None:
+        tar_stop_list = re.finditer(r'（.*(。).*）', tar)
+        for stop in tar_stop_list:
+            if is_in_annotation(tar, stop.regs[1][0]):
+                temp = list(tar)
+                temp[stop.regs[1][0]] = '\\'
+                tar = ''.join(temp)
+            else:
+                temp = list(tar)
+                temp[stop.regs[1][0]] = '\n'
+                tar = ''.join(temp)
+    tar = tar.replace('\\', '')
+    tar = tar.replace('\n', '。')
+    return tar
+import copy
+import json
+def pipieline(path_from):
+    eval_ans = []
+    eval_gt = []
+    record_scores = []
+    record_references = []
+    tokenizer = config.tokenizer
 
-    title_encoder = TitleEncoder(config)
-    save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
-    modelp = PageRanker(config, title_encoder)
-    print('Load pretrained P')
-    modelp.load_state_dict(save_data['modelp'])
-    models = SectionRanker(config, title_encoder)
-    models.load_state_dict(save_data['models'])
-    print('Load pretrained S')
-    modele = config.modeld_ann.from_pretrained(config.bert_model)
-    modele.load_state_dict(save_data['modele'])
-    print('Load pretrained E')
-    modeld = config.modeld_sen.from_pretrained(config.bert_model)
-    modeld.load_state_dict(save_data['modeld'])
-    modeld.cuda()
-    modelp.cuda()
-    models.cuda()
-    modele.cuda()
-    optimizer_p = AdamW(modelp.parameters(), lr=config.lr*0.1)
-    optimizer_s = AdamW(models.parameters(), lr=config.lr*0.1)
-    optimizer_encoder = AdamW(modele.parameters(), lr=config.lr * 0.1)
-    optimizer_decoder = AdamW(modeld.parameters(), lr=config.lr * 0.1)
-    loss_func = torch.nn.CrossEntropyLoss(reduction='none')
-    return modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
+    srcs = []
+    tars = []
+    for src, tar in zip(srcs_, tars_):
+        src = re.sub('\*\*', '', src)
+        src = src.replace('(', '（')
+        src = src.replace('$', '')
+        src = src.replace(')', '）')
+        src = src.replace('\n', '').replace('。。', '。')
+        src = fix_stop(src)
+        tar = re.sub('\*\*', '', tar)
+        tar = tar.replace('\n', '').replace('。。', '。')
+        tar = tar.replace('(', '（')
+        tar = tar.replace(')', '）')
+        tar = tar.replace('$', '')
+        tar = fix_stop(tar)
+        if src[-1] == '。' and tar[-1] != '。':
+            tar += '。'
+        if tar[-1] == '。' and src[-1] != '。':
+            src += '。'
+        srcs.append(src)
+        tars.append(tar)
 
-def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
-    min_loss_p = min_loss_s = min_loss_d = 1000
-    state = {}
-    count_s = -1
-    count_p = -1
-    data_size = len(train_dataloader)
-    test_loss, eval_ans, eval_grd = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
-
-
-
-def test(modelp, models, modele, modeld, dataloader, loss_func):
-    with torch.no_grad():
-        modelp.eval()
-        models.eval()
-        modele.eval()
-        modeld.eval()
-        total_loss = []
-        tp = 0
-        total = 0
-        tp_s = 0
-        total_s = 0
-        eval_ans = []
-        eval_gt = []
-        data_size = len(dataloader)
-        for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list, pos_titles, pos_sections) in zip(
-                tqdm(range(data_size)), dataloader):
-            dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
-            rs2 = modelp(query_embedding=query_embedding, candidates=infer_titles, is_infer=True)
-            rs2 = torch.topk(rs2, config.infer_title_select, dim=1)
-            scores_title = rs2[0]
-            inds = rs2[1].cpu().numpy()
+    for src, tar in zip(srcs, tars):
+        src_ = step1_tokenizer([src], return_tensors="pt", padding=True, truncation=True)
+        x_ids = src_['input_ids']
+        x_mask = src_['attention_mask']
+        x_indicator = torch.zeros_like(x_ids)
+        outputs = model_step1(x_ids, attention_mask=x_mask, existing_indicates=x_indicator)
+        logits = outputs.logits
+        pre_label_0 = np.argmax(logits.detach().cpu().numpy(), axis=2)
+        x_indicator = obtain_indicator(x_ids[0], pre_label_0[0])
+        x_indicator = torch.LongTensor(x_indicator).unsqueeze(0)
+        outputs = model_step1(x_ids, attention_mask=x_mask, existing_indicates=x_indicator)
+        logits = outputs.logits
+        pre_label_f = np.argmax(logits.detach().cpu().numpy(), axis=2)
+        step2_input = obtain_step2_input(pre_label_f[0], src, x_ids[0], step1_tokenizer)
+        context_dic, order_context = mark_sentence_para(step2_input, src)
+        batch_rs = {}
+        for context in context_dic.keys():
+            querys = context_dic[context][2]
+            querys_ori = copy.copy(querys)
+            src = context_dic[context][0]
+            src_tar = context_dic[context][1]
+            infer_titles = context_dic[context][3]
+            temp = []
+            for query in querys:
+                if query in mark_key_equal:
+                    temp.append(mark_key_equal[query])
+                else:
+                    url = 'https://api.ownthink.com/kg/ambiguous?mention=%s' % query
+                    headers = {
+                        'User-Agent': 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
+                    }
+                    try_count = 0
+                    while try_count < 3:
+                        try:
+                            r = requests.get(url, headers=headers, timeout=5)
+                            break
+                        except Exception as e:
+                            try_count += 1
+                            print("trying %d time" % try_count)
+                            wait_gap = 3
+                            time.sleep((try_count + np.random.rand()) * wait_gap)
+                    rs = json.loads(r.text)
+                    rs = rs['data']
+                    name_set = set()
+                    name_set.add(query)
+                    for one in rs:
+                        name_set.add(re.sub(r'\[.*\]', '', one[0]))
+                    name_list = list(name_set)
+                    new_query = ' '.join(name_list)
+                    if len(new_query) == 0:
+                        new_query = query
+                    if query != new_query:
+                        print("%s->%s" % (query, new_query))
+                    mark_key_equal[query] = new_query
+                    temp.append(new_query)
+            querys = temp
+            if len(querys) == 0:
+                continue
+            contexts = []
+            for query in querys:
+                contexts.append(context)
+            query_embedding = modelp.query_embeddings(querys, contexts)
+            dis_scores = modelp(query_embedding=query_embedding, candidates=infer_titles, is_infer=True)
+            rs_title = torch.topk(dis_scores, config.infer_title_select, dim=1)
+            scores_title = rs_title[0]
+            inds = rs_title[1].cpu().numpy()
             infer_title_candidates_pured = []
             infer_section_candidates_pured = []
             mapping_title = np.zeros([len(querys), config.infer_title_select, config.infer_section_range])
             for query, bid in zip(querys, range(len(inds))):
-                total += 1
                 temp = []
                 temp2 = []
                 temp3 = []
@@ -145,10 +208,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
                     temp.append(infer_titles[bid][cid])
                     temp2 += title2sections[infer_titles[bid][cid]]
                     temp3 += [nid for x in title2sections[infer_titles[bid][cid]]]
-                if check(query, temp, pos_titles[bid]):
-                    count += 1
                 temp2_id = []
-                tp += count
                 for t_sec in temp2:
                     if t_sec in sec2id:
                         temp2_id.append(sec2id[t_sec])
@@ -168,48 +228,48 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             mapping = torch.FloatTensor(mapping_title).to(config.device)
             scores_title = scores_title.unsqueeze(1)
             scores_title = scores_title.matmul(mapping).squeeze(1)
-            rs_scores = models(query_embedding, infer_section_candidates_pured, is_infer=True)
+            rs_scores = models.infer(query_embedding, infer_section_candidates_pured)
             scores = scores_title * rs_scores
             rs2 = torch.topk(scores, config.infer_section_select, dim=1)
             scores = rs2[0]
             reference = []
             inds_sec = rs2[1].cpu().numpy()
             for bid in range(len(inds_sec)):
-                total_s += 1
                 temp = [querys[bid]]
                 for indc in inds_sec[bid]:
-                    temp.append(infer_section_candidates_pured[bid][indc][0:100])
-                if check(query, temp, pos_sections[bid], secs=True):
-                    tp_s += 1
+                    temp.append(infer_section_candidates_pured[bid][indc][0:config.maxium_sec])
                 temp = ' [SEP] '.join(temp)
-                reference.append(temp[0:config.maxium_sec])
+                reference.append(temp[0:500])
+            record_scores.append(scores.detach().cpu().numpy())
+            record_references.append(reference)
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
             reference_ids = inputs_ref['input_ids'].to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
-            outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix)
-            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
-            results, target_ids = restricted_decoding(querys_ori, src_sens, tar_sens, hidden_annotation, tokenizer, modeld)
-            targets = target_ids[:, 1:]
-            ground_truth = tokenizer.batch_decode(targets)
-            ground_truth = [tokenizer.convert_tokens_to_string(x) for x in ground_truth]
-            ground_truth = [x.replace(' ', '') for x in ground_truth]
-            ground_truth = [x.replace('[PAD]', '') for x in ground_truth]
-            ground_truth = [x.replace('[CLS]', '') for x in ground_truth]
-            ground_truth = [x.split('[SEP]')[0] for x in ground_truth]
-            #masks = torch.ones_like(targets)
-            #masks[torch.where(targets == 0)] = 0
-            eval_ans += results
-            eval_gt += ground_truth
-        predictions = [tokenizer.tokenize(doc) for doc in eval_ans]
-        reference = [[tokenizer.tokenize(doc)] for doc in eval_gt]
-        bleu_scores = corpus_bleu(reference, predictions,)
-        print("Bleu Annotation:%f" % bleu_scores)
-        modelp.train()
-        models.train()
-        modele.train()
-        modeld.train()
-        print('accuracy title: %f accuracy section: %f' % (tp / total, tp_s / total_s))
-        return (-tp / total, -tp_s / total_s, -bleu_scores), eval_ans, eval_gt
 
-modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer = build(config)
-state = train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, loss_func)
+            an_decoder_input = ' '.join(['[MASK]' for x in range(100)])
+            an_decoder_inputs = [an_decoder_input for x in reference_ids]
+            an_decoder_inputs = tokenizer(an_decoder_inputs, return_tensors="pt", padding=True)
+            an_decoder_inputs_ids = an_decoder_inputs['input_ids'].to(config.device)
+
+            outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix,
+                                        decoder_input_ids=an_decoder_inputs_ids)
+
+            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
+            results, target_ids = restricted_decoding(querys_ori, [src], [src_tar], hidden_annotation, tokenizer, modeld, is_free=True)
+            results = [x.replace('（）', '') for x in results]
+            print(results[0])
+            results = [x.replace('$', '') for x in results]
+            # masks = torch.ones_like(targets)
+            # masks[torch.where(targets == 0)] = 0
+            eval_ans += [results[0]]
+        eval_gt += [tar]
+
+    result_final = {'srcs': srcs, 'prds': eval_ans, 'tars': eval_gt, 'scores': record_scores,
+                    'reference': record_references}
+    with open('./data/test/my_results_para.pkl', 'wb') as f:
+        pickle.dump(result_final, f)
+
+
+
+
+pipieline('./data/test')

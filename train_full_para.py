@@ -55,7 +55,7 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    debug_flag = True
+    debug_flag = False
     if not debug_flag and os.path.exists(config.data_file.replace('.pkl', '_train_dataset.pkl')):
         train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset.pkl'))
         valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset.pkl'))
@@ -87,7 +87,7 @@ def build(config):
     models.load_state_dict(save_data['models'])
     print('Load pretrained S')
     modele = config.modeld_ann.from_pretrained(config.bert_model)
-    modele.load_state_dict(save_data['model'])
+    modele.load_state_dict(save_data['model'], strict=False)
     print('Load pretrained E')
     modeld = config.modeld_sen.from_pretrained(config.bert_model)
     modeld.cuda()
