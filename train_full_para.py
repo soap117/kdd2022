@@ -55,7 +55,7 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    debug_flag = False
+    debug_flag = True
     if not debug_flag and os.path.exists(config.data_file.replace('.pkl', '_train_dataset.pkl')):
         train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset.pkl'))
         valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset.pkl'))
@@ -189,7 +189,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
-            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len].to('cuda:0')
+            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len].to('cuda:1')
 
             outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train[:, 0:-1].to(config.device), cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             logits_ = outputs.logits
@@ -371,7 +371,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
-            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len].to('cuda:0')
+            hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len].to('cuda:1')
             outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids[:, 0:-1].to(config.device),
                              cut_indicator=cut_list, anno_position=decoder_anno_position,
                              hidden_annotation=hidden_annotation)
