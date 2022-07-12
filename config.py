@@ -99,7 +99,7 @@ class Config(object):
         self.infer_section_range = 10
         self.infer_section_select = 3
         self.maxium_sec = 100
-        self.hidden_anno_len = 1
+        self.hidden_anno_len = 3
         self.hidden_anno_len_rnn = 10
         self.para_hidden_len = 10
         self.multi_gpu = False
