@@ -72,7 +72,7 @@ class Config(object):
         self.CLS = self.tokenizer.cls_token_id
         self.SEP = self.tokenizer.sep_token_id
         self.title_tokenizer = self.tokenizer
-        self.title_tokenizer.model_max_length = 768
+        self.title_tokenizer.model_max_length = 512
         self.key_tokenizer = self.title_tokenizer
         #tokenizer_editplus, embedding_new = modify_tokenizer()
         #self.tokenizer_editplus = tokenizer_editplus
