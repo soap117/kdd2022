@@ -88,7 +88,7 @@ def build(config):
     models.load_state_dict(save_data['models'])
     print('Load pretrained S')
     modele = config.modeld_ann.from_pretrained(config.bert_model)
-    modele.load_state_dict(save_data['model'])
+    modele.load_state_dict(save_data['model'], strict=False)
     print('Load pretrained E')
     modeld = config.modeld_sen.from_pretrained(config.bert_model)
     modeld.cuda()
