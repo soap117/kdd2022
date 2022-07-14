@@ -80,7 +80,7 @@ def build(config):
                                   , collate_fn=train_dataset.collate_fn_test)
 
     title_encoder = TitleEncoder(config)
-    save_data = torch.load('./results/' + config.data_file_old_anno.replace('.pkl', '_models_full.pkl').replace('data/', ''))
+    save_data = torch.load('./results/' + config.data_file_anno_old.replace('.pkl', '_models_full.pkl').replace('data/', ''))
     modelp = PageRanker(config, title_encoder)
     print('Load pretrained P')
     modelp.load_state_dict(save_data['modelp'])
@@ -179,7 +179,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             decoder_ids = decoder_ids.to(config.device)
             target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids']
-            target_ids_for_train = target_ids.to(config.device)
+            target_ids_for_train = mask_ref(target_ids, tokenizer).to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
@@ -260,7 +260,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             print('New Test Loss D:%f' % (d_eval_loss))
             state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(), 'modele': modele.state_dict(), 'modeld': modeld.state_dict(),
                      'eval_rs': eval_ans}
-            torch.save(state, './results/' + config.data_file_old.replace('.pkl', '_models_full_womask.pkl').replace('data/', ''))
+            torch.save(state, './results/' + config.data_file_old.replace('.pkl', '_models_full_mask.pkl').replace('data/', ''))
             min_loss_d = d_eval_loss
             for one, one_g in zip(eval_ans[0:10], grand_ans[0:10]):
                 print(one)
