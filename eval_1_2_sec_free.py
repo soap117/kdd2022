@@ -101,7 +101,7 @@ def eval_process(key_string, hidden_len):
         return tar
     import copy
     import json
-    def pipieline(path_from):
+    def pipieline():
         eval_ans = []
         eval_gt = []
         record_scores = []
@@ -278,4 +278,5 @@ def eval_process(key_string, hidden_len):
         with open('./data/test/my_results_sec{}'.format(key_string), 'wb') as f:
             pickle.dump(result_final, f)
 
+    pipieline()
 
