@@ -83,7 +83,7 @@ class Config(object):
         self.pre_cut = pre_cut
         self.modeld = BartAN
         self.modeld_sen = BartEX
-        self.drop_rate = 0.2
+        self.drop_rate = 0.25
         self.modeld_ann = BartAN
         self.title_emb_dim = 128
         self.key_emb_dim = 128
