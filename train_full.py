@@ -1,4 +1,4 @@
-import cuda3
+import cuda
 import torch
 import torch.nn as nn
 from config import Config
@@ -14,8 +14,7 @@ smooth = SmoothingFunction()
 import jieba
 from models.units_sen import read_clean_data, find_spot, restricted_decoding
 from rank_bm25 import BM25Okapi
-from models.modeling_gpt2_att import GPT2LMHeadModel
-from models.modeling_bart_att import BartForConditionalGeneration
+
 import os
 class MyDataParallel(nn.DataParallel):
     def __getattr__(self, name):
@@ -181,8 +180,8 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             decoder_ids = decoder_ids.to(config.device)
             target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids']
-            #target_ids_for_train = mask_ref(target_ids, tokenizer).to(config.device)
-            target_ids_for_train = target_ids.to(config.device)
+            target_ids_for_train = mask_ref(target_ids, tokenizer).to(config.device)
+            #target_ids_for_train = target_ids.to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
