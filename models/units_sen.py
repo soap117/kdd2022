@@ -9,8 +9,11 @@ smooth = SmoothingFunction()
 from tqdm import tqdm
 from config import config
 import re
-def mask_ref(input_ids, tokenizer):
-    mask = np.random.choice([True, False], size=input_ids.shape, p=[config.drop_rate, 1-config.drop_rate])
+def mask_ref(input_ids, tokenizer, rate=None):
+    if rate is not None:
+        mask = np.random.choice([True, False], size=input_ids.shape, p=[rate, 1 - rate])
+    else:
+        mask = np.random.choice([True, False], size=input_ids.shape, p=[config.drop_rate, 1-config.drop_rate])
     replace = np.random.choice(np.arange(tokenizer.vocab_size), size=input_ids.shape)
     input_ids_new = input_ids.numpy().copy()
     input_ids_new[mask] = replace[mask]
