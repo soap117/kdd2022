@@ -57,10 +57,10 @@ def build(config):
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
     debug_flag = False
-    if not debug_flag and os.path.exists(config.data_file_old.replace('.pkl', '_train_dataset.pkl')):
-        train_dataset = torch.load(config.data_file_old.replace('.pkl', '_train_dataset.pkl'))
-        valid_dataset = torch.load(config.data_file_old.replace('.pkl', '_valid_dataset.pkl'))
-        test_dataset = torch.load(config.data_file_old.replace('.pkl', '_test_dataset.pkl'))
+    if not debug_flag and os.path.exists(config.data_file_old.replace('.pkl', '_train_dataset_{}.pkl'.format(config.hidden_anno_len))):
+        train_dataset = torch.load(config.data_file_old.replace('.pkl', '_train_dataset_{}.pkl'.format(config.hidden_anno_len)))
+        valid_dataset = torch.load(config.data_file_old.replace('.pkl', '_valid_dataset_{}.pkl'.format(config.hidden_anno_len)))
+        test_dataset = torch.load(config.data_file_old.replace('.pkl', '_test_dataset_{}.pkl'.format(config.hidden_anno_len)))
     else:
         train_dataset = MyData(config, tokenizer, config.data_file_old.replace('.pkl', '_train_dataset_raw.pkl'), titles, sections, title2sections, sec2id, bm25_title, bm25_section)
         valid_dataset = MyData(config, tokenizer, config.data_file_old.replace('.pkl', '_valid_dataset_raw.pkl'), titles, sections, title2sections, sec2id,
@@ -68,9 +68,9 @@ def build(config):
                                bm25_section)
         test_dataset = MyData(config, tokenizer, config.data_file_old.replace('.pkl', '_test_dataset_raw.pkl'), titles, sections, title2sections, sec2id, bm25_title,
                               bm25_section)
-        torch.save(train_dataset, config.data_file_old.replace('.pkl', '_train_dataset.pkl'))
-        torch.save(valid_dataset, config.data_file_old.replace('.pkl', '_valid_dataset.pkl'))
-        torch.save(test_dataset, config.data_file_old.replace('.pkl', '_test_dataset.pkl'))
+        torch.save(train_dataset, config.data_file_old.replace('.pkl', '_train_dataset_{}.pkl'.format(config.hidden_anno_len)))
+        torch.save(valid_dataset, config.data_file_old.replace('.pkl', '_valid_dataset_{}.pkl'.format(config.hidden_anno_len)))
+        torch.save(test_dataset, config.data_file_old.replace('.pkl', '_test_dataset_{}.pkl'.format(config.hidden_anno_len)))
 
     train_dataloader = DataLoader(dataset=train_dataset, batch_size=config.batch_size
                                   , collate_fn=train_dataset.collate_fn)
@@ -107,11 +107,13 @@ def build(config):
     return modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
 def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, loss_func):
+    key_string = '_models_full_mask_drop_rate_{}_anno_len_{}.pkl'.format(config.drop_rate, config.hidden_anno_len)
     min_loss_p = min_loss_s = min_loss_d = 1000
     state = {}
     count_s = -1
     count_p = -1
     data_size = len(train_dataloader)
+    count_n = 0
     #test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
     for epoch in range(config.train_epoch*4):
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list) in zip(
@@ -256,25 +258,30 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
         else:
             count_s += 1
         if d_eval_loss <= min_loss_d:
+            count_n = 0
             print(count_p, count_s)
             print('update-all')
             print('New Test Loss D:%f' % (d_eval_loss))
             state = {'epoch': epoch, 'config': config, 'models': models.state_dict(), 'modelp': modelp.state_dict(), 'modele': modele.state_dict(), 'modeld': modeld.state_dict(),
                      'eval_rs': eval_ans}
-            torch.save(state, './results/' + config.data_file_old.replace('.pkl', '_models_full_mask.pkl').replace('data/', ''))
+            torch.save(state, './results/' + config.data_file_old.replace('.pkl', key_string).replace('data/', ''))
             min_loss_d = d_eval_loss
             for one, one_g in zip(eval_ans[0:10], grand_ans[0:10]):
                 print(one)
                 print(one_g)
             print('+++++++++++++++++++++++++++++++')
         else:
+            count_n += 1
             print(count_p, count_s)
             print('New Larger Test Loss D:%f' % (d_eval_loss))
             for one, one_g in zip(eval_ans[0:10], grand_ans[0:10]):
                 print(one)
                 print(one_g)
             print('+++++++++++++++++++++++++++++++')
-    return state
+            if count_n > 5:
+                print("early stop")
+                break
+    return key_string
 
 
 
@@ -405,4 +412,6 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
         return (-tp / total, -tp_s / total_s, -bleu_scores), eval_ans, eval_gt
 
 modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer = build(config)
-state = train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, loss_func)
+state_key = train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, loss_func)
+from eval_1_2_sec_free import eval_process
+eval_process(state_key, config.hidden_anno_len)
