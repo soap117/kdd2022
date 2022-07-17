@@ -8,7 +8,6 @@ def eval_process(key_string, hidden_len):
     from section_inference import preprocess_sec
     from cbert.utils.dataset import obtain_indicator
     import numpy as np
-    batch_size = 4
     import jieba
     import requests
     import time
