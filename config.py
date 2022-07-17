@@ -100,7 +100,7 @@ class Config(object):
         self.infer_section_range = 10
         self.infer_section_select = 3
         self.maxium_sec = 100
-        self.hidden_anno_len = 5
+        self.hidden_anno_len = 30
         self.multi_gpu = False
         self.pure = True
         self.full_gpu_id = 0

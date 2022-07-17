@@ -1,4 +1,4 @@
-import cuda3
+import cuda4
 import torch
 import torch.nn as nn
 from config import Config
