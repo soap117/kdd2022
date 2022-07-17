@@ -276,6 +276,10 @@ def eval_process(key_string, hidden_len):
 
         result_final = {'srcs': srcs, 'prds': eval_ans, 'tars': eval_gt, 'scores': record_scores,
                         'reference': record_references}
-        with open('./data/test/my_results_sec.pkl', 'wb') as f:
+        with open('./data/test/my_results_sec_limited{}'.format(key_string), 'wb') as f:
             pickle.dump(result_final, f)
     pipieline('./data/test')
+if __name__ == "__main__":
+    key_string = '_models_full_mask_drop_rate_{}_anno_len_{}.pkl'.format(0.1, config.hidden_anno_len)
+    hidden_len = 10
+    eval_process(key_string, hidden_len)
