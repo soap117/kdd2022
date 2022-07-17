@@ -1,4 +1,4 @@
-import cuda3
+import cuda2
 from eval_units import *
 def eval_process(key_string, hidden_len):
     import pickle
