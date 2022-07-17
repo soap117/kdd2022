@@ -83,7 +83,7 @@ class Config(object):
         self.pre_cut = pre_cut
         self.modeld = BartAN
         self.modeld_sen = BartEX
-        self.drop_rate = 0.0
+        self.drop_rate = 0.2
         self.modeld_ann = BartAN
         self.title_emb_dim = 128
         self.key_emb_dim = 128
@@ -100,9 +100,7 @@ class Config(object):
         self.infer_section_range = 10
         self.infer_section_select = 3
         self.maxium_sec = 100
-        self.hidden_anno_len = 10
-        self.hidden_anno_len_rnn = 10
-        self.para_hidden_len = 10
+        self.hidden_anno_len = 20
         self.multi_gpu = False
         self.pure = True
         self.full_gpu_id = 0
