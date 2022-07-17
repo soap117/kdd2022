@@ -1,4 +1,4 @@
-import cuda2
+import cuda3
 from eval_units import *
 def eval_process(key_string, hidden_len):
     import pickle
@@ -281,6 +281,6 @@ def eval_process(key_string, hidden_len):
             pickle.dump(result_final, f)
     pipieline('./data/test')
 if __name__ == "__main__":
-    key_string = '_models_full_mask_drop_rate_{}_anno_len_{}.pkl'.format(0.1, config.hidden_anno_len)
+    key_string = '_models_full_mask_drop_rate_{}_anno_len_{}.pkl'.format(0.15, config.hidden_anno_len)
     hidden_len = 10
     eval_process(key_string, hidden_len)
