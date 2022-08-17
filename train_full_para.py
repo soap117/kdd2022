@@ -90,13 +90,13 @@ def build(config):
     modele.load_state_dict(save_data['model'], strict=False)
     print('Load pretrained E')
     from models.modeling_bart_ex import BartModel, BartLearnedPositionalEmbedding
-    pos_embed_encoder = BartLearnedPositionalEmbedding(1024, 768)
-    pos_embed_decoder = BartLearnedPositionalEmbedding(1024, 768)
-    config.tokenizer.model_max_length = 1024
-    tokenizer.model_max_length = 1024
+    #pos_embed_encoder = BartLearnedPositionalEmbedding(1024, 768)
+    #pos_embed_decoder = BartLearnedPositionalEmbedding(1024, 768)
+    config.tokenizer.model_max_length = 512
+    tokenizer.model_max_length = 512
     modeld = config.modeld_sen.from_pretrained(config.bert_model)
-    modeld.model.encoder.embed_positions = pos_embed_encoder
-    modeld.model.decoder.embed_positions = pos_embed_decoder
+    #modeld.model.encoder.embed_positions = pos_embed_encoder
+    #modeld.model.decoder.embed_positions = pos_embed_decoder
     modeld.cuda()
     modelp.to("cuda:1")
     models.to("cuda:1")
