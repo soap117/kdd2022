@@ -24,6 +24,7 @@ for point in data_test:
     srcs_.append(point[0])
     tars_.append(point[1])
 save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
+print('load from {}'.format('./results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', '')))
 save_step1_data = torch.load('./cbert/cache/' + 'best_save.data')
 
 
