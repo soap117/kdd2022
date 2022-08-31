@@ -1,3 +1,4 @@
+import cuda2
 import torch
 import torch.nn as nn
 from config import Config
@@ -55,8 +56,8 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    Flag = True
-    if os.path.exists(config.data_file.replace('.pkl', '_train_dataset.pkl')) and Flag:
+    debug_flag = False
+    if not debug_flag and os.path.exists(config.data_file.replace('.pkl', '_train_dataset.pkl')):
         train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset.pkl'))
         valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset.pkl'))
         test_dataset = torch.load(config.data_file.replace('.pkl', '_test_dataset.pkl'))
@@ -100,8 +101,8 @@ def build(config):
     modeld.train()
     optimizer_p = AdamW(modelp.parameters(), lr=config.lr*0.1)
     optimizer_s = AdamW(models.parameters(), lr=config.lr*0.1)
-    optimizer_encoder = AdamW(modele.parameters(), lr=config.lr)
-    optimizer_decoder = AdamW(modeld.parameters(), lr=config.lr)
+    optimizer_encoder = AdamW(modele.parameters(), lr=config.lr*0.01)
+    optimizer_decoder = AdamW(modeld.parameters(), lr=config.lr*0.1)
     loss_func = torch.nn.CrossEntropyLoss(reduction='none')
     return modelp, models, modele, modeld, optimizer_p, optimizer_s, optimizer_encoder, optimizer_decoder, train_dataloader, valid_dataloader, test_dataloader, loss_func, titles, sections, title2sections, sec2id, bm25_title, bm25_section, tokenizer
 
@@ -111,13 +112,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
     count_s = -1
     count_p = -1
     data_size = len(train_dataloader)
-    #test_loss, eval_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
-    if config.multi_gpu:
-        modele_p = nn.DataParallel(modele, device_ids=[0, 1, 2, 3], output_device=0)
-        modeld_p = nn.DataParallel(modeld, device_ids=[0, 1, 2, 3], output_device=0)
-    else:
-        modele_p = None
-        modeld_p = None
+    #test_loss, eval_ans, grand_ans = test(modelp, models, modele, modeld, valid_dataloader, loss_func)
     for epoch in range(config.train_epoch*4):
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list) in zip(
                 tqdm(range(data_size)), train_dataloader):
@@ -184,13 +179,13 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             decoder_ids = decoder_ids.to(config.device)
             target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids']
-            #target_ids_for_train = mask_ref(target_ids, tokenizer).to(config.device)
+            target_ids_for_train = mask_ref(target_ids, tokenizer).to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
 
-            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids[:, 0:-1].to(config.device), cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
+            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train[:, 0:-1].to(config.device), cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             logits_ = outputs.logits
             #len_anno = min(target_ids.shape[1], logits_.shape[1])
             logits = logits_
@@ -202,11 +197,18 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             results = [x.replace('[PAD]', '') for x in results]
             results = [x.replace('[CLS]', '') for x in results]
             results = [x.split('[SEP]')[0] for x in results]
+            targets = targets.to(config.device)
             logits = logits.reshape(-1, logits.shape[2])
-            targets = targets.reshape(-1).to(config.device)
+            tar_lens = targets.ne(0).sum(1).float()
+            targets_flat = targets.reshape(-1)
             #masks = torch.ones_like(targets)
+            lossd = loss_func(logits, targets_flat)
             #masks[torch.where(targets == 0)] = 0
-            lossd = (loss_func(logits, targets)).sum()/config.batch_size
+            lossd[targets_flat == 0] = 0
+            lossd = lossd.view(targets.size())
+            lossd = lossd.sum(1).float()
+            lossd = lossd / tar_lens
+            lossd = lossd.mean()
             loss = lossd
             if count_p < 2:
                 loss += losss.mean()
@@ -226,7 +228,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 optimizer_s.step()
             optimizer_encoder.step()
             optimizer_decoder.step()
-            if step%600 == 0:
+            if step%600 == 0 or (step%100 == 0 and epoch == 0):
                 print('loss P:%f loss S:%f loss D:%f' %(lossp.mean().item(), losss.mean().item(), lossd.item()))
                 print(results[0:5])
                 print('---------------------------')
@@ -356,13 +358,13 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             decoder_ids = decoder_inputs['input_ids']
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             decoder_ids = decoder_ids.to(config.device)
-            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(config.device)
+            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids']
             #target_ids_for_train = mask_ref(target_ids, tokenizer).to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
-            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids[:, 0:-1],
+            outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids[:, 0:-1].to(config.device),
                              cut_indicator=cut_list, anno_position=decoder_anno_position,
                              hidden_annotation=hidden_annotation)
             logits_ = outputs.logits

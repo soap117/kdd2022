@@ -97,7 +97,7 @@ def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
             infer_titles = bm25_title.get_top_n(key_cut, titles, config.infer_title_range)
             if len(key) > 0:
                 input_list[0].append(key)
-                input_list[1].append(context)
+                input_list[1].append(context.replace('。', ''))
                 input_list[2].append(infer_titles)
                 input_list[3].append((l_k, r_k))
     return input_list
