@@ -55,7 +55,7 @@ def build(config):
     corpus = titles
     tokenized_corpus = [jieba.lcut(doc) for doc in corpus]
     bm25_title = BM25Okapi(tokenized_corpus)
-    Flag = False
+    Flag = True
     if os.path.exists(config.data_file.replace('.pkl', '_train_dataset.pkl')) and Flag:
         train_dataset = torch.load(config.data_file.replace('.pkl', '_train_dataset.pkl'))
         valid_dataset = torch.load(config.data_file.replace('.pkl', '_valid_dataset.pkl'))
