@@ -358,7 +358,7 @@ def test(modelp, models, modele, modeld, dataloader, loss_func):
             decoder_ids = decoder_inputs['input_ids']
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
             decoder_ids = decoder_ids.to(config.device)
-            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids']
+            target_ids = tokenizer(tar_sens, return_tensors="pt", padding=True, truncation=True)['input_ids'].to(config.device)
             #target_ids_for_train = mask_ref(target_ids, tokenizer).to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
