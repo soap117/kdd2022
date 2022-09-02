@@ -130,7 +130,7 @@ def count_bleu_score(candidate, reference):
             print(candidate[k])
             print(reference[k])
     return avg_score
-results = pickle.load(open('../data/test/my_results_pmbert.pkl', 'rb'))
+results = pickle.load(open('../data/test/my_results_sec_free_new.pkl', 'rb'))
 results_temp = pickle.load(open('../data/test/my_results_bart.pkl', 'rb'))
 if 'srcs' not in results:
     results['srcs'] = results_temp['srcs']

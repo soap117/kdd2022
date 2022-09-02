@@ -24,7 +24,6 @@ for point in data_test:
     srcs_.append(point[0])
     tars_.append(point[1])
 save_data = torch.load('./results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', ''))
-print('load from {}'.format('./results/' + config.data_file.replace('.pkl', '_models_full.pkl').replace('data/', '')))
 save_step1_data = torch.load('./cbert/cache/' + 'best_save.data')
 
 
@@ -68,89 +67,7 @@ def count_score(candidate, reference):
             print(reference[k])
     return avg_score
 
-def obtain_step2_input(pre_labels, src, src_ids, step1_tokenizer):
-    input_list = [[],[],[], [],[]]
-    l = 0
-    r = 0
-    while src_ids[r] != step1_tokenizer.vocab['。']:
-        r += 1
-    for c_id in range(len(src_ids)):
-        if src_ids[c_id] == step1_tokenizer.vocab['。']:
-            context = step1_tokenizer.decode(src_ids[l:r+1]).replace(' ', '').replace('[CLS]', '').replace('[SEP]', '')
-            input_list[4].append((False, context))
-            l = r + 1
-            r = l+1
-            while r<len(src_ids) and src_ids[r] != step1_tokenizer.vocab['。']:
-                r += 1
-        if pre_labels[c_id] == 1:
-            l_k = c_id
-            r_k = l_k+1
-            while r_k<len(pre_labels) and pre_labels[r_k] != 0 and pre_labels[r_k] != 4:
-                r_k += 1
-            if pre_labels[r_k] == 4:
-                r_k += 1
-            templete = src_ids[l_k:r_k]
-            tokens = step1_tokenizer.convert_ids_to_tokens(templete)
-            key = step1_tokenizer.convert_tokens_to_string(tokens).replace(' ', '')
-            context = step1_tokenizer.decode(src_ids[l:r+1]).replace(' ', '').replace('[CLS]', '').replace('[SEP]', '')
-            key_cut = jieba.lcut(key)
-            infer_titles = bm25_title.get_top_n(key_cut, titles, config.infer_title_range)
-            if len(key) > 0:
-                input_list[0].append(key)
-                input_list[1].append(context.replace('。', ''))
-                input_list[2].append(infer_titles)
-                input_list[3].append((l_k, r_k))
-    return input_list
-
-def mark_sentence(input_list):
-    context_dic = {}
-    for key, context, infer_titles in zip(input_list[0], input_list[1], input_list[2]):
-        if context not in context_dic:
-            src = context
-            src = re.sub('\*\*', '', src)
-            src = src.replace('(', '（')
-            src = src.replace('$', '')
-            src = src.replace(')', '）')
-            src = src.replace('\n', '').replace('。。', '。')
-            src = fix_stop(src)
-            context_dic[context] = [src, src, [], []]
-            src_sentence = context_dic[context][0]
-            tar_sentence = context_dic[context][1]
-
-        else:
-            src_sentence = context_dic[context][0]
-            tar_sentence = context_dic[context][1]
-        context_dic[context][2].append(key)
-        context_dic[context][3].append(infer_titles)
-        region = re.search(key, src_sentence)
-        if region is not None:
-            region = region.regs[0]
-        else:
-            region = (0, 0)
-        if region[0] != 0 or region[1] != 0:
-            src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key) + ''.join(
-                [' [MASK] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
-        region = re.search(key, tar_sentence)
-        if region is not None:
-            region = region.regs[0]
-        else:
-            region = (0, 0)
-        if region[0] != 0 or region[1] != 0:
-            tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key) + tar_sentence[region[1]:]
-            '''
-            if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（' and region[1] + 1 < len(
-                    tar_sentence) and tar_sentence[region[1] + 1] != '（' or region[1] == len(tar_sentence) or region[1]+1 == len(tar_sentence):
-                tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key) + tar_sentence[region[1]:]
-            else:
-                tar_sentence = tar_sentence[0:region[0]] + ' ${}$ '.format(key) + tar_sentence[region[1]:]
-            '''
-        context_dic[context][0] = src_sentence
-        context_dic[context][1] = tar_sentence
-    order_context = []
-    for context in input_list[4]:
-        if context[1] not in order_context:
-            order_context.append(context[1])
-    return context_dic, order_context
+from eval_units import mark_sentence, obtain_step2_input
 
 import re
 def is_in_annotation(src, pos):
@@ -183,45 +100,6 @@ def fix_stop(tar):
     tar = tar.replace('\n', '。')
     return tar
 import copy
-def pre_process_sentence(src, tar, keys):
-    src = '。'.join(src)
-    src = re.sub('\*\*', '', src)
-    src = src.replace('(', '（')
-    src = src.replace('$', '')
-    src = src.replace(')', '）')
-    src = src.replace('\n', '').replace('。。', '。')
-    src = fix_stop(src)
-    tar = re.sub('\*\*', '', tar)
-    tar = tar.replace('\n', '').replace('。。', '。')
-    tar = tar.replace('(', '（')
-    tar = tar.replace(')', '）')
-    tar = tar.replace('$', '')
-    tar = fix_stop(tar)
-    src_sentence = src.split('。')
-    tar_sentence = tar.split('。')
-    for key in keys:
-        region = re.search(key, src)
-        if region is not None:
-            region = region.regs[0]
-        else:
-            region = (0, 0)
-        if region[0] != 0 or region[1] != 0:
-            src_sentence = src_sentence[0:region[0]] + ' ${}$ '.format(key) + ''.join(
-                [' [MASK] ' for x in range(config.hidden_anno_len)]) + src_sentence[region[1]:]
-        region = re.search(key, tar_sentence)
-        if region is not None:
-            region = region.regs[0]
-        else:
-            region = (0, 0)
-        if region[0] != 0 or region[1] != 0:
-            if region[1] < len(tar_sentence) and tar_sentence[region[1]] != '（' and region[1] + 1 < len(
-                    tar_sentence) and tar_sentence[region[1] + 1] != '（' and region[1] + 2 < len(tar_sentence) and \
-                    tar_sentence[region[1] + 2] != '（':
-                tar_sentence = tar_sentence[0:region[0]] + ' ${}$ （）'.format(key) + tar_sentence[region[1]:]
-            else:
-                tar_sentence = tar_sentence[0:region[0]] + ' ${}$ '.format(key) + tar_sentence[region[1]:]
-    src = src_sentence
-    return src, tar_sentence, tar
 import json
 def pipieline(path_from):
     eval_ans = []
@@ -397,7 +275,7 @@ def pipieline(path_from):
 
     result_final = {'srcs': srcs, 'prds': eval_ans, 'tars': eval_gt, 'scores': record_scores,
                     'reference': record_references}
-    with open('./data/test/my_results_sec.pkl', 'wb') as f:
+    with open('./data/test/my_results_sec_free.pkl', 'wb') as f:
         pickle.dump(result_final, f)
 
 

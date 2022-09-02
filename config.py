@@ -10,7 +10,7 @@ class Config(object):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')   # 设备bert_model = 'facebook/bart-base'
         self.bert_model = 'fnlp/bart-base-chinese'
         self.tokenizer = BertTokenizer.from_pretrained(self.bert_model)
-        self.tokenizer.add_special_tokens({'additional_special_tokens': ['[unused1]','[unused2]']})
+        self.tokenizer.add_special_tokens({'additional_special_tokens': ['[unused1]','[unused2]','[unused3]','[unused4]']})
         self.CLS = self.tokenizer.cls_token_id
         self.SEP = self.tokenizer.sep_token_id
         self.title_tokenizer = self.tokenizer
@@ -32,7 +32,8 @@ class Config(object):
         self.infer_section_range = 10
         self.infer_section_select = 3
         self.maxium_sec = 512
-        self.hidden_anno_len = 20
+        self.hidden_anno_len = 30
+        self.hidden_anno_len_rnn = 30
         self.multi_gpu = False
         self.full_gpu_id = 0
         self.data_file_old = 'data/mydata_v5.pkl'
