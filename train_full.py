@@ -116,8 +116,10 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
     for epoch in range(config.train_epoch*4):
         for step, (querys, querys_ori, querys_context, titles, sections, infer_titles, src_sens, tar_sens, cut_list) in zip(
                 tqdm(range(data_size)), train_dataloader):
+            # Title 比较器 和 sentence 比较器的原始训练任务
             dis_final, lossp, query_embedding = modelp(querys, querys_context, titles)
             dis_final, losss = models(query_embedding, sections)
+            # 根据当前的query召回title, 选取top k的title，然后把对应的sentence提取出来利用setnece召回器选择sentence
             rs2 = modelp(query_embedding=query_embedding, candidates=infer_titles, is_infer=True)
             rs2 = torch.topk(rs2, config.infer_title_select, dim=1)
             scores_title = rs2[0]
@@ -138,6 +140,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                     if t_sec in sec2id:
                         temp2_id.append(sec2id[t_sec])
                 key_cut = jieba.lcut(query)
+                # 先利用bm25过滤一下sentence
                 ls_scores = bm25_section.get_batch_scores(key_cut, temp2_id)
                 cindex = np.argsort(ls_scores)[::-1][0:config.infer_section_range]
                 temp2_pured = []
@@ -153,12 +156,15 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             mapping = torch.FloatTensor(mapping_title).to(config.device)
             scores_title = scores_title.unsqueeze(1)
             scores_title = scores_title.matmul(mapping).squeeze(1)
+            # 获得 sentence的score
             rs_scores = models(query_embedding, infer_section_candidates_pured, is_infer=True)
+            # 每个 sentence的score是title的scoreX上sentence的score
             scores = scores_title * rs_scores
             rs2 = torch.topk(scores, config.infer_section_select, dim=1)
             scores = rs2[0]
             reference = []
             inds_sec = rs2[1].cpu().numpy()
+            # 将query和提取出来的sentence拼接在一起生成解释
             for bid in range(len(inds_sec)):
                 temp = [querys[bid]]
                 for indc in inds_sec[bid]:
@@ -167,6 +173,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
                 reference.append(temp[0:config.maxium_sec])
             inputs_ref = tokenizer(reference, return_tensors="pt", padding=True, truncation=True)
             reference_ids = inputs_ref['input_ids']
+            #对解释加入随机噪声
             reference_ids = mask_ref(reference_ids, tokenizer).to(config.device)
 
             an_decoder_input = ' '.join(['[MASK]' for x in range(100)])
@@ -174,6 +181,7 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             an_decoder_inputs = tokenizer(an_decoder_inputs, return_tensors="pt", padding=True)
             an_decoder_inputs_ids = an_decoder_inputs['input_ids'].to(config.device)
 
+            #准备句子level的简化输入
             decoder_inputs = tokenizer(src_sens, return_tensors="pt", padding=True, truncation=True)
             decoder_ids = decoder_inputs['input_ids']
             decoder_anno_position = find_spot(decoder_ids, querys_ori, tokenizer)
@@ -182,9 +190,11 @@ def train_eval(modelp, models, modele, modeld, optimizer_p, optimizer_s, optimiz
             target_ids_for_train = mask_ref(target_ids, tokenizer).to(config.device)
             adj_matrix = get_decoder_att_map(tokenizer, '[SEP]', reference_ids, scores)
 
+            #将解释输入模型生成hidden的答案
             outputs_annotation = modele(input_ids=reference_ids, attention_adjust=adj_matrix, decoder_input_ids=an_decoder_inputs_ids)
             hidden_annotation = outputs_annotation.decoder_hidden_states[:, 0:config.hidden_anno_len]
 
+            #将答案插入句子中，生成最后的翻译
             outputs = modeld(input_ids=decoder_ids, decoder_input_ids=target_ids_for_train[:, 0:-1].to(config.device), cut_indicator=cut_list, anno_position=decoder_anno_position, hidden_annotation=hidden_annotation)
             logits_ = outputs.logits
             #len_anno = min(target_ids.shape[1], logits_.shape[1])
