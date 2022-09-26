@@ -32,8 +32,8 @@ class Config(object):
         self.infer_section_range = 10
         self.infer_section_select = 3
         self.maxium_sec = 512
-        self.hidden_anno_len = 30
-        self.hidden_anno_len_rnn = 30
+        self.hidden_anno_len = 18
+        self.hidden_anno_len_rnn = 18
         self.multi_gpu = False
         self.full_gpu_id = 0
         self.data_file_old = 'data/mydata_v5.pkl'
